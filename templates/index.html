@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KELYVO — Enterprise Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#030303',
+                        cardbg: '#080808',
+                        bordercol: '#1f1f1f',
+                        brandgold: '#d4af37'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-darkbg text-gray-100 min-h-screen font-sans selection:bg-zinc-800 flex flex-col justify-between">
+
+    <div>
+        <!-- Top Navigation Bar -->
+        <header class="border-b border-bordercol px-12 py-6 flex justify-between items-center bg-darkbg/95 backdrop-blur-md sticky top-0 z-50">
+            <div class="flex items-center space-x-3">
+                <span class="text-lg font-bold tracking-[0.25em] text-white uppercase">KELYVO<span class="text-zinc-600 font-light ml-1.5">PORTAL</span></span>
+            </div>
+            <div id="user-nav" class="hidden flex items-center space-x-6">
+                <span id="user-email-display" class="text-xs text-zinc-400 font-mono tracking-wide"></span>
+                <button onclick="logout()" class="text-[11px] uppercase tracking-widest text-zinc-400 hover:text-white border border-bordercol px-4 py-2 rounded-md hover:border-zinc-500 transition">Sign Out</button>
+            </div>
+        </header>
+
+        <!-- Main Content Container -->
+        <main class="max-w-7xl mx-auto px-8 py-16 space-y-12">
+
+            <!-- AUTH SECTION -->
+            <div id="auth-section" class="max-w-md mx-auto bg-cardbg border border-bordercol p-10 rounded-2xl shadow-2xl mt-8">
+                <div class="text-center mb-8">
+                    <h1 class="text-xl font-medium tracking-tight text-white">Enterprise Gateway</h1>
+                    <p class="text-[11px] text-zinc-500 uppercase tracking-[0.2em] mt-1.5">Ground Truth & QA Moderation Portal</p>
+                </div>
+
+                <div class="flex border-b border-bordercol mb-8 text-xs">
+                    <button onclick="switchTab('login')" id="tab-login" class="flex-1 pb-3 text-white border-b-2 border-white font-medium transition tracking-wider uppercase">Sign In</button>
+                    <button onclick="switchTab('register')" id="tab-register" class="flex-1 pb-3 text-zinc-500 hover:text-zinc-300 font-medium transition tracking-wider uppercase">Register</button>
+                </div>
+
+                <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-5">
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">Email Address</label>
+                        <input type="email" id="email" required class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition" placeholder="name@kelyvo.com">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">Password</label>
+                        <input type="password" id="password" required class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition" placeholder="••••••••">
+                    </div>
+
+                    <!-- Explicit Portal Role Selector -->
+                    <div id="role-selector-container" class="hidden">
+                        <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">Select Portal Gateway</label>
+                        <select id="role-select" class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition">
+                            <option value="contributor">Contributor Workspace (Worker)</option>
+                            <option value="admin">Admin Control Center (QA Reviewer)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="w-full bg-white text-black font-medium text-xs py-3.5 rounded-lg hover:bg-zinc-200 transition tracking-[0.15em] uppercase">Sign In</button>
+                </form>
+                <div id="auth-message" class="mt-4 text-xs text-center text-red-400 font-mono"></div>
+            </div>
+
+            <!-- CONTRIBUTOR DASHBOARD SECTION -->
+            <div id="dashboard-section" class="hidden space-y-12">
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-end pb-8 border-b border-bordercol gap-8">
+                    <div class="space-y-3">
+                        <div class="inline-flex items-center space-x-2 text-[11px] font-mono text-zinc-400 uppercase tracking-widest bg-zinc-900/50 border border-bordercol px-3 py-1 rounded-full">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>DISPATCH: Operations and QA streams synchronized.</span>
+                        </div>
+                        <h2 class="text-4xl font-light tracking-tight text-white">Contributor Workspace</h2>
+                        <p class="text-sm text-zinc-400 max-w-xl">Submit tasks for professional QA review to earn ₹500.00 per verified batch.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full xl:w-auto">
+                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
+                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">Today</span>
+                            <span id="stat-today" class="text-base text-white font-mono font-semibold mt-0.5 block">0</span>
+                        </div>
+                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
+                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">This Week</span>
+                            <span id="stat-week" class="text-base text-white font-mono font-semibold mt-0.5 block">0</span>
+                        </div>
+                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
+                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">QA Passed</span>
+                            <span id="stat-qa" class="text-base text-emerald-400 font-mono font-semibold mt-0.5 block">0</span>
+                        </div>
+                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
+                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">Earnings</span>
+                            <span id="stat-earnings" class="text-base text-white font-mono font-semibold mt-0.5 block">₹0.00</span>
+                        </div>
+                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
+                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">Role</span>
+                            <span id="role-badge" class="text-xs text-white font-medium uppercase mt-1 block">Contributor</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payout Configuration Section (Locks dynamically) -->
+                <div class="bg-cardbg border border-bordercol p-8 rounded-2xl space-y-6">
+                    <div class="flex justify-between items-center border-b border-bordercol pb-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-white">INR Settlement & Payout Destination</h3>
+                            <p class="text-xs text-zinc-400 mt-0.5">Automated cashouts for verified QA earnings.</p>
+                        </div>
+                        <span class="text-xs text-emerald-400 font-mono bg-emerald-950/40 border border-emerald-900 px-3 py-1 rounded-full">Secure Settlement Active</span>
+                    </div>
+
+                    <div id="payout-container">
+                        <form onsubmit="updatePayout(event)" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                            <div>
+                                <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">Payout Method</label>
+                                <select id="payout-method" class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition">
+                                    <option value="UPI">UPI ID (Google Pay / PhonePe / Paytm)</option>
+                                    <option value="Bank Transfer">Direct Bank Transfer (IMPS / NEFT)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">UPI ID / Account Details</label>
+                                <input type="text" id="payout-details" required class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition font-mono" placeholder="username@okicici">
+                            </div>
+                            <div>
+                                <button type="submit" class="w-full bg-white text-black font-medium text-xs py-3.5 rounded-lg hover:bg-zinc-200 transition tracking-[0.15em] uppercase">Save Payout Details</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div id="payout-status-msg" class="text-xs font-mono text-zinc-400"></div>
+                </div>
+
+                <!-- Live Contributor Submissions & Revisions Feed -->
+                <div class="space-y-6">
+                    <h3 class="text-xl font-light text-white tracking-tight">Active Submissions & Revision Queue</h3>
+                    <div id="contributor-submissions-container" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Standard Task Cards Grid for New Work -->
+                <div class="space-y-6 pt-6 border-t border-bordercol">
+                    <h3 class="text-xl font-light text-white tracking-tight">Available Task Pipelines</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-2">
+                        <div class="bg-cardbg border border-bordercol p-8 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
+                            <div>
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="text-[10px] uppercase tracking-widest px-3 py-1 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Image Bounding</span>
+                                    <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
+                                </div>
+                                <h3 class="text-lg font-normal text-white mb-3 leading-snug tracking-tight">Autonomous Vehicle Sensor Fusion #104</h3>
+                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Multi-frame object detection and bounding box annotation for complex edge-case driving scenarios.</p>
+                            </div>
+                            <div class="mt-8 pt-6 border-t border-bordercol space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] text-zinc-500 font-mono">Payout: ₹500.00</span>
+                                    <a href="http://localhost:8080" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono">Open Label Studio ↗</a>
+                                </div>
+                                <button onclick="submitTask('Image Bounding', 'Autonomous Vehicle Sensor Fusion #104')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Submit Completed Work to QA</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-cardbg border border-bordercol p-8 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
+                            <div>
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="text-[10px] uppercase tracking-widest px-3 py-1 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Audio Transcription</span>
+                                    <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
+                                </div>
+                                <h3 class="text-lg font-normal text-white mb-3 leading-snug tracking-tight">Acoustic Multilingual Dialect Verification</h3>
+                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Review and timestamp human speech audio samples with high acoustic precision and alignment.</p>
+                            </div>
+                            <div class="mt-8 pt-6 border-t border-bordercol space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] text-zinc-500 font-mono">Payout: ₹500.00</span>
+                                    <a href="http://localhost:8080" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono">Open Label Studio ↗</a>
+                                </div>
+                                <button onclick="submitTask('Audio Transcription', 'Acoustic Multilingual Dialect Verification')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Submit Completed Work to QA</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-cardbg border border-bordercol p-8 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
+                            <div>
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="text-[10px] uppercase tracking-widest px-3 py-1 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">LLM Evaluation</span>
+                                    <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
+                                </div>
+                                <h3 class="text-lg font-normal text-white mb-3 leading-snug tracking-tight">Pairwise Preference Ranking - Batch 02</h3>
+                                <p class="text-xs text-zinc-400 leading-relaxed font-light">RLHF evaluation for complex multi-turn reasoning and instruction adherence benchmarks.</p>
+                            </div>
+                            <div class="mt-8 pt-6 border-t border-bordercol space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] text-zinc-500 font-mono">Payout: ₹500.00</span>
+                                    <a href="http://localhost:8080" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono">Open Label Studio ↗</a>
+                                </div>
+                                <button onclick="submitTask('LLM Evaluation', 'Pairwise Preference Ranking - Batch 02')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Submit Completed Work to QA</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN QA CONTROL CENTER SECTION -->
+            <div id="admin-section" class="hidden space-y-10">
+                <div class="pb-6 border-b border-bordercol flex justify-between items-end">
+                    <div>
+                        <div class="inline-flex items-center space-x-2 text-[11px] font-mono text-amber-400 uppercase tracking-widest bg-amber-950/30 border border-amber-900/50 px-3 py-1 rounded-full mb-3">
+                            <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                            <span>ADMIN CONTROL: Quality Assurance Moderation & Reassignment Queue</span>
+                        </div>
+                        <h2 class="text-3xl font-light tracking-tight text-white">QA Review Operations</h2>
+                        <p class="text-sm text-zinc-400 mt-1">Review submissions, add audit feedback notes, and trigger automated pool requeuing on failures.</p>
+                    </div>
+                    <button onclick="loadAdminQueue()" class="text-xs uppercase tracking-wider border border-bordercol px-4 py-2.5 rounded-lg hover:bg-white hover:text-black transition font-mono">Refresh Queue</button>
+                </div>
+
+                <!-- Admin Submissions Table -->
+                <div class="bg-cardbg border border-bordercol rounded-2xl overflow-hidden shadow-2xl">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-bordercol text-[10px] font-mono text-zinc-500 uppercase tracking-widest bg-darkbg/50">
+                                <th class="p-5">ID</th>
+                                <th class="p-5">Contributor</th>
+                                <th class="p-5">Task Category / Title</th>
+                                <th class="p-5">Status & Notes</th>
+                                <th class="p-5 text-right">Moderation Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="text-xs font-mono divide-y divide-bordercol">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Minimalist Footer -->
+    <footer class="border-t border-bordercol px-12 py-6 text-center text-[11px] text-zinc-600 font-mono tracking-widest uppercase">
+        KELYVO ENTERPRISE DATA PLATFORM &mdash; SECURED SESSION
+    </footer>
+
+    <script>
+        let currentMode = 'login';
+
+        window.onload = function() {
+            const savedEmail = localStorage.getItem('kelyvo_user_email');
+            const savedRole = localStorage.getItem('kelyvo_user_role');
+            const savedToday = localStorage.getItem('kelyvo_today');
+            const savedWeek = localStorage.getItem('kelyvo_week');
+            const savedQA = localStorage.getItem('kelyvo_qa');
+            const savedEarnings = localStorage.getItem('kelyvo_earnings');
+            const savedPayout = localStorage.getItem('kelyvo_payout');
+
+            if (savedEmail) {
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('user-nav').classList.remove('hidden');
+                document.getElementById('user-email-display').innerText = savedEmail;
+                document.getElementById('role-badge').innerText = savedRole ? savedRole.toUpperCase() : 'CONTRIBUTOR';
+
+                if (savedRole === 'admin') {
+                    document.getElementById('admin-section').classList.remove('hidden');
+                    loadAdminQueue();
+                } else {
+                    document.getElementById('dashboard-section').classList.remove('hidden');
+                    document.getElementById('stat-today').innerText = savedToday || 0;
+                    document.getElementById('stat-week').innerText = savedWeek || 0;
+                    document.getElementById('stat-qa').innerText = savedQA || 0;
+                    document.getElementById('stat-earnings').innerText = '₹' + parseFloat(savedEarnings || 0).toFixed(2);
+                    
+                    if (savedPayout && savedPayout !== "null" && savedPayout !== "") {
+                        lockPayoutUI(savedPayout);
+                    }
+                    loadContributorSubmissions();
+                }
+            }
+        };
+
+        function switchTab(mode) {
+            currentMode = mode;
+            const btnLogin = document.getElementById('tab-login');
+            const btnRegister = document.getElementById('tab-register');
+            const submitBtn = document.getElementById('submit-btn');
+            const roleSelector = document.getElementById('role-selector-container');
+
+            if (mode === 'login') {
+                btnLogin.className = "flex-1 pb-3 text-white border-b-2 border-white font-medium transition tracking-wider uppercase";
+                btnRegister.className = "flex-1 pb-3 text-zinc-500 hover:text-zinc-300 font-medium transition tracking-wider uppercase";
+                submitBtn.innerText = "Sign In";
+                roleSelector.classList.add('hidden');
+            } else {
+                btnRegister.className = "flex-1 pb-3 text-white border-b-2 border-white font-medium transition tracking-wider uppercase";
+                btnLogin.className = "flex-1 pb-3 text-zinc-500 hover:text-zinc-300 font-medium transition tracking-wider uppercase";
+                submitBtn.innerText = "Create Account";
+                roleSelector.classList.remove('hidden');
+            }
+        }
+
+        async function handleAuth(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const msgBox = document.getElementById('auth-message');
+            msgBox.innerText = "";
+
+            let url = '';
+            if (currentMode === 'login') {
+                url = `/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+            } else {
+                const role = document.getElementById('role-select').value;
+                url = `/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`;
+            }
+
+            try {
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('kelyvo_user_email', data.email);
+                    localStorage.setItem('kelyvo_user_role', data.role);
+                    localStorage.setItem('kelyvo_today', data.tasks_today);
+                    localStorage.setItem('kelyvo_week', data.tasks_week);
+                    localStorage.setItem('kelyvo_qa', data.tasks_passed_qa);
+                    localStorage.setItem('kelyvo_earnings', data.earnings);
+                    localStorage.setItem('kelyvo_payout', data.payout_details || '');
+
+                    document.getElementById('auth-section').classList.add('hidden');
+                    document.getElementById('user-nav').classList.remove('hidden');
+                    document.getElementById('user-email-display').innerText = data.email;
+                    document.getElementById('role-badge').innerText = data.role.toUpperCase();
+
+                    if (data.role === 'admin') {
+                        document.getElementById('admin-section').classList.remove('hidden');
+                        loadAdminQueue();
+                    } else {
+                        document.getElementById('dashboard-section').classList.remove('hidden');
+                        document.getElementById('stat-today').innerText = data.tasks_today;
+                        document.getElementById('stat-week').innerText = data.tasks_week;
+                        document.getElementById('stat-qa').innerText = data.tasks_passed_qa;
+                        document.getElementById('stat-earnings').innerText = '₹' + parseFloat(data.earnings).toFixed(2);
+                        
+                        if (data.payout_details) {
+                            lockPayoutUI(data.payout_details);
+                        }
+                        loadContributorSubmissions();
+                    }
+                } else {
+                    msgBox.innerText = data.detail || "Authentication failed.";
+                }
+            } catch (err) {
+                msgBox.innerText = "Connection error with server.";
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        async function updatePayout(event) {
+            event.preventDefault();
+            const email = document.getElementById('user-email-display').innerText;
+            const method = document.getElementById('payout-method').value;
+            const details = document.getElementById('payout-details').value;
+            const msgBox = document.getElementById('payout-status-msg');
+
+            try {
+                const response = await fetch(`/update-payout?email=${encodeURIComponent(email)}&payout_method=${encodeURIComponent(method)}&payout_details=${encodeURIComponent(details)}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    localStorage.setItem('kelyvo_payout', data.payout_details);
+                    lockPayoutUI(data.payout_details);
+                } else {
+                    msgBox.innerText = data.detail || "Failed to save payout destination.";
+                    msgBox.className = "text-xs font-mono text-red-400";
+                }
+            } catch (err) {
+                msgBox.innerText = "Connection error with server.";
+                msgBox.className = "text-xs font-mono text-red-400";
+            }
+        }
+
+        function lockPayoutUI(details) {
+            const container = document.getElementById('payout-container');
+            container.innerHTML = `
+                <div class="bg-darkbg border border-bordercol p-4 rounded-xl flex items-center justify-between font-mono text-xs">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-emerald-400 font-bold">&#10003; VERIFIED & LOCKED</span>
+                        <span class="text-zinc-300">${details}</span>
+                    </div>
+                    <span class="text-[10px] text-zinc-500 uppercase tracking-widest">Secured & Encrypted</span>
+                </div>
+            `;
+        }
+
+        async function submitTask(taskType, taskTitle) {
+            const email = document.getElementById('user-email-display').innerText;
+            try {
+                const response = await fetch(`/submit-task?email=${encodeURIComponent(email)}&task_type=${encodeURIComponent(taskType)}&task_title=${encodeURIComponent(taskTitle)}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('stat-today').innerText = data.tasks_today;
+                    document.getElementById('stat-week').innerText = data.tasks_week;
+                    localStorage.setItem('kelyvo_today', data.tasks_today);
+                    localStorage.setItem('kelyvo_week', data.tasks_week);
+                    alert("Task successfully submitted to QA moderation queue!");
+                    loadContributorSubmissions();
+                } else {
+                    alert("Submission failed.");
+                }
+            } catch (err) {
+                alert("Connection error with server.");
+            }
+        }
+
+        async function loadContributorSubmissions() {
+            const email = document.getElementById('user-email-display').innerText;
+            try {
+                const response = await fetch('/admin/submissions');
+                const submissions = await response.json();
+                const container = document.getElementById('contributor-submissions-container');
+                container.innerHTML = "";
+
+                const mySubs = submissions.filter(sub => sub.contributor_email === email);
+
+                if (mySubs.length === 0) {
+                    container.innerHTML = `<div class="col-span-3 bg-cardbg border border-bordercol p-6 rounded-xl text-center text-xs text-zinc-500 font-mono">No active submissions in review or revision. Submit a task above to track its QA status.</div>`;
+                    return;
+                }
+
+                mySubs.forEach(sub => {
+                    let statusBadge = `<span class="px-2.5 py-1 bg-amber-950/50 text-amber-400 border border-amber-900 rounded text-[10px] font-mono">PENDING QA</span>`;
+                    if (sub.status === "PASSED") statusBadge = `<span class="px-2.5 py-1 bg-emerald-950/50 text-emerald-400 border border-emerald-900 rounded text-[10px] font-mono">PASSED (+₹500)</span>`;
+                    if (sub.status === "RETURNED") statusBadge = `<span class="px-2.5 py-1 bg-blue-950/50 text-blue-400 border border-blue-900 rounded text-[10px] font-mono">REVISION REQUIRED</span>`;
+                    if (sub.status === "FAILED") statusBadge = `<span class="px-2.5 py-1 bg-red-950/50 text-red-400 border border-red-900 rounded text-[10px] font-mono">FAILED / REQUEUED</span>`;
+
+                    let notesHtml = sub.reviewer_notes ? `<p class="text-xs text-amber-300/90 mt-2 font-mono bg-darkbg p-2.5 rounded border border-bordercol">Admin Feedback: "${sub.reviewer_notes}"</p>` : '';
+
+                    let actionHtml = '';
+                    if (sub.status === "RETURNED") {
+                        actionHtml = `<button onclick="submitTask('${sub.task_type}', '${sub.task_title}')" class="mt-4 w-full bg-blue-600 text-white text-xs uppercase tracking-wider font-medium py-2 rounded-lg hover:bg-blue-500 transition">Resubmit Revision</button>`;
+                    } else if (sub.status === "PENDING_QA") {
+                        actionHtml = `<p class="mt-4 text-[11px] text-zinc-500 font-mono italic">Awaiting professional QA review...</p>`;
+                    } else {
+                        actionHtml = `<p class="mt-4 text-[11px] text-emerald-400 font-mono">Settled & Credited</p>`;
+                    }
+
+                    let card = `
+                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded text-zinc-300 font-mono">#${sub.id} &bull; ${sub.task_type}</span>
+                                    ${statusBadge}
+                                </div>
+                                <h4 class="text-sm font-medium text-white mb-2">${sub.task_title}</h4>
+                                ${notesHtml}
+                            </div>
+                            <div>
+                                ${actionHtml}
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += card;
+                });
+            } catch (err) {
+                console.error("Failed to load contributor submissions", err);
+            }
+        }
+
+        async function loadAdminQueue() {
+            try {
+                const response = await fetch('/admin/submissions');
+                const submissions = await response.json();
+                const tbody = document.getElementById('admin-table-body');
+                tbody.innerHTML = "";
+
+                if (submissions.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-zinc-500">No pending submissions in the QA queue.</td></tr>`;
+                    return;
+                }
+
+                submissions.forEach(sub => {
+                    let statusColor = "text-amber-400";
+                    if (sub.status === "PASSED") statusColor = "text-emerald-400";
+                    if (sub.status === "FAILED") statusColor = "text-red-400";
+                    if (sub.status === "RETURNED") statusColor = "text-blue-400";
+
+                    let notesDisplay = sub.reviewer_notes ? `<span class="block text-[10px] text-zinc-400 mt-1 italic">Note: "${sub.reviewer_notes}"</span>` : '';
+
+                    let row = `
+                        <tr class="hover:bg-zinc-900/40 transition">
+                            <td class="p-5 text-zinc-500">#${sub.id}</td>
+                            <td class="p-5 text-white font-medium">${sub.contributor_email}</td>
+                            <td class="p-5 text-zinc-300">
+                                <span class="px-2.5 py-1 bg-zinc-900 border border-bordercol rounded text-[10px] mr-2">${sub.task_type}</span>
+                                <span class="block mt-1.5 text-white">${sub.task_title}</span>
+                            </td>
+                            <td class="p-5">
+                                <span class="font-bold ${statusColor}">${sub.status}</span>
+                                ${notesDisplay}
+                            </td>
+                            <td class="p-5 text-right space-y-2 md:space-y-0 md:space-x-1">
+                                <input type="text" id="notes-${sub.id}" placeholder="Audit feedback note..." class="bg-darkbg border border-bordercol rounded px-2 py-1 text-[11px] text-white w-36 mb-1 md:mb-0 focus:outline-none focus:border-zinc-500">
+                                <button onclick="reviewTask(${sub.id}, 'PASSED')" class="px-2.5 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded hover:bg-emerald-900 transition">Pass</button>
+                                <button onclick="reviewTask(${sub.id}, 'FAILED')" class="px-2.5 py-1 bg-red-950 text-red-400 border border-red-800 rounded hover:bg-red-900 transition" title="Requeues task to pool">Fail & Requeue</button>
+                                <button onclick="reviewTask(${sub.id}, 'RETURNED')" class="px-2.5 py-1 bg-blue-950 text-blue-400 border border-blue-800 rounded hover:bg-blue-900 transition">Return</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } catch (err) {
+                console.error("Failed to load admin queue", err);
+            }
+        }
+
+        async function reviewTask(subId, decision) {
+            const notesInput = document.getElementById(`notes-${subId}`);
+            const notes = notesInput ? notesInput.value : "";
+
+            try {
+                const response = await fetch(`/admin/review-task?submission_id=${subId}&decision=${decision}&notes=${encodeURIComponent(notes)}`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    loadAdminQueue();
+                } else {
+                    alert("Failed to update review status.");
+                }
+            } catch (err) {
+                alert("Connection error with server.");
+            }
+        }
+    </script>
+</body>
+</html>
