@@ -20,12 +20,44 @@
             }
         }
     </script>
+    <style>
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.3; transform: scale(0.98); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 2s linear infinite;
+        }
+        .animate-pulse-glow {
+            animation: pulse-glow 2.5s ease-in-out infinite;
+        }
+    </style>
 </head>
-<body class="bg-darkbg text-gray-100 min-h-screen font-sans selection:bg-zinc-800 flex flex-col justify-between">
+<body class="bg-darkbg text-gray-100 min-h-screen font-sans selection:bg-zinc-800 flex flex-col justify-between relative">
+
+    <!-- CREATIVE SMOOTH LOADING OVERLAY -->
+    <div id="loading-overlay" class="fixed inset-0 bg-darkbg/80 backdrop-blur-md z-50 flex flex-col items-center justify-center transition-all duration-500 opacity-0 pointer-events-none">
+        <div class="relative flex items-center justify-center">
+            <!-- Outer glowing aura ring -->
+            <div class="absolute w-24 h-24 rounded-full bg-white/5 animate-pulse-glow"></div>
+            <!-- Spinning dashed ring -->
+            <div class="w-16 h-16 border-2 border-zinc-700 border-t-white rounded-full animate-spin-slow"></div>
+            <!-- Inner core dot -->
+            <div class="absolute w-2 h-2 bg-white rounded-full animate-ping"></div>
+        </div>
+        <div class="mt-6 text-center space-y-1">
+            <p id="loading-text" class="text-xs uppercase tracking-[0.25em] text-white font-mono">Securing Connection...</p>
+            <p class="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">Kelyvo Secure Gateway</p>
+        </div>
+    </div>
 
     <div>
         <!-- Top Navigation Bar -->
-        <header class="border-b border-bordercol px-12 py-6 flex justify-between items-center bg-darkbg/95 backdrop-blur-md sticky top-0 z-50">
+        <header class="border-b border-bordercol px-12 py-6 flex justify-between items-center bg-darkbg/95 backdrop-blur-md sticky top-0 z-40">
             <div class="flex items-center space-x-3">
                 <span class="text-lg font-bold tracking-[0.25em] text-white uppercase">KELYVO<span class="text-zinc-600 font-light ml-1.5">PORTAL</span></span>
             </div>
@@ -149,63 +181,83 @@
                     </div>
                 </div>
 
-                <!-- Standard Task Cards Grid for New Work -->
+                <!-- Standard Task Cards Grid for New Work with Secured Dynamic Routing -->
                 <div class="space-y-6 pt-6 border-t border-bordercol">
-                    <h3 class="text-xl font-light text-white tracking-tight">Available Task Pipelines</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pt-2">
-                        <div class="bg-cardbg border border-bordercol p-8 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
+                    <h3 class="text-xl font-light text-white tracking-tight">Available Task Pipelines (Isolated Canvas Mode)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 pt-2">
+                        
+                        <!-- Image Pipeline -->
+                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
                             <div>
-                                <div class="flex justify-between items-center mb-6">
-                                    <span class="text-[10px] uppercase tracking-widest px-3 py-1 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Image Bounding</span>
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="text-[9px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Image Pipeline</span>
                                     <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
                                 </div>
-                                <h3 class="text-lg font-normal text-white mb-3 leading-snug tracking-tight">Autonomous Vehicle Sensor Fusion #104</h3>
-                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Multi-frame object detection and bounding box annotation for complex edge-case driving scenarios.</p>
+                                <h3 class="text-base font-normal text-white mb-2 leading-snug tracking-tight">Image Bounding & Sensor Fusion</h3>
+                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Direct isolated canvas feed for image annotation.</p>
                             </div>
-                            <div class="mt-8 pt-6 border-t border-bordercol space-y-3">
+                            <div class="mt-6 pt-4 border-t border-bordercol space-y-3">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-[11px] text-zinc-500 font-mono">Payout: ₹500.00</span>
-                                    <a href="http://localhost:8080" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono">Open Label Studio ↗</a>
+                                    <span class="text-[11px] text-zinc-500 font-mono">Rate: ₹500</span>
                                 </div>
-                                <button onclick="submitTask('Image Bounding', 'Autonomous Vehicle Sensor Fusion #104')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Submit Completed Work to QA</button>
+                                <button onclick="startAnnotationTask('image')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Start Image Task</button>
                             </div>
                         </div>
 
-                        <div class="bg-cardbg border border-bordercol p-8 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
+                        <!-- Audio Pipeline -->
+                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
                             <div>
-                                <div class="flex justify-between items-center mb-6">
-                                    <span class="text-[10px] uppercase tracking-widest px-3 py-1 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Audio Transcription</span>
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="text-[9px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Audio Pipeline</span>
                                     <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
                                 </div>
-                                <h3 class="text-lg font-normal text-white mb-3 leading-snug tracking-tight">Acoustic Multilingual Dialect Verification</h3>
-                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Review and timestamp human speech audio samples with high acoustic precision and alignment.</p>
+                                <h3 class="text-base font-normal text-white mb-2 leading-snug tracking-tight">Acoustic Dialect Verification</h3>
+                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Direct isolated canvas feed for audio transcription.</p>
                             </div>
-                            <div class="mt-8 pt-6 border-t border-bordercol space-y-3">
+                            <div class="mt-6 pt-4 border-t border-bordercol space-y-3">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-[11px] text-zinc-500 font-mono">Payout: ₹500.00</span>
-                                    <a href="http://localhost:8080" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono">Open Label Studio ↗</a>
+                                    <span class="text-[11px] text-zinc-500 font-mono">Rate: ₹500</span>
                                 </div>
-                                <button onclick="submitTask('Audio Transcription', 'Acoustic Multilingual Dialect Verification')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Submit Completed Work to QA</button>
+                                <button onclick="startAnnotationTask('audio')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Start Audio Task</button>
                             </div>
                         </div>
 
-                        <div class="bg-cardbg border border-bordercol p-8 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
+                        <!-- Video Pipeline -->
+                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
                             <div>
-                                <div class="flex justify-between items-center mb-6">
-                                    <span class="text-[10px] uppercase tracking-widest px-3 py-1 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">LLM Evaluation</span>
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="text-[9px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Video Pipeline</span>
                                     <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
                                 </div>
-                                <h3 class="text-lg font-normal text-white mb-3 leading-snug tracking-tight">Pairwise Preference Ranking - Batch 02</h3>
-                                <p class="text-xs text-zinc-400 leading-relaxed font-light">RLHF evaluation for complex multi-turn reasoning and instruction adherence benchmarks.</p>
+                                <h3 class="text-base font-normal text-white mb-2 leading-snug tracking-tight">Temporal Spatio Video Tagging</h3>
+                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Direct isolated canvas feed for video object tracking.</p>
                             </div>
-                            <div class="mt-8 pt-6 border-t border-bordercol space-y-3">
+                            <div class="mt-6 pt-4 border-t border-bordercol space-y-3">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-[11px] text-zinc-500 font-mono">Payout: ₹500.00</span>
-                                    <a href="http://localhost:8080" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono">Open Label Studio ↗</a>
+                                    <span class="text-[11px] text-zinc-500 font-mono">Rate: ₹500</span>
                                 </div>
-                                <button onclick="submitTask('LLM Evaluation', 'Pairwise Preference Ranking - Batch 02')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Submit Completed Work to QA</button>
+                                <button onclick="startAnnotationTask('video')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Start Video Task</button>
                             </div>
                         </div>
+
+                        <!-- Text Pipeline -->
+                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
+                            <div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="text-[9px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Text Pipeline</span>
+                                    <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
+                                </div>
+                                <h3 class="text-base font-normal text-white mb-2 leading-snug tracking-tight">LLM Pairwise Preference Eval</h3>
+                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Direct isolated canvas feed for LLM response evaluation.</p>
+                            </div>
+                            <div class="mt-6 pt-4 border-t border-bordercol space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] text-zinc-500 font-mono">Rate: ₹500</span>
+                                </div>
+                                <button onclick="startAnnotationTask('text')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Start Text Task</button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -253,6 +305,19 @@
 
     <script>
         let currentMode = 'login';
+
+        function showLoader(text = "Processing Request...") {
+            const overlay = document.getElementById('loading-overlay');
+            document.getElementById('loading-text').innerText = text;
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            overlay.classList.add('opacity-100');
+        }
+
+        function hideLoader() {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.classList.remove('opacity-100');
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+        }
 
         window.onload = function() {
             const savedEmail = localStorage.getItem('kelyvo_user_email');
@@ -314,6 +379,8 @@
             const msgBox = document.getElementById('auth-message');
             msgBox.innerText = "";
 
+            showLoader(currentMode === 'login' ? 'Authenticating Credentials...' : 'Registering Account...');
+
             let url = '';
             if (currentMode === 'login') {
                 url = `/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
@@ -325,6 +392,7 @@
             try {
                 const response = await fetch(url, { method: 'POST' });
                 const data = await response.json();
+                hideLoader();
 
                 if (response.ok) {
                     localStorage.setItem('kelyvo_user_email', data.email);
@@ -359,13 +427,17 @@
                     msgBox.innerText = data.detail || "Authentication failed.";
                 }
             } catch (err) {
+                hideLoader();
                 msgBox.innerText = "Connection error with server.";
             }
         }
 
         function logout() {
-            localStorage.clear();
-            location.reload();
+            showLoader('Terminating Session...');
+            setTimeout(() => {
+                localStorage.clear();
+                location.reload();
+            }, 400);
         }
 
         async function updatePayout(event) {
@@ -375,11 +447,15 @@
             const details = document.getElementById('payout-details').value;
             const msgBox = document.getElementById('payout-status-msg');
 
+            showLoader('Securing Payout Destination...');
+
             try {
                 const response = await fetch(`/update-payout?email=${encodeURIComponent(email)}&payout_method=${encodeURIComponent(method)}&payout_details=${encodeURIComponent(details)}`, {
                     method: 'POST'
                 });
                 const data = await response.json();
+                hideLoader();
+
                 if (response.ok) {
                     localStorage.setItem('kelyvo_payout', data.payout_details);
                     lockPayoutUI(data.payout_details);
@@ -388,8 +464,30 @@
                     msgBox.className = "text-xs font-mono text-red-400";
                 }
             } catch (err) {
+                hideLoader();
                 msgBox.innerText = "Connection error with server.";
                 msgBox.className = "text-xs font-mono text-red-400";
+            }
+        }
+
+        async function startAnnotationTask(modality) {
+            showLoader('Routing to Task Stream...');
+            try {
+                let response = await fetch(`/api/start-task?modality=${modality}`);
+                let data = await response.json();
+                hideLoader();
+
+                if (data.status === "success" && data.redirect_url) {
+                    // Correctly use '?' to append UI isolation flags so Label Studio routing succeeds without 404s
+                    let securedUrl = `${data.redirect_url}?settings=false&menu=false`;
+                    window.open(securedUrl, "_blank");
+                } else {
+                    alert("Could not load task queue at the moment.");
+                }
+            } catch (error) {
+                hideLoader();
+                console.error("Error starting task:", error);
+                alert("Failed to connect to the task routing service.");
             }
         }
 
@@ -408,11 +506,15 @@
 
         async function submitTask(taskType, taskTitle) {
             const email = document.getElementById('user-email-display').innerText;
+            showLoader('Submitting Work to QA Stream...');
+
             try {
                 const response = await fetch(`/submit-task?email=${encodeURIComponent(email)}&task_type=${encodeURIComponent(taskType)}&task_title=${encodeURIComponent(taskTitle)}`, {
                     method: 'POST'
                 });
                 const data = await response.json();
+                hideLoader();
+
                 if (response.ok) {
                     document.getElementById('stat-today').innerText = data.tasks_today;
                     document.getElementById('stat-week').innerText = data.tasks_week;
@@ -424,6 +526,7 @@
                     alert("Submission failed.");
                 }
             } catch (err) {
+                hideLoader();
                 alert("Connection error with server.");
             }
         }
@@ -533,16 +636,21 @@
             const notesInput = document.getElementById(`notes-${subId}`);
             const notes = notesInput ? notesInput.value : "";
 
+            showLoader('Updating QA Audit Stream...');
+
             try {
                 const response = await fetch(`/admin/review-task?submission_id=${subId}&decision=${decision}&notes=${encodeURIComponent(notes)}`, {
                     method: 'POST'
                 });
+                hideLoader();
+
                 if (response.ok) {
                     loadAdminQueue();
                 } else {
                     alert("Failed to update review status.");
                 }
             } catch (err) {
+                hideLoader();
                 alert("Connection error with server.");
             }
         }

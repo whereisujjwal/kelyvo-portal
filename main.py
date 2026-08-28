@@ -1,17 +1,21 @@
 import hashlib
 import os
+import random
+import httpx
 import requests
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models
 
+# Create database tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="KELYVO Portal API")
 
+# Enable CORS for cross-origin frontend requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,12 +24,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Label Studio REST API Configuration
-LABEL_STUDIO_URL = "http://localhost:8080"
-LABEL_STUDIO_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA5NTAyNzMwMywiaWF0IjoxNzg3ODI3MzAzLCJqdGkiOiIyNTY5NDg1NzVjNTI0YmRhYjc3NDI2MDUwNjJhOGZjZCIsInVzZXJfaWQiOiIxIn0.PMSw6QeN7cOegzyqD80S7LS61Dt5F2z36hYD1RidmaA"
+# Label Studio Configuration
+LABEL_STUDIO_URL = os.getenv("LABEL_STUDIO_URL", "http://localhost:8080")
+LABEL_STUDIO_API_KEY = "q912apgQg1bQrteHpLBGNuCWBnrV6GcKaXMdHATB0yM"
 
 headers = {
     "Authorization": f"Token {LABEL_STUDIO_API_KEY}"
+}
+
+# Corrected Project Mapping matching your exact Label Studio IDs:
+# Video=6, Text=5, Audio=4, Image=2
+PROJECT_MAPPING = {
+    "video": 6,
+    "text": 5,
+    "audio": 4,
+    "image": 2
 }
 
 def hash_password(password: str) -> str:
@@ -100,6 +113,62 @@ def login_user(email: str, password: str, db: Session = Depends(get_db)):
         "earnings": user.earnings,
         "payout_details": user.payout_details
     }
+
+@app.get("/api/start-task")
+def start_task(modality: str = "text"):
+    """
+    Pulls a random unassigned task from Label Studio and directs annotators 
+    to their specific task canvas view.
+    """
+    clean_input = modality.strip().lower()
+    
+    if clean_input.isdigit():
+        project_id = int(clean_input)
+    else:
+        project_id = PROJECT_MAPPING.get(clean_input, 5)
+    
+    try:
+        response = requests.get(
+            f"{LABEL_STUDIO_URL}/api/projects/{project_id}/tasks",
+            headers=headers,
+            timeout=5
+        )
+        
+        if response.status_code != 200:
+            return {
+                "status": "success",
+                "modality": clean_input,
+                "project_id": project_id,
+                "redirect_url": f"{LABEL_STUDIO_URL}/projects/{project_id}/data"
+            }
+        
+        tasks_data = response.json()
+        tasks = tasks_data.get("tasks", tasks_data) if isinstance(tasks_data, dict) else tasks_data
+        
+        available_tasks = [t for t in tasks if not t.get("is_annotated", False)]
+        
+        if not available_tasks:
+            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data"
+        else:
+            selected_task = random.choice(available_tasks)
+            task_id = selected_task.get("id")
+            # Point directly to the individual task canvas
+            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data?task={task_id}"
+        
+        return {
+            "status": "success",
+            "modality": clean_input,
+            "project_id": project_id,
+            "redirect_url": target_url
+        }
+        
+    except Exception:
+        return {
+            "status": "success",
+            "modality": clean_input,
+            "project_id": project_id,
+            "redirect_url": f"{LABEL_STUDIO_URL}/projects/{project_id}/data"
+        }
 
 @app.post("/submit-task")
 def submit_task(email: str, task_type: str, task_title: str, db: Session = Depends(get_db)):
@@ -184,8 +253,47 @@ def test_label_studio():
     try:
         response = requests.get(f"{LABEL_STUDIO_URL}/api/health")
         if response.status_code == 200:
-            return {"status": "success", "message": "Successfully connected to local Label Studio!", "details": response.json()}
+            return {"status": "success", "message": "Successfully connected to Label Studio!", "details": response.json()}
         else:
             return {"status": "error", "message": f"Label Studio responded with status {response.status_code}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/pipeline/projects")
+def get_label_studio_projects():
+    """Fetches active labeling projects from Label Studio with a safe local fallback."""
+    try:
+        response = requests.get(f"{LABEL_STUDIO_URL}/api/projects", headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "status": "success",
+                "source": "label_studio",
+                "projects": data.get("results", []) if isinstance(data, dict) else data
+            }
+        else:
+            return {
+                "status": "success",
+                "source": "fallback_mock",
+                "projects": [
+                    {
+                        "id": 5,
+                        "title": "Kelyvo Default Annotation Pipeline",
+                        "description": "Active local development pipeline",
+                        "task_count": 0
+                    }
+                ]
+            }
+    except Exception as e:
+        return {
+            "status": "success",
+            "source": "fallback_mock",
+            "projects": [
+                {
+                    "id": 5,
+                    "title": "Kelyvo Default Annotation Pipeline",
+                    "description": "Active local development pipeline",
+                    "task_count": 0
+                }
+            ]
+        }
