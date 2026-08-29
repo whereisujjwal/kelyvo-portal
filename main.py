@@ -114,13 +114,18 @@ def login_user(email: str, password: str, db: Session = Depends(get_db)):
 @app.get("/api/start-task")
 def start_task(modality: str = "text"):
     """
-    Pulls a single unassigned task's data payload directly from Label Studio,
-    allowing Kelyvo to render a 100% isolated, secure native workspace.
+    Pulls an unassigned task payload and project config from Label Studio 
+    to render natively inside the Kelyvo portal frontend SDK.
     """
     clean_input = modality.strip().lower()
     project_id = int(clean_input) if clean_input.isdigit() else PROJECT_MAPPING.get(clean_input, 5)
     
     try:
+        # Fetch project config XML from Label Studio API
+        proj_resp = requests.get(f"{LABEL_STUDIO_URL}/api/projects/{project_id}", headers=headers, timeout=5)
+        project_config = proj_resp.json().get("label_config", "<View></View>") if proj_resp.status_code == 200 else "<View></View>"
+
+        # Fetch tasks for the project
         response = requests.get(
             f"{LABEL_STUDIO_URL}/api/projects/{project_id}/tasks",
             headers=headers,
@@ -143,6 +148,7 @@ def start_task(modality: str = "text"):
             "status": "success",
             "modality": clean_input,
             "project_id": project_id,
+            "config": project_config,
             "task": selected_task
         }
         
