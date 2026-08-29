@@ -31,8 +31,6 @@ headers = {
     "Authorization": f"Token {LABEL_STUDIO_API_KEY}"
 }
 
-# Corrected Project Mapping matching your exact Label Studio IDs:
-# Video=6, Text=5, Audio=4, Image=2
 PROJECT_MAPPING = {
     "video": 6,
     "text": 5,
@@ -116,15 +114,11 @@ def login_user(email: str, password: str, db: Session = Depends(get_db)):
 @app.get("/api/start-task")
 def start_task(modality: str = "text"):
     """
-    Pulls an unassigned task from Label Studio and directs annotators 
-    to Label Studio's official single-task labeling stream view.
+    Pulls a single unassigned task's data payload directly from Label Studio,
+    allowing Kelyvo to render a 100% isolated, secure native workspace.
     """
     clean_input = modality.strip().lower()
-    
-    if clean_input.isdigit():
-        project_id = int(clean_input)
-    else:
-        project_id = PROJECT_MAPPING.get(clean_input, 5)
+    project_id = int(clean_input) if clean_input.isdigit() else PROJECT_MAPPING.get(clean_input, 5)
     
     try:
         response = requests.get(
@@ -134,40 +128,26 @@ def start_task(modality: str = "text"):
         )
         
         if response.status_code != 200:
-            return {
-                "status": "success",
-                "modality": clean_input,
-                "project_id": project_id,
-                "redirect_url": f"{LABEL_STUDIO_URL}/projects/{project_id}/data?labeling=true"
-            }
+            raise HTTPException(status_code=400, detail="Could not connect to task pool.")
         
         tasks_data = response.json()
         tasks = tasks_data.get("tasks", tasks_data) if isinstance(tasks_data, dict) else tasks_data
-        
         available_tasks = [t for t in tasks if not t.get("is_annotated", False)]
         
         if not available_tasks:
-            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data?labeling=true"
-        else:
-            selected_task = random.choice(available_tasks)
-            task_id = selected_task.get("id")
-            # Official Label Studio single-task stream URL format with labeling=true parameter
-            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data?labeling=true&task={task_id}"
+            raise HTTPException(status_code=404, detail="No available tasks in this pipeline.")
+            
+        selected_task = random.choice(available_tasks)
         
         return {
             "status": "success",
             "modality": clean_input,
             "project_id": project_id,
-            "redirect_url": target_url
+            "task": selected_task
         }
         
-    except Exception:
-        return {
-            "status": "success",
-            "modality": clean_input,
-            "project_id": project_id,
-            "redirect_url": f"{LABEL_STUDIO_URL}/projects/{project_id}/data?labeling=true"
-        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/submit-task")
 def submit_task(email: str, task_type: str, task_title: str, db: Session = Depends(get_db)):
@@ -260,7 +240,6 @@ def test_label_studio():
 
 @app.get("/api/pipeline/projects")
 def get_label_studio_projects():
-    """Fetches active labeling projects from Label Studio with a safe local fallback."""
     try:
         response = requests.get(f"{LABEL_STUDIO_URL}/api/projects", headers=headers)
         if response.status_code == 200:
@@ -274,25 +253,11 @@ def get_label_studio_projects():
             return {
                 "status": "success",
                 "source": "fallback_mock",
-                "projects": [
-                    {
-                        "id": 5,
-                        "title": "Kelyvo Default Annotation Pipeline",
-                        "description": "Active local development pipeline",
-                        "task_count": 0
-                    }
-                ]
+                "projects": [{"id": 5, "title": "Kelyvo Default Pipeline", "description": "Active local pipeline", "task_count": 0}]
             }
     except Exception as e:
         return {
             "status": "success",
             "source": "fallback_mock",
-            "projects": [
-                {
-                    "id": 5,
-                    "title": "Kelyvo Default Annotation Pipeline",
-                    "description": "Active local development pipeline",
-                    "task_count": 0
-                }
-            ]
+            "projects": [{"id": 5, "title": "Kelyvo Default Pipeline", "description": "Active local pipeline", "task_count": 0}]
         }
