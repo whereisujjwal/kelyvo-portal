@@ -116,8 +116,8 @@ def login_user(email: str, password: str, db: Session = Depends(get_db)):
 @app.get("/api/start-task")
 def start_task(modality: str = "text"):
     """
-    Pulls a random unassigned task from Label Studio and routes annotators 
-    directly to the single-task canvas view instead of the list table.
+    Pulls an unassigned task from Label Studio and directs annotators 
+    to Label Studio's official single-task labeling stream view.
     """
     clean_input = modality.strip().lower()
     
@@ -138,7 +138,7 @@ def start_task(modality: str = "text"):
                 "status": "success",
                 "modality": clean_input,
                 "project_id": project_id,
-                "redirect_url": f"{LABEL_STUDIO_URL}/projects/{project_id}/data"
+                "redirect_url": f"{LABEL_STUDIO_URL}/projects/{project_id}/data?labeling=true"
             }
         
         tasks_data = response.json()
@@ -147,12 +147,12 @@ def start_task(modality: str = "text"):
         available_tasks = [t for t in tasks if not t.get("is_annotated", False)]
         
         if not available_tasks:
-            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data"
+            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data?labeling=true"
         else:
             selected_task = random.choice(available_tasks)
             task_id = selected_task.get("id")
-            # Point directly to the individual task canvas URL format
-            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/tasks/{task_id}"
+            # Official Label Studio single-task stream URL format with labeling=true parameter
+            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data?labeling=true&task={task_id}"
         
         return {
             "status": "success",
@@ -166,7 +166,7 @@ def start_task(modality: str = "text"):
             "status": "success",
             "modality": clean_input,
             "project_id": project_id,
-            "redirect_url": f"{LABEL_STUDIO_URL}/projects/{project_id}/data"
+            "redirect_url": f"{LABEL_STUDIO_URL}/projects/{project_id}/data?labeling=true"
         }
 
 @app.post("/submit-task")
