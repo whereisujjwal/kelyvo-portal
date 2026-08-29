@@ -478,8 +478,7 @@
                 hideLoader();
 
                 if (data.status === "success" && data.redirect_url) {
-                    // Correctly use '?' to append UI isolation flags so Label Studio routing succeeds without 404s
-                    let securedUrl = `${data.redirect_url}?settings=false&menu=false`;
+                    let securedUrl = `${data.redirect_url}&settings=false&menu=false`;
                     window.open(securedUrl, "_blank");
                 } else {
                     alert("Could not load task queue at the moment.");

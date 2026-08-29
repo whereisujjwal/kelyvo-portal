@@ -1,11 +1,10 @@
 import hashlib
 import os
 import random
-import httpx
 import requests
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models
@@ -152,7 +151,6 @@ def start_task(modality: str = "text"):
         else:
             selected_task = random.choice(available_tasks)
             task_id = selected_task.get("id")
-            # Point directly to the individual task canvas
             target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data?task={task_id}"
         
         return {
