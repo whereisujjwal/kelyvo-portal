@@ -116,8 +116,8 @@ def login_user(email: str, password: str, db: Session = Depends(get_db)):
 @app.get("/api/start-task")
 def start_task(modality: str = "text"):
     """
-    Pulls a random unassigned task from Label Studio and directs annotators 
-    to their specific task canvas view.
+    Pulls a random unassigned task from Label Studio and routes annotators 
+    directly to the single-task canvas view instead of the list table.
     """
     clean_input = modality.strip().lower()
     
@@ -151,7 +151,8 @@ def start_task(modality: str = "text"):
         else:
             selected_task = random.choice(available_tasks)
             task_id = selected_task.get("id")
-            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/data?task={task_id}"
+            # Point directly to the individual task canvas URL format
+            target_url = f"{LABEL_STUDIO_URL}/projects/{project_id}/tasks/{task_id}"
         
         return {
             "status": "success",
