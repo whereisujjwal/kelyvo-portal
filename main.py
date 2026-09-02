@@ -1425,11 +1425,44 @@ def register_user(
     email: str,
     password: str,
     role: str = "contributor",
+    registration_code: str = "",
     db: Session = Depends(get_db)
 ):
     email = normalize_email(
         email
     )
+
+    requested_role = (role or "contributor").strip().lower()
+
+    if requested_role not in {"contributor", "admin"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid registration role."
+        )
+
+    if requested_role == "admin":
+        configured_admin_code = os.getenv(
+            "KELYVO_ADMIN_REGISTRATION_CODE",
+            ""
+        ).strip()
+
+        supplied_admin_code = (registration_code or "").strip()
+
+        if (
+            not configured_admin_code
+            or not supplied_admin_code
+            or not hmac.compare_digest(
+                supplied_admin_code,
+                configured_admin_code
+            )
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "A valid Admin Control registration code "
+                    "is required."
+                )
+            )
 
     existing_user = (
         db.query(models.User)
@@ -1445,7 +1478,7 @@ def register_user(
             detail="Email already registered"
         )
 
-    assigned_role = "contributor"
+    assigned_role = requested_role
 
     hashed_pwd = hash_password(
         password
