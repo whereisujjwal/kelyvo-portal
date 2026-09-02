@@ -1,662 +1,5726 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KELYVO — Enterprise Portal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Label Studio Frontend SDK Styles & Script -->
-    <link href="https://unpkg.com/@heartexlabs/label-studio@latest/build/static/css/main.css" rel="stylesheet">
-    <script src="https://unpkg.com/@heartexlabs/label-studio@latest/build/static/js/main.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkbg: '#030303',
-                        cardbg: '#080808',
-                        bordercol: '#1f1f1f',
-                        brandgold: '#d4af37'
-                    }
-                }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KELYVO — Enterprise Portal</title>
+
+<link rel="icon" href="data:,">
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!--
+     ============================================================
+     LABEL STUDIO INTEGRATION
+     ============================================================
+
+     KELYVO uses the real Label Studio web application running on
+     the local Label Studio server.
+
+     The contributor workspace is served through the KELYVO backend.
+
+     KELYVO will proxy the Label Studio task workspace so contributors
+     do not receive direct access to the Label Studio Data Manager.
+-->
+
+<script>
+tailwind.config = {
+    darkMode: "class",
+    theme: {
+        extend: {
+            colors: {
+                darkbg: "#030303",
+                cardbg: "#080808",
+                bordercol: "#1f1f1f",
+                brandgold: "#d4af37"
             }
         }
-    </script>
-    <style>
-        @keyframes spin-slow {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 0.3; transform: scale(0.98); }
-            50% { opacity: 0.8; transform: scale(1.02); }
-        }
-        .animate-spin-slow {
-            animation: spin-slow 2s linear infinite;
-        }
-        .animate-pulse-glow {
-            animation: pulse-glow 2.5s ease-in-out infinite;
-        }
-        /* Custom tweaks to match Kelyvo dark theme inside the embedded SDK canvas */
-        #label-studio-container {
-            background-color: #080808;
-            color: #ffffff;
-            width: 100%;
-            height: 100%;
-        }
-    </style>
+    }
+};
+</script>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+    background: #030303;
+}
+
+body {
+    color: #f4f4f5;
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.spin {
+    animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+#label-studio-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 150px);
+    min-height: 550px;
+    background: #0c0c0c;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+#label-studio-editor {
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+    background: #111;
+}
+
+#label-studio-iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+    border: 0;
+    background: #111;
+}
+
+#workspace-skip-button:disabled,
+#workspace-submit-button:disabled {
+    cursor: not-allowed;
+}
+
+.workspace-message {
+    height: 100%;
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px;
+}
+
+/* ============================================================
+   CONTRIBUTOR LABEL STUDIO LOCKDOWN
+   ============================================================ */
+
+#label-studio-container.contributor-locked {
+    user-select: none;
+}
+
+#label-studio-container.contributor-locked iframe {
+    pointer-events: auto;
+}
+
+/* ============================================================
+   CONTRIBUTOR DASHBOARD ENHANCEMENTS
+============================================================ */
+
+.kelyvo-card {
+    background: #080808;
+    border: 1px solid #1f1f1f;
+    border-radius: 16px;
+}
+
+.kelyvo-status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    margin-right: 7px;
+}
+
+.kelyvo-status-dot.pending {
+    background: #f59e0b;
+}
+
+.kelyvo-status-dot.passed {
+    background: #34d399;
+}
+
+.kelyvo-status-dot.failed {
+    background: #f87171;
+}
+
+.kelyvo-status-dot.neutral {
+    background: #71717a;
+}
+
+.kelyvo-soft-divider {
+    border-top: 1px solid #1f1f1f;
+}
+
+.kelyvo-mono {
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        "Courier New",
+        monospace;
+}
+
+.kelyvo-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #27272a;
+    background: #0a0a0a;
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.kelyvo-action-link {
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.kelyvo-action-link:hover {
+    border-color: #52525b;
+    background: #111111;
+}
+
+.kelyvo-quality-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.kelyvo-quality-check::before {
+    content: "✓";
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border: 1px solid #3f3f46;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #a1a1aa;
+    margin-top: 1px;
+}
+
+@media (max-width: 640px) {
+    #label-studio-container {
+        min-height: 500px;
+    }
+}
+
+
+/* ============================================================
+   QA REVIEW WORKSPACE — TASK ONLY / READ ONLY
+============================================================ */
+
+#qa-review-modal button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.qa-preview-stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.qa-preview-stage img {
+    display: block;
+    max-width: 100%;
+    max-height: 620px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.qa-box-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.qa-box {
+    position: absolute;
+    border: 2px solid #fbbf24;
+    background: rgba(251, 191, 36, 0.08);
+}
+
+.qa-box-label {
+    position: absolute;
+    left: -1px;
+    top: -24px;
+    background: #fbbf24;
+    color: #111827;
+    padding: 3px 6px;
+    border-radius: 4px 4px 0 0;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.qa-readonly-notice {
+    border: 1px solid #27272a;
+    background: #09090b;
+    color: #a1a1aa;
+}
+
+
+</style>
 </head>
-<body class="bg-darkbg text-gray-100 min-h-screen font-sans selection:bg-zinc-800 flex flex-col justify-between relative">
 
-    <!-- CREATIVE SMOOTH LOADING OVERLAY -->
-    <div id="loading-overlay" class="fixed inset-0 bg-darkbg/80 backdrop-blur-md z-50 flex flex-col items-center justify-center transition-all duration-500 opacity-0 pointer-events-none">
-        <div class="relative flex items-center justify-center">
-            <div class="absolute w-24 h-24 rounded-full bg-white/5 animate-pulse-glow"></div>
-            <div class="w-16 h-16 border-2 border-zinc-700 border-t-white rounded-full animate-spin-slow"></div>
-            <div class="absolute w-2 h-2 bg-white rounded-full animate-ping"></div>
-        </div>
-        <div class="mt-6 text-center space-y-1">
-            <p id="loading-text" class="text-xs uppercase tracking-[0.25em] text-white font-mono">Securing Connection...</p>
-            <p class="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">Kelyvo Secure Gateway</p>
-        </div>
+<body class="bg-darkbg text-gray-100 min-h-screen">
+
+<!-- ============================================================
+     LOADING OVERLAY
+============================================================ -->
+
+<div
+    id="loading-overlay"
+    class="fixed inset-0 bg-black/85 z-[300] hidden items-center justify-center"
+>
+    <div class="text-center">
+
+        <div
+            class="w-12 h-12 border-2 border-zinc-700 border-t-white rounded-full spin mx-auto"
+        ></div>
+
+        <p
+            id="loading-text"
+            class="mt-5 text-xs uppercase tracking-widest font-mono"
+        >
+            Processing...
+        </p>
+
+    </div>
+</div>
+
+
+<!-- ============================================================
+     NAVIGATION
+============================================================ -->
+
+<header
+    class="border-b border-zinc-800 px-6 md:px-12 py-5 flex justify-between items-center bg-[#030303]"
+>
+
+    <span
+        class="text-lg font-bold tracking-[0.25em]"
+    >
+        KELYVO
+
+        <span class="text-zinc-600 font-light">
+            PORTAL
+        </span>
+
+    </span>
+
+
+    <div
+        id="user-nav"
+        class="hidden items-center gap-5"
+    >
+
+        <span
+            id="user-email-display"
+            class="text-xs text-zinc-400 font-mono"
+        ></span>
+
+        <button
+            onclick="logout()"
+            class="text-[11px] uppercase tracking-widest text-zinc-400 border border-zinc-800 px-4 py-2 rounded-md"
+        >
+            Sign Out
+        </button>
+
     </div>
 
-    <!-- NATIVE SDK WORKSPACE MODAL -->
-    <div id="task-workspace-modal" class="fixed inset-0 bg-darkbg/95 backdrop-blur-xl z-50 hidden flex flex-col justify-between p-8">
-        <header class="flex justify-between items-center border-b border-bordercol pb-4">
-            <div>
-                <span class="text-xs font-mono text-emerald-400 uppercase tracking-widest bg-emerald-950/40 border border-emerald-900 px-3 py-1 rounded-full">Secure Native SDK Workspace</span>
-                <h3 id="workspace-title" class="text-lg font-medium text-white mt-2">Active Annotation Stream</h3>
+</header>
+
+
+<main class="max-w-7xl mx-auto px-5 md:px-8 py-10">
+
+
+<!-- ============================================================
+     AUTHENTICATION
+============================================================ -->
+
+<section
+    id="auth-section"
+    class="max-w-md mx-auto bg-[#080808] border border-zinc-800 p-8 rounded-2xl shadow-2xl"
+>
+
+    <div class="text-center mb-8">
+
+        <h1 class="text-xl font-medium">
+            Enterprise Gateway
+        </h1>
+
+        <p
+            class="text-[11px] text-zinc-500 uppercase tracking-[0.2em] mt-2"
+        >
+            Ground Truth & QA Moderation Portal
+        </p>
+
+    </div>
+
+
+    <div
+        class="flex border-b border-zinc-800 mb-8 text-xs"
+    >
+
+        <button
+            id="tab-login"
+            onclick="switchTab('login')"
+            class="flex-1 pb-3 text-white border-b-2 border-white uppercase"
+        >
+            Sign In
+        </button>
+
+        <button
+            id="tab-register"
+            onclick="switchTab('register')"
+            class="flex-1 pb-3 text-zinc-500 uppercase"
+        >
+            Register
+        </button>
+
+    </div>
+
+
+    <form
+        onsubmit="handleAuth(event)"
+        class="space-y-5"
+    >
+
+        <div>
+
+            <label
+                class="block text-[10px] uppercase text-zinc-400 mb-2"
+            >
+                Email Address
+            </label>
+
+            <input
+                id="email"
+                type="email"
+                required
+                autocomplete="email"
+                class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
+                placeholder="name@kelyvo.com"
+            >
+
+        </div>
+
+
+        <div>
+
+            <label
+                class="block text-[10px] uppercase text-zinc-400 mb-2"
+            >
+                Password
+            </label>
+
+            <input
+                id="password"
+                type="password"
+                required
+                autocomplete="current-password"
+                class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
+                placeholder="••••••••"
+            >
+
+        </div>
+
+
+        <div
+            id="role-selector-container"
+            class="hidden"
+        >
+
+            <label
+                class="block text-[10px] uppercase text-zinc-400 mb-2"
+            >
+                Portal Gateway
+            </label>
+
+            <select
+                id="role-select"
+                class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
+            >
+
+                <option value="contributor">
+                    Contributor Workspace
+                </option>
+
+                <option value="admin">
+                    Admin Control Center
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <button
+            id="submit-btn"
+            class="w-full bg-white text-black text-xs py-3.5 rounded-lg uppercase tracking-wider"
+        >
+            Sign In
+        </button>
+
+    </form>
+
+
+    <div
+        id="auth-message"
+        class="mt-4 text-xs text-center font-mono min-h-[20px]"
+    ></div>
+
+</section>
+
+
+<!-- ============================================================
+     CONTRIBUTOR DASHBOARD
+============================================================ -->
+
+<section
+    id="dashboard-section"
+    class="hidden space-y-10"
+>
+
+    <div
+        class="flex flex-col xl:flex-row justify-between gap-8 pb-8 border-b border-zinc-800"
+    >
+
+        <div>
+
+            <span
+                class="inline-flex items-center gap-2 text-[11px] font-mono text-zinc-400 uppercase tracking-widest bg-zinc-900/50 border border-zinc-800 px-3 py-1 rounded-full"
+            >
+                Operations & QA synchronized
+            </span>
+
+            <h2
+                class="text-4xl font-light mt-4"
+            >
+                Contributor Workspace
+            </h2>
+
+            <p
+                class="text-sm text-zinc-400 mt-2"
+            >
+                Complete assigned data tasks and submit them for QA review.
+            </p>
+
+        </div>
+
+
+        <div
+            class="grid grid-cols-2 sm:grid-cols-4 gap-3"
+        >
+
+            <div
+                class="bg-[#080808] border border-zinc-800 px-4 py-3 rounded-xl"
+            >
+                <span
+                    class="block text-[10px] uppercase text-zinc-500"
+                >
+                    Today
+                </span>
+
+                <span id="stat-today">
+                    0
+                </span>
             </div>
-            <button onclick="closeTaskWorkspace()" class="text-xs uppercase tracking-widest text-zinc-400 hover:text-white border border-bordercol px-4 py-2 rounded-md hover:border-zinc-500 transition">Exit Workspace</button>
-        </header>
 
-        <!-- Label Studio SDK Mount Container -->
-        <main class="flex-1 my-6 flex flex-col overflow-hidden bg-cardbg border border-bordercol rounded-2xl p-6 relative">
-            <div id="label-studio-container" class="w-full h-full overflow-auto"></div>
-        </main>
+
+            <div
+                class="bg-[#080808] border border-zinc-800 px-4 py-3 rounded-xl"
+            >
+                <span
+                    class="block text-[10px] uppercase text-zinc-500"
+                >
+                    This Week
+                </span>
+
+                <span id="stat-week">
+                    0
+                </span>
+            </div>
+
+
+            <div
+                class="bg-[#080808] border border-zinc-800 px-4 py-3 rounded-xl"
+            >
+                <span
+                    class="block text-[10px] uppercase text-zinc-500"
+                >
+                    QA Passed
+                </span>
+
+                <span
+                    id="stat-qa"
+                    class="text-emerald-400"
+                >
+                    0
+                </span>
+            </div>
+
+
+            <div
+                class="bg-[#080808] border border-zinc-800 px-4 py-3 rounded-xl"
+            >
+                <span
+                    class="block text-[10px] uppercase text-zinc-500"
+                >
+                    Earnings
+                </span>
+
+                <span id="stat-earnings">
+                    ₹0.00
+                </span>
+            </div>
+
+        </div>
+
     </div>
+
+
+
+<!-- ============================================================
+     WORKFLOW SNAPSHOT
+============================================================ -->
+
+<div
+    class="grid grid-cols-1 md:grid-cols-3 gap-4"
+>
+
+    <div class="kelyvo-card p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase tracking-widest text-zinc-500">
+                Current Queue
+            </span>
+
+            <span class="kelyvo-pill">
+                <span
+                    class="kelyvo-status-dot pending"
+                ></span>
+                Live
+            </span>
+        </div>
+
+        <p
+            id="contributor-queue-count"
+            class="text-2xl font-light mt-4"
+        >
+            0
+        </p>
+
+        <p class="text-xs text-zinc-500 mt-1">
+            Tasks awaiting QA review
+        </p>
+    </div>
+
+
+    <div class="kelyvo-card p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase tracking-widest text-zinc-500">
+                Last Submission
+            </span>
+
+            <span
+                id="contributor-last-submission-status"
+                class="text-[10px] text-zinc-600 uppercase"
+            >
+                None
+            </span>
+        </div>
+
+        <p
+            id="contributor-last-submission-task"
+            class="text-base text-zinc-200 mt-4"
+        >
+            No submissions yet
+        </p>
+
+        <p
+            id="contributor-last-submission-time"
+            class="text-xs text-zinc-600 mt-1 font-mono"
+        ></p>
+    </div>
+
+
+    <div class="kelyvo-card p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase tracking-widest text-zinc-500">
+                Workspace
+            </span>
+
+            <span class="kelyvo-pill">
+                Contributor
+            </span>
+        </div>
+
+        <p class="text-base text-zinc-200 mt-4">
+            One task at a time
+        </p>
+
+        <p class="text-xs text-zinc-500 mt-1">
+            Submit, QA, then continue to the next available task.
+        </p>
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+     CONTRIBUTOR GUIDANCE
+============================================================ -->
+
+<div
+    class="grid grid-cols-1 xl:grid-cols-2 gap-5"
+>
+
+    <div class="kelyvo-card p-7">
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-light">
+                    Quality Checklist
+                </h3>
+
+                <p class="text-xs text-zinc-500 mt-1">
+                    Complete these checks before submitting any task.
+                </p>
+            </div>
+
+            <span class="kelyvo-pill">
+                QA Ready
+            </span>
+        </div>
+
+        <div class="space-y-4 mt-6 text-xs text-zinc-400">
+            <div class="kelyvo-quality-check">
+                <div>
+                    <p class="text-zinc-200">
+                        Follow the task instructions
+                    </p>
+                    <p class="text-zinc-600 mt-1">
+                        Use the labels and annotation rules provided for the project.
+                    </p>
+                </div>
+            </div>
+
+            <div class="kelyvo-quality-check">
+                <div>
+                    <p class="text-zinc-200">
+                        Check the entire source
+                    </p>
+                    <p class="text-zinc-600 mt-1">
+                        Review the full image, audio, video, or text before submitting.
+                    </p>
+                </div>
+            </div>
+
+            <div class="kelyvo-quality-check">
+                <div>
+                    <p class="text-zinc-200">
+                        Remove accidental annotations
+                    </p>
+                    <p class="text-zinc-600 mt-1">
+                        Make sure there are no stray boxes, labels, or unfinished regions.
+                    </p>
+                </div>
+            </div>
+
+            <div class="kelyvo-quality-check">
+                <div>
+                    <p class="text-zinc-200">
+                        Submit only when complete
+                    </p>
+                    <p class="text-zinc-600 mt-1">
+                        Label Studio Submit sends the finished task into the KELYVO QA workflow.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="kelyvo-card p-7">
+        <h3 class="text-lg font-light">
+            How KELYVO Works
+        </h3>
+
+        <p class="text-xs text-zinc-500 mt-1">
+            Your contributor workflow.
+        </p>
+
+        <div class="space-y-4 mt-6">
+
+            <div class="flex gap-4">
+                <span class="kelyvo-pill shrink-0">
+                    01
+                </span>
+                <div>
+                    <p class="text-sm text-zinc-200">
+                        Start a task
+                    </p>
+                    <p class="text-xs text-zinc-600 mt-1">
+                        KELYVO reserves one available task for your session.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <span class="kelyvo-pill shrink-0">
+                    02
+                </span>
+                <div>
+                    <p class="text-sm text-zinc-200">
+                        Annotate
+                    </p>
+                    <p class="text-xs text-zinc-600 mt-1">
+                        Work inside the embedded Label Studio workspace.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <span class="kelyvo-pill shrink-0">
+                    03
+                </span>
+                <div>
+                    <p class="text-sm text-zinc-200">
+                        Submit once
+                    </p>
+                    <p class="text-xs text-zinc-600 mt-1">
+                        Label Studio Submit automatically sends the task to KELYVO QA.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <span class="kelyvo-pill shrink-0">
+                    04
+                </span>
+                <div>
+                    <p class="text-sm text-zinc-200">
+                        Continue
+                    </p>
+                    <p class="text-xs text-zinc-600 mt-1">
+                        The submitted task is released and the next available task can be started.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+     PAYOUT
+============================================================ -->
+
+    <div
+        class="bg-[#080808] border border-zinc-800 p-8 rounded-2xl"
+    >
+
+        <h3 class="text-lg">
+            INR Settlement & Payout Destination
+        </h3>
+
+        <p
+            class="text-xs text-zinc-400 mt-1 mb-6"
+        >
+            Configure your payout destination.
+        </p>
+
+
+        <div id="payout-container">
+
+            <form
+                onsubmit="updatePayout(event)"
+                class="grid grid-cols-1 md:grid-cols-3 gap-5 items-end"
+            >
+
+                <div>
+
+                    <label
+                        class="block text-[10px] uppercase text-zinc-400 mb-2"
+                    >
+                        Payout Method
+                    </label>
+
+                    <select
+                        id="payout-method"
+                        class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
+                    >
+
+                        <option value="UPI">
+                            UPI
+                        </option>
+
+                        <option value="Bank Transfer">
+                            Bank Transfer
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div>
+
+                    <label
+                        class="block text-[10px] uppercase text-zinc-400 mb-2"
+                    >
+                        UPI / Account Details
+                    </label>
+
+                    <input
+                        id="payout-details"
+                        required
+                        class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
+                        placeholder="username@upi"
+                    >
+
+                </div>
+
+
+                <button
+                    class="bg-white text-black text-xs py-3.5 rounded-lg uppercase"
+                >
+                    Save Payout Details
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <div
+            id="payout-status-msg"
+            class="text-xs font-mono mt-4"
+        ></div>
+
+    </div>
+
+
+<!-- ============================================================
+     SUBMISSIONS
+============================================================ -->
 
     <div>
-        <!-- Top Navigation Bar -->
-        <header class="border-b border-bordercol px-12 py-6 flex justify-between items-center bg-darkbg/95 backdrop-blur-md sticky top-0 z-40">
-            <div class="flex items-center space-x-3">
-                <span class="text-lg font-bold tracking-[0.25em] text-white uppercase">KELYVO<span class="text-zinc-600 font-light ml-1.5">PORTAL</span></span>
-            </div>
-            <div id="user-nav" class="hidden flex items-center space-x-6">
-                <span id="user-email-display" class="text-xs text-zinc-400 font-mono tracking-wide"></span>
-                <button onclick="logout()" class="text-[11px] uppercase tracking-widest text-zinc-400 hover:text-white border border-bordercol px-4 py-2 rounded-md hover:border-zinc-500 transition">Sign Out</button>
-            </div>
-        </header>
 
-        <!-- Main Content Container -->
-        <main class="max-w-7xl mx-auto px-8 py-16 space-y-12">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-5">
 
-            <!-- AUTH SECTION -->
-            <div id="auth-section" class="max-w-md mx-auto bg-cardbg border border-bordercol p-10 rounded-2xl shadow-2xl mt-8">
-                <div class="text-center mb-8">
-                    <h1 class="text-xl font-medium tracking-tight text-white">Enterprise Gateway</h1>
-                    <p class="text-[11px] text-zinc-500 uppercase tracking-[0.2em] mt-1.5">Ground Truth & QA Moderation Portal</p>
-                </div>
+            <div>
+                <h3 class="text-xl font-light">
+                    Active Submissions & Revision Queue
+                </h3>
 
-                <div class="flex border-b border-bordercol mb-8 text-xs">
-                    <button onclick="switchTab('login')" id="tab-login" class="flex-1 pb-3 text-white border-b-2 border-white font-medium transition tracking-wider uppercase">Sign In</button>
-                    <button onclick="switchTab('register')" id="tab-register" class="flex-1 pb-3 text-zinc-500 hover:text-zinc-300 font-medium transition tracking-wider uppercase">Register</button>
-                </div>
-
-                <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-5">
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">Email Address</label>
-                        <input type="email" id="email" required class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition" placeholder="name@kelyvo.com">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">Password</label>
-                        <input type="password" id="password" required class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition" placeholder="••••••••">
-                    </div>
-
-                    <div id="role-selector-container" class="hidden">
-                        <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">Select Portal Gateway</label>
-                        <select id="role-select" class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition">
-                            <option value="contributor">Contributor Workspace (Worker)</option>
-                            <option value="admin">Admin Control Center (QA Reviewer)</option>
-                        </select>
-                    </div>
-
-                    <button type="submit" id="submit-btn" class="w-full bg-white text-black font-medium text-xs py-3.5 rounded-lg hover:bg-zinc-200 transition tracking-[0.15em] uppercase">Sign In</button>
-                </form>
-                <div id="auth-message" class="mt-4 text-xs text-center text-red-400 font-mono"></div>
+                <p class="text-xs text-zinc-500 mt-1">
+                    Track the tasks you have recently sent into KELYVO QA.
+                </p>
             </div>
 
-            <!-- CONTRIBUTOR DASHBOARD SECTION -->
-            <div id="dashboard-section" class="hidden space-y-12">
-                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-end pb-8 border-b border-bordercol gap-8">
-                    <div class="space-y-3">
-                        <div class="inline-flex items-center space-x-2 text-[11px] font-mono text-zinc-400 uppercase tracking-widest bg-zinc-900/50 border border-bordercol px-3 py-1 rounded-full">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span>DISPATCH: Operations and QA streams synchronized.</span>
-                        </div>
-                        <h2 class="text-4xl font-light tracking-tight text-white">Contributor Workspace</h2>
-                        <p class="text-sm text-zinc-400 max-w-xl">Submit tasks for professional QA review to earn ₹500.00 per verified batch.</p>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full xl:w-auto">
-                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
-                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">Today</span>
-                            <span id="stat-today" class="text-base text-white font-mono font-semibold mt-0.5 block">0</span>
-                        </div>
-                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
-                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">This Week</span>
-                            <span id="stat-week" class="text-base text-white font-mono font-semibold mt-0.5 block">0</span>
-                        </div>
-                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
-                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">QA Passed</span>
-                            <span id="stat-qa" class="text-base text-emerald-400 font-mono font-semibold mt-0.5 block">0</span>
-                        </div>
-                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
-                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">Earnings</span>
-                            <span id="stat-earnings" class="text-base text-white font-mono font-semibold mt-0.5 block">₹0.00</span>
-                        </div>
-                        <div class="bg-cardbg border border-bordercol px-4 py-3 rounded-xl text-left">
-                            <span class="block text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-mono">Role</span>
-                            <span id="role-badge" class="text-xs text-white font-medium uppercase mt-1 block">Contributor</span>
-                        </div>
-                    </div>
-                </div>
+            <button
+                id="refresh-contributor-submissions-button"
+                onclick="loadContributorSubmissions()"
+                class="kelyvo-action-link text-[10px] uppercase border border-zinc-800 px-4 py-2 rounded-lg"
+            >
+                Refresh Activity
+            </button>
 
-                <!-- Payout Configuration Section -->
-                <div class="bg-cardbg border border-bordercol p-8 rounded-2xl space-y-6">
-                    <div class="flex justify-between items-center border-b border-bordercol pb-4">
-                        <div>
-                            <h3 class="text-lg font-medium text-white">INR Settlement & Payout Destination</h3>
-                            <p class="text-xs text-zinc-400 mt-0.5">Automated cashouts for verified QA earnings.</p>
-                        </div>
-                        <span class="text-xs text-emerald-400 font-mono bg-emerald-950/40 border border-emerald-900 px-3 py-1 rounded-full">Secure Settlement Active</span>
-                    </div>
+        </div>
 
-                    <div id="payout-container">
-                        <form onsubmit="updatePayout(event)" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                            <div>
-                                <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">Payout Method</label>
-                                <select id="payout-method" class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition">
-                                    <option value="UPI">UPI ID (Google Pay / PhonePe / Paytm)</option>
-                                    <option value="Bank Transfer">Direct Bank Transfer (IMPS / NEFT)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] uppercase tracking-[0.15em] text-zinc-400 mb-2">UPI ID / Account Details</label>
-                                <input type="text" id="payout-details" required class="w-full bg-darkbg border border-bordercol rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-500 transition font-mono" placeholder="username@okicici">
-                            </div>
-                            <div>
-                                <button type="submit" class="w-full bg-white text-black font-medium text-xs py-3.5 rounded-lg hover:bg-zinc-200 transition tracking-[0.15em] uppercase">Save Payout Details</button>
-                            </div>
-                        </form>
-                    </div>
-                    <div id="payout-status-msg" class="text-xs font-mono text-zinc-400"></div>
-                </div>
+        <div
+            id="contributor-submissions-container"
+            class="grid grid-cols-1 md:grid-cols-3 gap-5"
+        ></div>
 
-                <!-- Live Contributor Submissions Feed -->
-                <div class="space-y-6">
-                    <h3 class="text-xl font-light text-white tracking-tight">Active Submissions & Revision Queue</h3>
-                    <div id="contributor-submissions-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
-                </div>
-
-                <!-- Task Pipelines Grid -->
-                <div class="space-y-6 pt-6 border-t border-bordercol">
-                    <h3 class="text-xl font-light text-white tracking-tight">Available Task Pipelines (Native SDK Canvas)</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 pt-2">
-                        
-                        <!-- Image Pipeline -->
-                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
-                            <div>
-                                <div class="flex justify-between items-center mb-4">
-                                    <span class="text-[9px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Image Pipeline</span>
-                                    <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
-                                </div>
-                                <h3 class="text-base font-normal text-white mb-2 leading-snug tracking-tight">Image Bounding & Sensor Fusion</h3>
-                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Embedded SDK canvas feed.</p>
-                            </div>
-                            <div class="mt-6 pt-4 border-t border-bordercol space-y-3">
-                                <span class="text-[11px] text-zinc-500 font-mono">Rate: ₹500</span>
-                                <button onclick="startAnnotationTask('image')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Start Image Task</button>
-                            </div>
-                        </div>
-
-                        <!-- Audio Pipeline -->
-                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
-                            <div>
-                                <div class="flex justify-between items-center mb-4">
-                                    <span class="text-[9px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Audio Pipeline</span>
-                                    <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
-                                </div>
-                                <h3 class="text-base font-normal text-white mb-2 leading-snug tracking-tight">Acoustic Dialect Verification</h3>
-                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Embedded SDK canvas feed.</p>
-                            </div>
-                            <div class="mt-6 pt-4 border-t border-bordercol space-y-3">
-                                <span class="text-[11px] text-zinc-500 font-mono">Rate: ₹500</span>
-                                <button onclick="startAnnotationTask('audio')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Start Audio Task</button>
-                            </div>
-                        </div>
-
-                        <!-- Video Pipeline -->
-                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
-                            <div>
-                                <div class="flex justify-between items-center mb-4">
-                                    <span class="text-[9px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Video Pipeline</span>
-                                    <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
-                                </div>
-                                <h3 class="text-base font-normal text-white mb-2 leading-snug tracking-tight">Temporal Spatio Video Tagging</h3>
-                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Embedded SDK canvas feed.</p>
-                            </div>
-                            <div class="mt-6 pt-4 border-t border-bordercol space-y-3">
-                                <span class="text-[11px] text-zinc-500 font-mono">Rate: ₹500</span>
-                                <button onclick="startAnnotationTask('video')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Start Video Task</button>
-                            </div>
-                        </div>
-
-                        <!-- Text Pipeline -->
-                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between hover:border-zinc-700 transition duration-300">
-                            <div>
-                                <div class="flex justify-between items-center mb-4">
-                                    <span class="text-[9px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded-full text-zinc-300 font-mono">Text Pipeline</span>
-                                    <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>
-                                </div>
-                                <h3 class="text-base font-normal text-white mb-2 leading-snug tracking-tight">LLM Pairwise Preference Eval</h3>
-                                <p class="text-xs text-zinc-400 leading-relaxed font-light">Embedded SDK canvas feed.</p>
-                            </div>
-                            <div class="mt-6 pt-4 border-t border-bordercol space-y-3">
-                                <span class="text-[11px] text-zinc-500 font-mono">Rate: ₹500</span>
-                                <button onclick="startAnnotationTask('text')" class="w-full bg-white text-black text-xs uppercase tracking-wider font-medium py-2.5 rounded-lg hover:bg-zinc-200 transition">Start Text Task</button>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-
-            <!-- ADMIN QA CONTROL CENTER SECTION -->
-            <div id="admin-section" class="hidden space-y-10">
-                <div class="pb-6 border-b border-bordercol flex justify-between items-end">
-                    <div>
-                        <div class="inline-flex items-center space-x-2 text-[11px] font-mono text-amber-400 uppercase tracking-widest bg-amber-950/30 border border-amber-900/50 px-3 py-1 rounded-full mb-3">
-                            <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                            <span>ADMIN CONTROL: Quality Assurance Moderation & Reassignment Queue</span>
-                        </div>
-                        <h2 class="text-3xl font-light tracking-tight text-white">QA Review Operations</h2>
-                        <p class="text-sm text-zinc-400 mt-1">Review submissions, add audit feedback notes, and trigger automated pool requeuing on failures.</p>
-                    </div>
-                    <button onclick="loadAdminQueue()" class="text-xs uppercase tracking-wider border border-bordercol px-4 py-2.5 rounded-lg hover:bg-white hover:text-black transition font-mono">Refresh Queue</button>
-                </div>
-
-                <div class="bg-cardbg border border-bordercol rounded-2xl overflow-hidden shadow-2xl">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-bordercol text-[10px] font-mono text-zinc-500 uppercase tracking-widest bg-darkbg/50">
-                                <th class="p-5">ID</th>
-                                <th class="p-5">Contributor</th>
-                                <th class="p-5">Task Category / Title</th>
-                                <th class="p-5">Status & Notes</th>
-                                <th class="p-5 text-right">Moderation Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-table-body" class="text-xs font-mono divide-y divide-bordercol"></tbody>
-                    </table>
-                </div>
-            </div>
-
-        </main>
     </div>
 
-    <footer class="border-t border-bordercol px-12 py-6 text-center text-[11px] text-zinc-600 font-mono tracking-widest uppercase">
-        KELYVO ENTERPRISE DATA PLATFORM &mdash; SECURED SESSION
-    </footer>
 
-    <script>
-        let currentMode = 'login';
-        let activeTaskData = null;
-        let activeModalityType = '';
-        let lsInstance = null;
+<!-- ============================================================
+     TASK PIPELINES
+============================================================ -->
 
-        function showLoader(text = "Processing Request...") {
-            const overlay = document.getElementById('loading-overlay');
-            document.getElementById('loading-text').innerText = text;
-            overlay.classList.remove('opacity-0', 'pointer-events-none');
-            overlay.classList.add('opacity-100');
+    <div
+        class="border-t border-zinc-800 pt-8"
+    >
+
+        <div
+            class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-5"
+        >
+
+            <div>
+
+                <h3 class="text-xl font-light">
+                    Available Task Pipelines
+                </h3>
+
+                <p
+                    class="text-xs text-zinc-500 mt-1"
+                >
+                    Tasks are served directly from the connected Label Studio projects.
+                </p>
+
+            </div>
+
+
+            <button
+                onclick="loadPipelineProjects()"
+                class="text-[10px] uppercase border border-zinc-800 px-4 py-2 rounded-lg"
+            >
+                Refresh Pipelines
+            </button>
+
+        </div>
+
+
+        <div
+            id="pipeline-container"
+            class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5"
+        ></div>
+
+    </div>
+
+</section>
+
+
+<!-- ============================================================
+     ADMIN
+============================================================ -->
+
+<section
+    id="admin-section"
+    class="hidden space-y-8"
+>
+
+    <div
+        class="pb-6 border-b border-zinc-800 flex justify-between items-end"
+    >
+
+        <div>
+
+            <span
+                class="text-[11px] font-mono text-amber-400 uppercase"
+            >
+                Admin Control
+            </span>
+
+            <h2 class="text-3xl font-light mt-3">
+                QA Review Operations
+            </h2>
+
+            <p
+                class="text-sm text-zinc-400 mt-2"
+            >
+                Review contributor submissions.
+            </p>
+
+        </div>
+
+
+        <button
+            onclick="loadAdminQueue()"
+            class="text-xs uppercase border border-zinc-800 px-4 py-2.5 rounded-lg"
+        >
+            Refresh Queue
+        </button>
+
+    </div>
+
+
+    <div
+        class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-auto"
+    >
+
+        <table class="w-full text-left">
+
+            <thead>
+
+                <tr
+                    class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase"
+                >
+
+                    <th class="p-5">
+                        ID
+                    </th>
+
+                    <th class="p-5">
+                        Contributor
+                    </th>
+
+                    <th class="p-5">
+                        Task
+                    </th>
+
+                    <th class="p-5">
+                        Status
+                    </th>
+
+                    <th class="p-5 text-right">
+                        Actions
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody
+                id="admin-table-body"
+                class="text-xs font-mono divide-y divide-zinc-800"
+            ></tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+</main>
+
+
+<!-- ============================================================
+     FOOTER
+============================================================ -->
+
+<footer
+    class="border-t border-zinc-800 px-8 py-6 text-center text-[10px] text-zinc-600 font-mono tracking-widest uppercase"
+>
+    KELYVO ENTERPRISE DATA PLATFORM — SECURED SESSION
+</footer>
+
+
+<!-- ============================================================
+     LABEL STUDIO WORKSPACE
+============================================================ -->
+
+<div
+    id="task-workspace-modal"
+    class="fixed inset-0 bg-black z-[150] hidden flex-col"
+>
+
+    <header
+        class="shrink-0 px-5 md:px-8 py-4 border-b border-zinc-800 bg-[#050505] flex justify-between items-center gap-4"
+    >
+
+        <div>
+
+            <div
+                class="text-[10px] font-mono text-emerald-400 uppercase tracking-widest"
+            >
+                ● Live Annotation Workspace
+            </div>
+
+            <h2
+                id="workspace-title"
+                class="text-lg mt-2"
+            >
+                Active Annotation Task
+            </h2>
+
+            <p
+                id="workspace-subtitle"
+                class="text-[11px] text-zinc-500 font-mono mt-1"
+            >
+                KELYVO Annotation Engine
+            </p>
+
+        </div>
+
+
+        <div class="flex gap-3">
+
+            <button
+                id="workspace-skip-button"
+                onclick="skipFromWorkspace()"
+                class="border border-amber-900 text-amber-400 text-[11px] px-5 py-2.5 rounded-lg uppercase"
+            >
+                Skip Task
+            </button>
+
+            <button
+                id="workspace-submit-button"
+                onclick="submitFromWorkspace()"
+                class="hidden"
+                aria-hidden="true"
+            >
+                Mark Task Submitted
+            </button>
+
+            <button
+                onclick="exitTaskWorkspace()"
+                class="border border-zinc-700 text-zinc-300 text-[11px] px-5 py-2.5 rounded-lg uppercase"
+            >
+                Exit Workspace
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <main
+        class="flex-1 min-h-0 p-4 md:p-6 bg-[#020202]"
+    >
+
+        <div
+            id="label-studio-container"
+            class="w-full h-full"
+        >
+
+            <div class="workspace-message">
+
+                <div>
+
+                    <div
+                        class="w-12 h-12 border-2 border-zinc-700 border-t-white rounded-full spin mx-auto"
+                    ></div>
+
+                    <p
+                        class="mt-5 text-sm text-zinc-300"
+                    >
+                        Loading Label Studio...
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+
+<!-- ============================================================
+     QA REVIEW MODAL — TASK ONLY / READ ONLY
+============================================================ -->
+
+<div
+    id="qa-review-modal"
+    class="fixed inset-0 bg-black/90 z-[220] hidden items-center justify-center p-4"
+>
+    <div
+        class="w-full max-w-6xl max-h-[92vh] overflow-hidden bg-[#080808] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col"
+    >
+
+        <header
+            class="shrink-0 p-5 md:p-6 border-b border-zinc-800 flex items-center justify-between gap-4"
+        >
+
+            <div>
+                <span
+                    class="text-[10px] uppercase tracking-widest text-amber-400 font-mono"
+                >
+                    KELYVO QA · TASK ONLY
+                </span>
+
+                <h2
+                    id="qa-review-title"
+                    class="text-xl md:text-2xl mt-2"
+                >
+                    Review Submission
+                </h2>
+
+                <p
+                    id="qa-review-meta"
+                    class="text-xs text-zinc-500 font-mono mt-1"
+                ></p>
+
+            </div>
+
+            <button
+                onclick="closeQAReview()"
+                class="border border-zinc-700 px-4 py-2 rounded-lg text-[11px] uppercase"
+            >
+                Close
+            </button>
+
+        </header>
+
+
+        <div
+            class="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-5"
+        >
+
+            <div
+                id="qa-review-notice"
+                class="hidden border rounded-xl p-4 text-xs"
+            ></div>
+
+
+            <div
+                class="qa-readonly-notice rounded-xl p-4 text-xs"
+            >
+                This QA workspace is read-only. The reviewer can inspect only
+                this submitted task and its annotation. Project navigation,
+                task creation, deletion, configuration, and Label Studio
+                administration are not available here.
+            </div>
+
+
+            <div
+                class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5"
+            >
+
+                <div
+                    class="bg-[#030303] border border-zinc-800 rounded-xl overflow-hidden"
+                >
+
+                    <div
+                        class="px-4 py-3 border-b border-zinc-800 flex justify-between items-center"
+                    >
+
+                        <span
+                            class="text-[10px] uppercase tracking-widest text-zinc-500"
+                        >
+                            Submitted Task
+                        </span>
+
+                        <span
+                            class="text-[10px] uppercase tracking-widest text-emerald-400"
+                        >
+                            Read Only
+                        </span>
+
+                    </div>
+
+                    <div
+                        id="qa-task-preview"
+                        class="min-h-[420px] p-4 bg-black flex items-center justify-center"
+                    ></div>
+
+                </div>
+
+
+                <aside class="space-y-4">
+
+                    <div
+                        class="bg-[#030303] border border-zinc-800 rounded-xl p-5"
+                    >
+
+                        <div
+                            class="text-[10px] uppercase tracking-widest text-zinc-500 mb-3"
+                        >
+                            Submission
+                        </div>
+
+                        <div
+                            id="qa-submission-details"
+                            class="space-y-3 text-xs"
+                        ></div>
+
+                    </div>
+
+
+                    <div
+                        class="bg-[#030303] border border-zinc-800 rounded-xl p-5"
+                    >
+
+                        <div
+                            class="text-[10px] uppercase tracking-widest text-zinc-500 mb-3"
+                        >
+                            Annotation Results
+                        </div>
+
+                        <div
+                            id="qa-annotation-results"
+                            class="space-y-3 max-h-[360px] overflow-y-auto"
+                        ></div>
+
+                    </div>
+
+
+                    <div
+                        class="bg-[#030303] border border-zinc-800 rounded-xl p-5"
+                    >
+
+                        <label
+                            for="qa-review-notes"
+                            class="text-[10px] uppercase tracking-widest text-zinc-500"
+                        >
+                            Reviewer Notes
+                        </label>
+
+                        <textarea
+                            id="qa-review-notes"
+                            rows="5"
+                            class="mt-3 w-full bg-[#080808] border border-zinc-800 rounded-lg p-3 text-xs resize-y"
+                            placeholder="Add feedback for the contributor..."
+                        ></textarea>
+
+                    </div>
+
+                </aside>
+
+            </div>
+
+        </div>
+
+
+        <footer
+            class="shrink-0 p-4 md:p-5 border-t border-zinc-800 flex flex-col sm:flex-row justify-end gap-3"
+        >
+
+            <button
+                id="qa-return-button"
+                class="border border-red-900 text-red-400 px-5 py-3 rounded-lg text-xs uppercase"
+                onclick="submitQAReview('FAILED')"
+            >
+                Return for Revision
+            </button>
+
+            <button
+                id="qa-pass-button"
+                class="bg-emerald-600 text-white px-5 py-3 rounded-lg text-xs uppercase"
+                onclick="submitQAReview('PASSED')"
+            >
+                Pass QA
+            </button>
+
+        </footer>
+
+    </div>
+</div>
+
+
+<!-- ============================================================
+     APPLICATION JAVASCRIPT
+============================================================ -->
+
+<script>
+
+let currentMode = "login";
+
+let activeTaskData = null;
+
+let activeModalityType = "";
+
+let activeTaskSubmitted = false;
+let nativeSubmitPollTimer = null;
+
+let activeLabelStudio = null;
+
+let activeAnnotationResult = null;
+
+
+let activeEmbedId = null;
+
+const CONTRIBUTOR_SUBMISSIONS_STORAGE_KEY =
+    "kelyvo_contributor_submissions_v1";
+
+const MAX_LOCAL_CONTRIBUTOR_SUBMISSIONS =
+    25;
+
+
+
+/* ============================================================
+   ACTIVE TASK SESSION PERSISTENCE
+   ============================================================ */
+
+const ACTIVE_TASK_SESSION_KEY =
+    "kelyvo_active_task_session";
+
+
+function saveActiveTaskSession(
+    projectId,
+    taskId,
+    modality
+) {
+
+    if (!projectId || !taskId || !modality) {
+        return;
+    }
+
+    localStorage.setItem(
+        ACTIVE_TASK_SESSION_KEY,
+        JSON.stringify({
+            project_id: Number(projectId),
+            task_id: Number(taskId),
+            modality: String(modality).toLowerCase()
+        })
+    );
+}
+
+
+function clearActiveTaskSession() {
+
+    localStorage.removeItem(
+        ACTIVE_TASK_SESSION_KEY
+    );
+}
+
+
+async function restoreActiveTaskSession() {
+
+    const email =
+        localStorage.getItem(
+            "kelyvo_user_email"
+        );
+
+    const role =
+        localStorage.getItem(
+            "kelyvo_user_role"
+        );
+
+    if (!email || role !== "contributor") {
+        return;
+    }
+
+    let savedSession = null;
+
+    try {
+        const rawSession =
+            localStorage.getItem(
+                ACTIVE_TASK_SESSION_KEY
+            );
+
+        if (rawSession) {
+            savedSession =
+                JSON.parse(rawSession);
         }
+    } catch (error) {
+        console.warn(
+            "KELYVO: invalid saved task session:",
+            error
+        );
+        clearActiveTaskSession();
+    }
 
-        function hideLoader() {
-            const overlay = document.getElementById('loading-overlay');
-            overlay.classList.remove('opacity-100');
-            overlay.classList.add('opacity-0', 'pointer-events-none');
-        }
+    if (
+        !savedSession ||
+        !savedSession.project_id ||
+        !savedSession.task_id ||
+        !savedSession.modality
+    ) {
+        return;
+    }
 
-        window.onload = function() {
-            const savedEmail = localStorage.getItem('kelyvo_user_email');
-            const savedRole = localStorage.getItem('kelyvo_user_role');
-            const savedToday = localStorage.getItem('kelyvo_today');
-            const savedWeek = localStorage.getItem('kelyvo_week');
-            const savedQA = localStorage.getItem('kelyvo_qa');
-            const savedEarnings = localStorage.getItem('kelyvo_earnings');
-            const savedPayout = localStorage.getItem('kelyvo_payout');
+    try {
 
-            if (savedEmail) {
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('user-nav').classList.remove('hidden');
-                document.getElementById('user-email-display').innerText = savedEmail;
-                document.getElementById('role-badge').innerText = savedRole ? savedRole.toUpperCase() : 'CONTRIBUTOR';
+        let response =
+            await fetch(
+                `/api/current-task?email=${encodeURIComponent(email)}&project_id=${encodeURIComponent(savedSession.project_id)}`,
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
+            );
 
-                if (savedRole === 'admin') {
-                    document.getElementById('admin-section').classList.remove('hidden');
-                    loadAdminQueue();
-                } else {
-                    document.getElementById('dashboard-section').classList.remove('hidden');
-                    document.getElementById('stat-today').innerText = savedToday || 0;
-                    document.getElementById('stat-week').innerText = savedWeek || 0;
-                    document.getElementById('stat-qa').innerText = savedQA || 0;
-                    document.getElementById('stat-earnings').innerText = '₹' + parseFloat(savedEarnings || 0).toFixed(2);
-                    
-                    if (savedPayout && savedPayout !== "null" && savedPayout !== "") {
-                        lockPayoutUI(savedPayout);
+        let data =
+            await response.json();
+
+        /*
+         * Older active tasks were assigned using the temporary browser
+         * identity because start-task did not send the contributor email.
+         * If the email-based lookup does not find that task, retry without
+         * email so the same browser assignment can still be restored.
+         */
+        if (
+            !response.ok ||
+            data.status !== "success" ||
+            data.assigned !== true ||
+            !data.task
+        ) {
+            response =
+                await fetch(
+                    `/api/current-task?project_id=${encodeURIComponent(savedSession.project_id)}`,
+                    {
+                        method: "GET",
+                        cache: "no-store"
                     }
-                    loadContributorSubmissions();
-                }
-            }
-        };
+                );
 
-        function switchTab(mode) {
-            currentMode = mode;
-            const btnLogin = document.getElementById('tab-login');
-            const btnRegister = document.getElementById('tab-register');
-            const submitBtn = document.getElementById('submit-btn');
-            const roleSelector = document.getElementById('role-selector-container');
-
-            if (mode === 'login') {
-                btnLogin.className = "flex-1 pb-3 text-white border-b-2 border-white font-medium transition tracking-wider uppercase";
-                btnRegister.className = "flex-1 pb-3 text-zinc-500 hover:text-zinc-300 font-medium transition tracking-wider uppercase";
-                submitBtn.innerText = "Sign In";
-                roleSelector.classList.add('hidden');
-            } else {
-                btnRegister.className = "flex-1 pb-3 text-white border-b-2 border-white font-medium transition tracking-wider uppercase";
-                btnLogin.className = "flex-1 pb-3 text-zinc-500 hover:text-zinc-300 font-medium transition tracking-wider uppercase";
-                submitBtn.innerText = "Create Account";
-                roleSelector.classList.remove('hidden');
-            }
+            data =
+                await response.json();
         }
 
-        async function handleAuth(event) {
-            event.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const msgBox = document.getElementById('auth-message');
-            msgBox.innerText = "";
+        if (
+            !response.ok ||
+            data.status !== "success" ||
+            data.assigned !== true ||
+            !data.task
+        ) {
+            clearActiveTaskSession();
+            return;
+        }
 
-            showLoader(currentMode === 'login' ? 'Authenticating Credentials...' : 'Registering Account...');
+        const restoredTaskId =
+            Number(
+                data.task_id ||
+                data.task.id
+            );
 
-            let url = currentMode === 'login' 
-                ? `/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
-                : `/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(document.getElementById('role-select').value)}`;
+        const restoredProjectId =
+            Number(
+                data.project_id ||
+                savedSession.project_id
+            );
+
+        if (
+            !restoredTaskId ||
+            !restoredProjectId
+        ) {
+            clearActiveTaskSession();
+            return;
+        }
+
+        activeTaskData =
+            data.task;
+
+        activeModalityType =
+            String(
+                savedSession.modality
+            ).toLowerCase();
+
+        activeTaskSubmitted =
+            false;
+
+        activeAnnotationResult =
+            null;
+
+        saveActiveTaskSession(
+            restoredProjectId,
+            restoredTaskId,
+            activeModalityType
+        );
+
+        console.log(
+            "KELYVO: restoring active contributor task after refresh.",
+            {
+                projectId: restoredProjectId,
+                taskId: restoredTaskId,
+                modality: activeModalityType
+            }
+        );
+
+        await openLabelStudioWorkspace(
+            {
+                task: data.task,
+                project_id: restoredProjectId
+            },
+            activeModalityType
+        );
+
+    } catch (error) {
+
+        console.error(
+            "KELYVO: could not restore active task:",
+            error
+        );
+    }
+}
+
+
+/*
+ * Label Studio server used by the Docker container.
+ *
+ * The contributor workspace is loaded through a KELYVO backend
+ * endpoint. We deliberately do NOT expose the Label Studio server
+ * directly to contributors from this page.
+ */
+
+const LABEL_STUDIO_URL =
+    "http://127.0.0.1:8080";
+
+
+/* ============================================================
+   LOADING
+============================================================ */
+
+function showLoader(message = "Processing...") {
+
+    const overlay =
+        document.getElementById(
+            "loading-overlay"
+        );
+
+    const text =
+        document.getElementById(
+            "loading-text"
+        );
+
+    text.innerText = message;
+
+    overlay.classList.remove(
+        "hidden"
+    );
+
+    overlay.classList.add(
+        "flex"
+    );
+}
+
+
+function hideLoader() {
+
+    const overlay =
+        document.getElementById(
+            "loading-overlay"
+        );
+
+    overlay.classList.add(
+        "hidden"
+    );
+
+    overlay.classList.remove(
+        "flex"
+    );
+}
+
+
+/* ============================================================
+   AUTH TABS
+============================================================ */
+
+function switchTab(mode) {
+
+    currentMode = mode;
+
+    const loginTab =
+        document.getElementById(
+            "tab-login"
+        );
+
+    const registerTab =
+        document.getElementById(
+            "tab-register"
+        );
+
+    const roleContainer =
+        document.getElementById(
+            "role-selector-container"
+        );
+
+    const submitButton =
+        document.getElementById(
+            "submit-btn"
+        );
+
+
+    if (mode === "login") {
+
+        loginTab.className =
+            "flex-1 pb-3 text-white border-b-2 border-white uppercase";
+
+        registerTab.className =
+            "flex-1 pb-3 text-zinc-500 uppercase";
+
+        roleContainer.classList.add(
+            "hidden"
+        );
+
+        submitButton.innerText =
+            "Sign In";
+
+    } else {
+
+        loginTab.className =
+            "flex-1 pb-3 text-zinc-500 uppercase";
+
+        registerTab.className =
+            "flex-1 pb-3 text-white border-b-2 border-white uppercase";
+
+        roleContainer.classList.remove(
+            "hidden"
+        );
+
+        submitButton.innerText =
+            "Create Account";
+    }
+
+    document.getElementById(
+        "auth-message"
+    ).innerText = "";
+}
+
+
+/* ============================================================
+   AUTHENTICATION
+============================================================ */
+
+async function handleAuth(event) {
+
+    event.preventDefault();
+
+    const email =
+        document.getElementById(
+            "email"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "password"
+        ).value;
+
+    const message =
+        document.getElementById(
+            "auth-message"
+        );
+
+
+    showLoader(
+        currentMode === "login"
+            ? "Authenticating..."
+            : "Creating Secure Account..."
+    );
+
+
+    try {
+
+        let url;
+
+
+        if (currentMode === "login") {
+
+            url =
+                `/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+
+        } else {
+
+            const role =
+                document.getElementById(
+                    "role-select"
+                ).value;
+
+            url =
+                `/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`;
+        }
+
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method: "POST",
+                    credentials: "same-origin"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                "Authentication failed."
+            );
+        }
+
+
+        localStorage.setItem(
+            "kelyvo_user_email",
+            data.email
+        );
+
+        localStorage.setItem(
+            "kelyvo_user_role",
+            data.role
+        );
+
+        localStorage.setItem(
+            "kelyvo_today",
+            data.tasks_today ?? 0
+        );
+
+        localStorage.setItem(
+            "kelyvo_week",
+            data.tasks_week ?? 0
+        );
+
+        localStorage.setItem(
+            "kelyvo_qa",
+            data.tasks_passed_qa ?? 0
+        );
+
+        localStorage.setItem(
+            "kelyvo_earnings",
+            data.earnings ?? 0
+        );
+
+
+        hideLoader();
+
+
+        initializeAuthenticatedUI(
+            data
+        );
+
+
+    } catch (error) {
+
+        hideLoader();
+
+        console.error(
+            "Authentication error:",
+            error
+        );
+
+        message.innerText =
+            error.message ||
+            "Connection error with server.";
+
+        message.className =
+            "mt-4 text-xs text-center font-mono text-red-400";
+    }
+}
+
+
+/* ============================================================
+   AUTHENTICATED UI
+============================================================ */
+
+function initializeAuthenticatedUI(user) {
+
+    document.getElementById(
+        "auth-section"
+    ).classList.add(
+        "hidden"
+    );
+
+
+    document.getElementById(
+        "user-nav"
+    ).classList.remove(
+        "hidden"
+    );
+
+
+    document.getElementById(
+        "user-nav"
+    ).classList.add(
+        "flex"
+    );
+
+
+    document.getElementById(
+        "user-email-display"
+    ).innerText =
+        user.email;
+
+
+    if (user.role === "admin" || user.role === "qa") {
+
+        document.getElementById(
+            "admin-section"
+        ).classList.remove(
+            "hidden"
+        );
+
+        document.getElementById(
+            "dashboard-section"
+        ).classList.add(
+            "hidden"
+        );
+
+        loadAdminQueue();
+
+    } else {
+
+        document.getElementById(
+            "dashboard-section"
+        ).classList.remove(
+            "hidden"
+        );
+
+        document.getElementById(
+            "admin-section"
+        ).classList.add(
+            "hidden"
+        );
+
+        updateStats(
+            user
+        );
+
+        loadContributorSubmissions();
+
+        loadPipelineProjects();
+
+        restoreActiveTaskSession();
+    }
+}
+
+
+/* ============================================================
+   STATISTICS
+============================================================ */
+
+function updateStats(user) {
+
+    document.getElementById(
+        "stat-today"
+    ).innerText =
+        user.tasks_today ?? 0;
+
+
+    document.getElementById(
+        "stat-week"
+    ).innerText =
+        user.tasks_week ?? 0;
+
+
+    document.getElementById(
+        "stat-qa"
+    ).innerText =
+        user.tasks_passed_qa ?? 0;
+
+
+    document.getElementById(
+        "stat-earnings"
+    ).innerText =
+        "₹" +
+        Number(
+            user.earnings ?? 0
+        ).toFixed(2);
+}
+
+
+/* ============================================================
+   LOAD PIPELINES
+============================================================ */
+
+async function loadPipelineProjects() {
+
+    const container =
+        document.getElementById(
+            "pipeline-container"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    container.innerHTML = `
+        <div class="col-span-full text-xs text-zinc-500 font-mono">
+            Loading connected Label Studio pipelines...
+        </div>
+    `;
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/pipeline/projects"
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                "Could not load pipelines."
+            );
+        }
+
+
+        if (
+            !Array.isArray(
+                data.projects
+            )
+        ) {
+
+            throw new Error(
+                "Invalid pipeline response."
+            );
+        }
+
+
+        renderPipelineProjects(
+            data.projects
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Pipeline error:",
+            error
+        );
+
+
+        container.innerHTML = `
+            <div class="col-span-full border border-red-900/50 rounded-xl p-5 text-red-400">
+                Could not load task pipelines.
+
+                <div class="text-xs text-zinc-500 mt-2">
+                    ${escapeHtml(
+                        error.message
+                    )}
+                </div>
+            </div>
+        `;
+    }
+}
+
+
+/* ============================================================
+   RENDER PIPELINES
+============================================================ */
+
+function renderPipelineProjects(
+    projects
+) {
+
+    const container =
+        document.getElementById(
+            "pipeline-container"
+        );
+
+
+    const names = {
+
+        image: [
+            "Image Bounding & Sensor Fusion",
+            "Bounding-box annotation."
+        ],
+
+        audio: [
+            "Acoustic Dialect Verification",
+            "Audio classification and labeling."
+        ],
+
+        video: [
+            "Temporal Spatio Video Tagging",
+            "Video event annotation."
+        ],
+
+        text: [
+            "LLM Pairwise Preference Eval",
+            "Text evaluation and classification."
+        ]
+    };
+
+
+    const order = [
+        "image",
+        "audio",
+        "video",
+        "text"
+    ];
+
+
+    container.innerHTML = "";
+
+
+    projects
+        .sort(
+            (a, b) =>
+                order.indexOf(
+                    String(
+                        a.modality || ""
+                    ).toLowerCase()
+                )
+                -
+                order.indexOf(
+                    String(
+                        b.modality || ""
+                    ).toLowerCase()
+                )
+        )
+        .forEach(
+            project => {
+
+                const modality =
+                    String(
+                        project.modality ||
+                        project.title ||
+                        ""
+                    ).toLowerCase();
+
+
+                const values =
+                    names[modality] ||
+                    [
+                        "Annotation Pipeline",
+                        "Complete annotation tasks."
+                    ];
+
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                card.className =
+                    "bg-[#080808] border border-zinc-800 p-6 rounded-2xl";
+
+
+                card.innerHTML = `
+                    <span class="text-[9px] uppercase tracking-widest text-zinc-300">
+                        ${escapeHtml(
+                            modality.toUpperCase()
+                        )}
+                        Pipeline
+                    </span>
+
+                    <h3 class="text-base text-white mt-4">
+                        ${escapeHtml(
+                            values[0]
+                        )}
+                    </h3>
+
+                    <p class="text-xs text-zinc-400 mt-2">
+                        ${escapeHtml(
+                            values[1]
+                        )}
+                    </p>
+
+                    <div class="mt-4 text-[10px] font-mono text-zinc-600">
+                        Project #
+                        ${escapeHtml(
+                            project.id
+                        )}
+                        ·
+                        ${escapeHtml(
+                            project.task_count ?? 0
+                        )}
+                        tasks
+                    </div>
+
+                    <button
+                        class="w-full bg-white text-black text-xs uppercase py-2.5 rounded-lg mt-5"
+                    >
+                        Start
+                        ${escapeHtml(
+                            modality.charAt(0).toUpperCase() +
+                            modality.slice(1)
+                        )}
+                        Task
+                    </button>
+                `;
+
+
+                card
+                    .querySelector(
+                        "button"
+                    )
+                    .onclick =
+                        () =>
+                            startAnnotationTask(
+                                modality
+                            );
+
+
+                container.appendChild(
+                    card
+                );
+            }
+    );
+}
+
+
+/* ============================================================
+   START LABEL STUDIO TASK
+============================================================ */
+
+async function startAnnotationTask(
+    modality
+) {
+
+    showLoader(
+        `Loading ${String(modality).toUpperCase()} Task...`
+    );
+
+
+    try {
+
+        const email =
+            localStorage.getItem(
+                "kelyvo_user_email"
+            ) || "";
+
+
+        const response =
+            await fetch(
+                `/api/start-task?modality=${encodeURIComponent(modality)}&email=${encodeURIComponent(email)}`
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                "Could not load annotation task."
+            );
+        }
+
+
+        if (
+            data.status !==
+            "success"
+        ) {
+
+            throw new Error(
+                data.detail ||
+                "Backend did not return a valid task."
+            );
+        }
+
+
+        if (
+            !data.task ||
+            !data.project_id ||
+            !data.config
+        ) {
+
+            throw new Error(
+                "Backend returned incomplete Label Studio task data."
+            );
+        }
+
+
+        activeTaskData =
+            data.task;
+
+        activeModalityType =
+            modality;
+
+        activeTaskSubmitted =
+            false;
+
+        activeAnnotationResult =
+            null;
+
+        saveActiveTaskSession(
+            data.project_id,
+            data.assigned_task_id || data.task.id,
+            activeModalityType
+        );
+
+
+        hideLoader();
+
+
+        openLabelStudioWorkspace(
+            data,
+            modality
+        );
+
+
+    } catch (error) {
+
+        hideLoader();
+
+        console.error(
+            "Task loading error:",
+            error
+        );
+
+        showTaskError(
+            error
+        );
+    }
+}
+
+
+/* ============================================================
+   NORMALIZE TASK
+============================================================ */
+
+function normalizeTaskForLabelStudio(
+    task
+) {
+
+    const clone =
+        JSON.parse(
+            JSON.stringify(
+                task || {}
+            )
+        );
+
+
+    function normalizeValue(
+        value
+    ) {
+
+        if (
+            typeof value ===
+            "string"
+        ) {
+
+            if (
+                value.startsWith("/") &&
+                !value.startsWith("//")
+            ) {
+
+                return (
+                    LABEL_STUDIO_URL +
+                    value
+                );
+            }
+
+
+            return value;
+        }
+
+
+        if (
+            Array.isArray(
+                value
+            )
+        ) {
+
+            return value.map(
+                item =>
+                    normalizeValue(
+                        item
+                    )
+            );
+        }
+
+
+        if (
+            value &&
+            typeof value ===
+            "object"
+        ) {
+
+            Object.keys(
+                value
+            ).forEach(
+                key => {
+
+                    value[key] =
+                        normalizeValue(
+                            value[key]
+                        );
+                }
+            );
+        }
+
+
+        return value;
+    }
+
+
+    return normalizeValue(
+        clone
+    );
+}
+
+
+/* ============================================================
+   DESTROY LABEL STUDIO
+============================================================ */
+
+function destroyLabelStudio() {
+
+    if (
+        !activeLabelStudio
+    ) {
+        return;
+    }
+
+
+    try {
+
+        if (
+            typeof activeLabelStudio.destroy ===
+            "function"
+        ) {
+
+            activeLabelStudio.destroy();
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Label Studio cleanup warning:",
+            error
+        );
+    }
+
+
+    activeLabelStudio =
+        null;
+}
+
+
+/* ============================================================
+   OPEN LABEL STUDIO WORKSPACE
+============================================================ */
+
+async function openLabelStudioWorkspace(
+    data,
+    modality
+) {
+
+    const modal =
+        document.getElementById(
+            "task-workspace-modal"
+        );
+
+    const container =
+        document.getElementById(
+            "label-studio-container"
+        );
+
+    const task =
+        data &&
+        data.task;
+
+    const taskId =
+        task &&
+        task.id;
+
+    const projectId =
+        data &&
+        (
+            data.project_id ||
+            task.project ||
+            task.project_id
+        );
+
+
+    if (!taskId || !projectId) {
+
+        showTaskError(
+            new Error(
+                "Label Studio task or project ID is missing."
+            )
+        );
+
+        return;
+    }
+
+
+    document.getElementById(
+        "workspace-title"
+    ).innerText =
+        `Active ${String(modality).toUpperCase()} Task #${taskId}`;
+
+
+    document.getElementById(
+        "workspace-subtitle"
+    ).innerText =
+        `Label Studio Project #${projectId} · Task-focused Label Studio Workspace`;
+
+
+    const skipButton =
+        document.getElementById(
+            "workspace-skip-button"
+        );
+
+
+    const submitButton =
+        document.getElementById(
+            "workspace-submit-button"
+        );
+
+
+    if (skipButton) {
+
+        skipButton.disabled =
+            false;
+
+        skipButton.innerText =
+            "Skip Task";
+
+        skipButton.classList.remove(
+            "opacity-50",
+            "pointer-events-none"
+        );
+    }
+
+
+    if (submitButton) {
+
+        submitButton.disabled =
+            false;
+
+        submitButton.innerText =
+            "Mark Task Submitted";
+
+        submitButton.classList.remove(
+            "opacity-50",
+            "pointer-events-none"
+        );
+    }
+
+
+    modal.classList.remove(
+        "hidden"
+    );
+
+    modal.classList.add(
+        "flex"
+    );
+
+
+    destroyLabelStudio();
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Label Studio Community Edition does not provide the Enterprise
+     * embedding controls that we were previously trying to use.
+     *
+     * Therefore the contributor workspace is now loaded through a
+     * KELYVO backend endpoint. The backend will proxy only the active
+     * project/task workspace and will prevent direct contributor access
+     * to the Label Studio Data Manager.
+     */
+
+    activeEmbedId =
+        `kelyvo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+
+    const workspaceUrl =
+        `/api/label-studio-task-workspace?project_id=${encodeURIComponent(
+            projectId
+        )}&task_id=${encodeURIComponent(
+            taskId
+        )}&modality=${encodeURIComponent(
+            modality
+        )}&embed_id=${encodeURIComponent(
+            activeEmbedId
+        )}`;
+
+
+    container.innerHTML = `
+        <iframe
+            id="label-studio-iframe"
+            title="KELYVO Label Studio Annotation Workspace"
+            src="${escapeHtml(
+                workspaceUrl
+            )}"
+            allow="clipboard-read; clipboard-write; fullscreen"
+            referrerpolicy="same-origin"
+        ></iframe>
+    `;
+
+
+    const iframe =
+        document.getElementById(
+            "label-studio-iframe"
+        );
+
+
+    if (!iframe) {
+
+        showTaskError(
+            new Error(
+                "Could not create the Label Studio workspace."
+            )
+        );
+
+        return;
+    }
+
+
+    startNativeSubmitWatcher(
+        Number(projectId),
+        Number(taskId)
+    );
+
+
+    iframe.addEventListener(
+        "load",
+        function() {
+
+            lockContributorLabelStudioWorkspace(
+                iframe
+            );
+
+            console.log(
+                "KELYVO: proxied Label Studio task workspace loaded.",
+                {
+                    projectId:
+                        projectId,
+
+                    taskId:
+                        taskId,
+
+                    embedId:
+                        activeEmbedId,
+
+                    url:
+                        iframe.src
+                }
+            );
+
+        }
+    );
+
+
+    iframe.addEventListener(
+        "error",
+        function() {
+
+            showTaskError(
+                new Error(
+                    "Label Studio could not be loaded."
+                )
+            );
+
+        }
+    );
+}
+
+
+/* ============================================================
+   CONTRIBUTOR LABEL STUDIO WORKSPACE LOCK
+============================================================ */
+
+function lockContributorLabelStudioWorkspace(
+    iframe
+) {
+
+    if (
+        !iframe ||
+        !iframe.contentDocument
+    ) {
+        return;
+    }
+
+
+    const doc =
+        iframe.contentDocument;
+
+
+    const container =
+        document.getElementById(
+            "label-studio-container"
+        );
+
+
+    if (container) {
+
+        container.classList.add(
+            "contributor-locked"
+        );
+    }
+
+
+    const styleId =
+        "kelyvo-contributor-labelstudio-lock";
+
+
+    if (
+        !doc.getElementById(
+            styleId
+        )
+    ) {
+
+        const style =
+            doc.createElement(
+                "style"
+            );
+
+
+        style.id =
+            styleId;
+
+
+        style.textContent = `
+            a[href^="/projects"],
+            a[href*="/projects/"],
+            a[href^="/tasks"],
+            a[href*="/tasks/"],
+            a[href^="/data"],
+            a[href*="/data/"],
+            a[href^="/settings"],
+            a[href*="/settings/"],
+            a[href^="/users"],
+            a[href*="/users/"] {
+                display: none !important;
+            }
+        `;
+
+
+        doc.head.appendChild(
+            style
+        );
+    }
+
+
+    if (
+        !doc.documentElement.dataset.kelyvoLockInstalled
+    ) {
+
+        doc.documentElement.dataset.kelyvoLockInstalled =
+            "true";
+
+
+        const blockedPath =
+            /\/(?:projects|tasks|data|settings|users)(?:\/|$)/i;
+
+
+        doc.addEventListener(
+            "click",
+            function(event) {
+
+                const target =
+                    event.target &&
+                    event.target.closest
+                        ? event.target.closest(
+                            "a"
+                        )
+                        : null;
+
+
+                if (!target) {
+                    return;
+                }
+
+
+                const href =
+                    target.getAttribute(
+                        "href"
+                    ) || "";
+
+
+                if (
+                    blockedPath.test(
+                        href
+                    )
+                ) {
+
+                    event.preventDefault();
+
+                    event.stopPropagation();
+
+                    event.stopImmediatePropagation();
+                }
+
+            },
+            true
+        );
+
+
+        try {
+
+            doc.defaultView.addEventListener(
+                "popstate",
+                function() {
+
+                    doc.defaultView.history.pushState(
+                        {
+                            kelyvoTaskWorkspace:
+                                true
+                        },
+                        "",
+                        doc.defaultView.location.href
+                    );
+
+                },
+                true
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "KELYVO: iframe history lock unavailable:",
+                error
+            );
+        }
+    }
+}
+
+
+/* ============================================================
+   LABEL STUDIO EMBED EVENTS
+============================================================ */
+
+/*
+ * The KELYVO task workspace may communicate with the parent page
+ * through postMessage.
+ *
+ * We listen only for messages belonging to the active KELYVO
+ * embed instance.
+ *
+ * This does not expose the Label Studio API token to the browser.
+ */
+
+function handleLabelStudioEmbedMessage(
+    event
+) {
+
+    const message =
+        event &&
+        event.data;
+
+
+    if (
+        !message ||
+        typeof message !==
+        "object"
+    ) {
+        return;
+    }
+
+
+    if (
+        message.type !==
+        "labelstudioembed:event"
+    ) {
+        return;
+    }
+
+
+    if (
+        activeEmbedId &&
+        message.sourceId &&
+        message.sourceId !==
+        activeEmbedId
+    ) {
+        return;
+    }
+
+
+    const eventName =
+        message.event;
+
+
+    console.log(
+        "KELYVO: Label Studio embed event:",
+        eventName
+    );
+
+
+    if (
+        eventName ===
+        "submitAnnotation"
+    ) {
+
+        /*
+         * Label Studio has successfully submitted the annotation.
+         *
+         * The contributor can now send the task into KELYVO's
+         * QA queue.
+         */
+
+        const button =
+            document.getElementById(
+                "workspace-submit-button"
+            );
+
+
+        if (button) {
+
+            button.innerText =
+                "Send to QA";
+        }
+    }
+
+
+    if (
+        eventName ===
+        "skipTask"
+    ) {
+
+        /*
+         * Label Studio handled the skip action inside the embedded
+         * workspace. Close the KELYVO workspace so the contributor
+         * cannot continue working on the skipped task.
+         */
+
+        activeTaskSubmitted =
+            true;
+
+        clearActiveTaskSession();
+
+        closeTaskWorkspace();
+
+        loadPipelineProjects();
+    }
+}
+
+
+window.addEventListener(
+    "message",
+    handleLabelStudioEmbedMessage
+);
+
+
+/* ============================================================
+   SKIP TASK
+============================================================ */
+
+async function skipFromWorkspace() {
+
+    if (
+        !activeTaskData
+    ) {
+
+        alert(
+            "There is no active task."
+        );
+
+        return;
+    }
+
+    const taskId =
+        Number(activeTaskData.id);
+
+    const projectId =
+        Number(
+            activeTaskData.project ||
+            activeTaskData.project_id ||
+            0
+        );
+
+    if (!taskId || !projectId) {
+        alert(
+            "The active task or project ID is missing."
+        );
+        return;
+    }
+
+    const confirmation =
+        confirm(
+            "Skip this task?\n\nThe task will be released and this workspace will close."
+        );
+
+    if (!confirmation) {
+        return;
+    }
+
+    showLoader(
+        "Skipping Task..."
+    );
+
+    try {
+        const email =
+            localStorage.getItem(
+                "kelyvo_user_email"
+            ) || "";
+
+        const response =
+            await fetch(
+                `/api/skip-task?project_id=${encodeURIComponent(projectId)}&task_id=${encodeURIComponent(taskId)}&email=${encodeURIComponent(email)}`,
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    cache: "no-store"
+                }
+            );
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            data = null;
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                data?.detail ||
+                "Could not skip the task."
+            );
+        }
+
+        stopNativeSubmitWatcher();
+        clearActiveTaskSession();
+        activeTaskSubmitted = true;
+        hideLoader();
+        closeTaskWorkspace();
+        loadPipelineProjects();
+        loadContributorSubmissions();
+
+    } catch (error) {
+        hideLoader();
+        alert(
+            error.message ||
+            "Could not skip the task."
+        );
+    }
+}
+
+
+/* ============================================================
+   TASK ERROR
+============================================================ */
+
+function showTaskError(
+    error
+) {
+
+    const modal =
+        document.getElementById(
+            "task-workspace-modal"
+        );
+
+
+    const container =
+        document.getElementById(
+            "label-studio-container"
+        );
+
+
+    modal.classList.remove(
+        "hidden"
+    );
+
+
+    modal.classList.add(
+        "flex"
+    );
+
+
+    activeEmbedId =
+        null;
+
+
+    container.innerHTML = `
+
+        <div class="workspace-message">
+
+            <div>
+
+                <div
+                    class="text-red-400 text-3xl"
+                >
+                    !
+                </div>
+
+                <h3
+                    class="text-white text-lg mt-4"
+                >
+                    Unable to open annotation workspace
+                </h3>
+
+                <p
+                    class="text-red-400 text-sm mt-4 font-mono"
+                >
+                    ${escapeHtml(
+                        error?.message ||
+                        "Unknown error."
+                    )}
+                </p>
+
+                <p
+                    class="text-zinc-600 text-xs mt-5"
+                >
+                    KELYVO successfully communicated with its backend.
+                    The task-focused Label Studio workspace could not be loaded.
+                </p>
+
+                <button
+                    onclick="retryLabelStudioEmbed()"
+                    class="mt-6 bg-white text-black px-5 py-2.5 rounded-lg text-xs uppercase"
+                >
+                    Retry
+                </button>
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* ============================================================
+   RETRY LABEL STUDIO
+============================================================ */
+
+function retryLabelStudioEmbed() {
+
+    if (
+        !activeTaskData
+    ) {
+
+        alert(
+            "There is no active task."
+        );
+
+        return;
+    }
+
+
+    openLabelStudioWorkspace(
+        {
+            task:
+                activeTaskData,
+
+            project_id:
+                activeTaskData.project ||
+                activeTaskData.project_id
+        },
+
+        activeModalityType
+    );
+}
+
+
+/* ============================================================
+   SUBMIT FROM WORKSPACE
+============================================================ */
+
+function submitFromWorkspace() {
+
+    if (
+        !activeTaskData
+    ) {
+
+        alert(
+            "There is no active task."
+        );
+
+        return;
+    }
+
+
+    if (
+        activeTaskSubmitted
+    ) {
+
+        alert(
+            "This task has already been submitted."
+        );
+
+        return;
+    }
+
+
+    const confirmation =
+        confirm(
+            "Have you completed the annotation in Label Studio?\n\nClick OK to send this task to the KELYVO QA queue."
+        );
+
+
+    if (!confirmation) {
+        return;
+    }
+
+
+    handleAnnotationSubmission();
+}
+
+
+/* ============================================================
+   AUTOMATIC QA SUBMISSION FROM LABEL STUDIO
+============================================================ */
+
+window.addEventListener(
+    "message",
+    function (event) {
+
+        if (
+            event.origin !== window.location.origin
+        ) {
+            return;
+        }
+
+        if (
+            !event.data ||
+            event.data.type !==
+                "KELYVO_LABEL_STUDIO_SUBMIT_SUCCESS"
+        ) {
+            return;
+        }
+
+        if (
+            activeTaskSubmitted ||
+            !activeTaskData
+        ) {
+            return;
+        }
+
+        handleAnnotationSubmission();
+    }
+);
+
+
+/* ============================================================
+   SUBMIT TASK
+============================================================ */
+
+async function handleAnnotationSubmission() {
+
+    if (
+        activeTaskSubmitted ||
+        !activeTaskData
+    ) {
+        return;
+    }
+
+
+    const email =
+        localStorage.getItem(
+            "kelyvo_user_email"
+        );
+
+
+    if (!email) {
+
+        alert(
+            "Your session has expired. Please sign in again."
+        );
+
+        logout();
+
+        return;
+    }
+
+
+    activeTaskSubmitted =
+        true;
+
+
+    showLoader(
+        "Submitting Task for QA..."
+    );
+
+
+    try {
+
+        const taskTitle =
+            `${String(activeModalityType).toUpperCase()} Task #${activeTaskData.id}`;
+
+
+        const response =
+            await fetch(
+                `/submit-task?email=${encodeURIComponent(email)}&task_type=${encodeURIComponent(activeModalityType)}&task_title=${encodeURIComponent(taskTitle)}&task_id=${encodeURIComponent(activeTaskData.id)}&project_id=${encodeURIComponent(activeTaskData.project || activeTaskData.project_id || 0)}`,
+                {
+                    method:
+                        "POST"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                "Task submission failed."
+            );
+        }
+
+
+        localStorage.setItem(
+            "kelyvo_today",
+            data.tasks_today ?? 0
+        );
+
+
+        localStorage.setItem(
+            "kelyvo_week",
+            data.tasks_week ?? 0
+        );
+
+        saveLocalContributorSubmission(
+            {
+                task_id:
+                    activeTaskData.id,
+
+                project_id:
+                    activeTaskData.project ||
+                    activeTaskData.project_id ||
+                    0,
+
+                task_type:
+                    activeModalityType,
+
+                task_title:
+                    taskTitle,
+
+                status:
+                    "PENDING_QA",
+
+                submitted_at:
+                    new Date().toISOString()
+            }
+        );
+
+
+        updateStats(
+            {
+                tasks_today:
+                    data.tasks_today,
+
+                tasks_week:
+                    data.tasks_week,
+
+                tasks_passed_qa:
+                    Number(
+                        localStorage.getItem(
+                            "kelyvo_qa"
+                        ) || 0
+                    ),
+
+                earnings:
+                    Number(
+                        localStorage.getItem(
+                            "kelyvo_earnings"
+                        ) || 0
+                    )
+            }
+        );
+
+
+        hideLoader();
+
+
+        clearActiveTaskSession();
+
+
+        closeTaskWorkspace();
+
+
+        loadContributorSubmissions();
+
+
+    } catch (error) {
+
+        activeTaskSubmitted =
+            false;
+
+        hideLoader();
+
+
+        alert(
+            error.message ||
+            "Could not submit task."
+        );
+    }
+}
+
+
+/* ============================================================
+   NATIVE LABEL STUDIO SUBMIT WATCHER
+============================================================ */
+
+function stopNativeSubmitWatcher() {
+    if (nativeSubmitPollTimer) {
+        clearInterval(nativeSubmitPollTimer);
+        nativeSubmitPollTimer = null;
+    }
+}
+
+
+function startNativeSubmitWatcher(
+    projectId,
+    taskId
+) {
+    stopNativeSubmitWatcher();
+
+    nativeSubmitPollTimer = setInterval(
+        async function() {
+            if (
+                activeTaskSubmitted ||
+                !activeTaskData
+            ) {
+                return;
+            }
 
             try {
-                const response = await fetch(url, { method: 'POST' });
-                const data = await response.json();
-                hideLoader();
+                const response =
+                    await fetch(
+                        `/api/native-submit-status?project_id=${encodeURIComponent(projectId)}&task_id=${encodeURIComponent(taskId)}&email=${encodeURIComponent(localStorage.getItem("kelyvo_user_email") || "")}`,
+                        { cache: "no-store" }
+                    );
 
-                if (response.ok) {
-                    localStorage.setItem('kelyvo_user_email', data.email);
-                    localStorage.setItem('kelyvo_user_role', data.role);
-                    localStorage.setItem('kelyvo_today', data.tasks_today);
-                    localStorage.setItem('kelyvo_week', data.tasks_week);
-                    localStorage.setItem('kelyvo_qa', data.tasks_passed_qa);
-                    localStorage.setItem('kelyvo_earnings', data.earnings);
-                    localStorage.setItem('kelyvo_payout', data.payout_details || '');
-
-                    location.reload();
-                } else {
-                    msgBox.innerText = data.detail || "Authentication failed.";
+                if (!response.ok) {
+                    return;
                 }
-            } catch (err) {
-                hideLoader();
-                msgBox.innerText = "Connection error with server.";
-            }
-        }
 
-        function logout() {
-            showLoader('Terminating Session...');
-            setTimeout(() => { localStorage.clear(); location.reload(); }, 400);
-        }
+                const data =
+                    await response.json();
 
-        async function updatePayout(event) {
-            event.preventDefault();
-            const email = document.getElementById('user-email-display').innerText;
-            const method = document.getElementById('payout-method').value;
-            const details = document.getElementById('payout-details').value;
-            const msgBox = document.getElementById('payout-status-msg');
-
-            showLoader('Securing Payout Destination...');
-
-            try {
-                const response = await fetch(`/update-payout?email=${encodeURIComponent(email)}&payout_method=${encodeURIComponent(method)}&payout_details=${encodeURIComponent(details)}`, { method: 'POST' });
-                const data = await response.json();
-                hideLoader();
-
-                if (response.ok) {
-                    localStorage.setItem('kelyvo_payout', data.payout_details);
-                    lockPayoutUI(data.payout_details);
-                } else {
-                    msgBox.innerText = data.detail || "Failed to save payout destination.";
-                    msgBox.className = "text-xs font-mono text-red-400";
-                }
-            } catch (err) {
-                hideLoader();
-                msgBox.innerText = "Connection error with server.";
-                msgBox.className = "text-xs font-mono text-red-400";
-            }
-        }
-
-        // FETCH TASK CONFIG AND RENDER NATIVE LABEL STUDIO FRONTEND SDK IN MODAL
-        async function startAnnotationTask(modality) {
-            showLoader('Loading Native Workspace...');
-            try {
-                let response = await fetch(`/api/start-task?modality=${modality}`);
-                let data = await response.json();
-                hideLoader();
-
-                if (response.ok && data.status === "success") {
-                    activeTaskData = data.task;
-                    activeModalityType = modality;
-                    openNativeLabelStudioSDK(data.config, data.task);
-                } else {
-                    alert(data.detail || "Could not load task queue.");
+                if (
+                    data &&
+                    Number(data.task_id) === Number(taskId) &&
+                    (
+                        data.submitted === true ||
+                        data.revision_updated === true
+                    )
+                ) {
+                    stopNativeSubmitWatcher();
+                    handleAnnotationSubmission();
                 }
             } catch (error) {
-                hideLoader();
-                alert("Failed to connect to the native task router.");
+                console.debug(
+                    "KELYVO native submit status check failed:",
+                    error
+                );
             }
-        }
+        },
+        1000
+    );
+}
 
-        function openNativeLabelStudioSDK(configXml, task) {
-            document.getElementById('workspace-title').innerText = `Active Task ID #${task.id} (Secured Native Canvas)`;
-            document.getElementById('task-workspace-modal').classList.remove('hidden');
 
-            document.getElementById('label-studio-container').innerHTML = "";
+/* ============================================================
+   EXIT WORKSPACE
+============================================================ */
 
-            try {
-                lsInstance = new LabelStudio('label-studio-container', {
-                    config: configXml,
-                    task: {
-                        id: task.id,
-                        data: task.data,
-                        annotations: []
-                    },
-                    interfaces: [
-                        "panel",
-                        "submit",
-                        "skip",
-                        "controls"
-                    ],
-                    onSubmitAnnotation: function(ls, annotation) {
-                        submitCurrentTask();
-                    },
-                    onSkipTask: function(ls) {
-                        alert("Task skipped.");
-                        closeTaskWorkspace();
-                    }
-                });
-            } catch(e) {
-                console.error("SDK Initialization Error:", e);
-                alert("Failed to render native labeling canvas.");
-            }
-        }
+async function exitTaskWorkspace() {
 
-        function closeTaskWorkspace() {
-            document.getElementById('task-workspace-modal').classList.add('hidden');
-            if (lsInstance) {
-                lsInstance = null;
-            }
-        }
+    if (!activeTaskData) {
+        closeTaskWorkspace();
+        clearActiveTaskSession();
+        return;
+    }
 
-        async function submitCurrentTask() {
-            const email = document.getElementById('user-email-display').innerText;
-            closeTaskWorkspace();
-            showLoader('Submitting Work to QA Stream...');
+    const taskId =
+        Number(activeTaskData.id);
 
-            try {
-                const response = await fetch(`/submit-task?email=${encodeURIComponent(email)}&task_type=${encodeURIComponent(activeModalityType)}&task_title=${encodeURIComponent('Task #' + (activeTaskData ? activeTaskData.id : '1'))}`, {
-                    method: 'POST'
-                });
-                const data = await response.json();
-                hideLoader();
+    const projectId =
+        Number(
+            activeTaskData.project ||
+            activeTaskData.project_id ||
+            0
+        );
 
-                if (response.ok) {
-                    document.getElementById('stat-today').innerText = data.tasks_today;
-                    document.getElementById('stat-week').innerText = data.tasks_week;
-                    localStorage.setItem('kelyvo_today', data.tasks_today);
-                    localStorage.setItem('kelyvo_week', data.tasks_week);
-                    alert("Task successfully submitted to QA moderation queue!");
-                    loadContributorSubmissions();
-                } else {
-                    alert("Submission failed.");
+    if (!taskId || !projectId) {
+        clearActiveTaskSession();
+        closeTaskWorkspace();
+        return;
+    }
+
+    const confirmation =
+        confirm(
+            "Exit this annotation workspace?\n\nYour saved Label Studio draft will remain, but this task reservation will be released so you can start another task or open a QA revision."
+        );
+
+    if (!confirmation) {
+        return;
+    }
+
+    showLoader(
+        "Exiting Workspace..."
+    );
+
+    try {
+        const response =
+            await fetch(
+                `/api/contributor/exit-task?project_id=${encodeURIComponent(projectId)}&task_id=${encodeURIComponent(taskId)}`,
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    cache: "no-store"
                 }
-            } catch (err) {
-                hideLoader();
-                alert("Connection error with server.");
-            }
+            );
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            data = null;
         }
 
-        function lockPayoutUI(details) {
-            document.getElementById('payout-container').innerHTML = `
-                <div class="bg-darkbg border border-bordercol p-4 rounded-xl flex items-center justify-between font-mono text-xs">
-                    <div class="flex items-center space-x-3">
-                        <span class="text-emerald-400 font-bold">&#10003; VERIFIED & LOCKED</span>
-                        <span class="text-zinc-300">${details}</span>
-                    </div>
-                    <span class="text-[10px] text-zinc-500 uppercase tracking-widest">Secured & Encrypted</span>
+        if (!response.ok) {
+            throw new Error(
+                data?.detail ||
+                "Could not exit the annotation workspace."
+            );
+        }
+
+        clearActiveTaskSession();
+        activeTaskSubmitted = true;
+        hideLoader();
+        closeTaskWorkspace();
+        loadPipelineProjects();
+        loadContributorSubmissions();
+
+    } catch (error) {
+        hideLoader();
+        alert(
+            error.message ||
+            "Could not exit the annotation workspace."
+        );
+    }
+}
+
+
+/* ============================================================
+   CLOSE WORKSPACE
+============================================================ */
+
+function closeTaskWorkspace() {
+
+    stopNativeSubmitWatcher();
+
+    destroyLabelStudio();
+
+
+    document.getElementById(
+        "label-studio-container"
+    ).innerHTML = "";
+
+
+    document.getElementById(
+        "task-workspace-modal"
+    ).classList.add(
+        "hidden"
+    );
+
+
+    document.getElementById(
+        "task-workspace-modal"
+    ).classList.remove(
+        "flex"
+    );
+
+
+    activeTaskData =
+        null;
+
+
+    activeModalityType =
+        "";
+
+
+    activeTaskSubmitted =
+        false;
+
+
+    activeEmbedId =
+        null;
+}
+
+
+/* ============================================================
+   PAYOUT
+============================================================ */
+
+async function updatePayout(
+    event
+) {
+
+    event.preventDefault();
+
+
+    const email =
+        localStorage.getItem(
+            "kelyvo_user_email"
+        );
+
+
+    const method =
+        document.getElementById(
+            "payout-method"
+        ).value;
+
+
+    const details =
+        document.getElementById(
+            "payout-details"
+        ).value.trim();
+
+
+    const message =
+        document.getElementById(
+            "payout-status-msg"
+        );
+
+
+    if (
+        !email ||
+        !details
+    ) {
+
+        message.innerText =
+            "Payout details are required.";
+
+        message.className =
+            "text-xs font-mono mt-4 text-red-400";
+
+        return;
+    }
+
+
+    showLoader(
+        "Securing Payout Destination..."
+    );
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/update-payout?email=${encodeURIComponent(email)}&payout_method=${encodeURIComponent(method)}&payout_details=${encodeURIComponent(details)}`,
+                {
+                    method:
+                        "POST"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        hideLoader();
+
+
+        if (!response.ok) {
+
+            message.innerText =
+                data.detail ||
+                "Failed to save payout destination.";
+
+            message.className =
+                "text-xs font-mono mt-4 text-red-400";
+
+            return;
+        }
+
+
+        document.getElementById(
+            "payout-container"
+        ).innerHTML = `
+
+            <div
+                class="bg-[#030303] border border-zinc-800 p-4 rounded-xl font-mono text-xs"
+            >
+
+                <span
+                    class="text-emerald-400 font-bold"
+                >
+                    ✓ VERIFIED & LOCKED
+                </span>
+
+                <span
+                    class="text-zinc-400 ml-3"
+                >
+                    Payout destination saved.
+                </span>
+
+            </div>
+        `;
+
+
+        message.innerText = "";
+
+    } catch (error) {
+
+        hideLoader();
+
+        message.innerText =
+            "Connection error with server.";
+
+        message.className =
+            "text-xs font-mono mt-4 text-red-400";
+    }
+}
+
+
+/* ============================================================
+   CONTRIBUTOR SUBMISSIONS
+============================================================ */
+
+
+
+
+/* ============================================================
+   ADMIN QUEUE
+============================================================ */
+
+
+async function loadAdminQueue() {
+
+    const tbody =
+        document.getElementById(
+            "admin-table-body"
+        );
+
+    if (!tbody) {
+        return;
+    }
+
+    tbody.innerHTML = `
+        <tr>
+            <td
+                colspan="5"
+                class="p-6 text-center text-zinc-500"
+            >
+                Loading QA submissions...
+            </td>
+        </tr>
+    `;
+
+    try {
+
+        const email =
+            localStorage.getItem(
+                "kelyvo_user_email"
+            ) || "";
+
+        const response =
+            await fetch(
+                `/admin/submissions?email=${encodeURIComponent(email)}`,
+                {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail ||
+                "Could not load QA submissions."
+            );
+        }
+
+        if (!Array.isArray(data)) {
+            throw new Error(
+                "Invalid QA queue response."
+            );
+        }
+
+        renderAdminQueue(data);
+
+    } catch (error) {
+
+        console.error(
+            "QA queue error:",
+            error
+        );
+
+        tbody.innerHTML = `
+            <tr>
+                <td
+                    colspan="5"
+                    class="p-6 text-center text-red-400"
+                >
+                    ${escapeHtml(
+                        error.message ||
+                        "Could not load QA submissions."
+                    )}
+                </td>
+            </tr>
+        `;
+    }
+}
+
+
+/* ============================================================
+   RENDER ADMIN QUEUE
+============================================================ */
+
+function renderAdminQueue(
+    submissions
+) {
+
+    const tbody =
+        document.getElementById(
+            "admin-table-body"
+        );
+
+    if (!tbody) {
+        return;
+    }
+
+    tbody.innerHTML = "";
+
+    if (!submissions.length) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td
+                    colspan="5"
+                    class="p-8 text-center text-zinc-500"
+                >
+                    No submissions in the QA queue.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+    submissions.forEach(
+        submission => {
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+            const normalizedStatus =
+                String(
+                    submission.status ||
+                    "PENDING_QA"
+                ).toUpperCase();
+
+            let statusClass =
+                "text-amber-400";
+
+            if (
+                normalizedStatus ===
+                "PASSED"
+            ) {
+                statusClass =
+                    "text-emerald-400";
+            } else if (
+                normalizedStatus ===
+                "FAILED"
+            ) {
+                statusClass =
+                    "text-red-400";
+            }
+
+            let actions = `
+                <div class="flex justify-end">
+                    <button
+                        class="px-3 py-2 border border-zinc-700 text-zinc-200 rounded-md"
+                        onclick="openQAReview(${Number(submission.id)})"
+                    >
+                        ${normalizedStatus === "PENDING_QA" ? "Open Review" : "View Task"}
+                    </button>
                 </div>
+            `;
+
+            row.innerHTML = `
+                <td class="p-5">
+                    #${escapeHtml(
+                        submission.id
+                    )}
+                </td>
+
+                <td class="p-5">
+                    ${escapeHtml(
+                        submission.contributor_email ||
+                        "Unassigned"
+                    )}
+                </td>
+
+                <td class="p-5">
+                    <div class="text-white">
+                        ${escapeHtml(
+                            submission.task_title ||
+                            (
+                                "Task #" +
+                                (
+                                    submission.task_id ??
+                                    ""
+                                )
+                            )
+                        )}
+                    </div>
+
+                    <div class="text-[10px] text-zinc-600">
+                        ${escapeHtml(
+                            String(
+                                submission.task_type ||
+                                ""
+                            ).toUpperCase()
+                        )}
+                    </div>
+                </td>
+
+                <td class="p-5 ${statusClass}">
+                    ${escapeHtml(
+                        normalizedStatus
+                    )}
+                </td>
+
+                <td class="p-5 text-right">
+                    ${actions}
+                </td>
+            `;
+
+            tbody.appendChild(
+                row
+            );
+        }
+    );
+}
+
+
+/* ============================================================
+   TASK-ONLY QA REVIEW
+============================================================ */
+
+let activeQAReview = null;
+
+
+function closeQAReview() {
+
+    const modal =
+        document.getElementById(
+            "qa-review-modal"
+        );
+
+    if (modal) {
+        modal.classList.add(
+            "hidden"
+        );
+
+        modal.classList.remove(
+            "flex"
+        );
+    }
+
+    activeQAReview = null;
+
+    const preview =
+        document.getElementById(
+            "qa-task-preview"
+        );
+
+    if (preview) {
+        preview.innerHTML = "";
+    }
+}
+
+
+async function openQAReview(
+    submissionId
+) {
+
+    showLoader(
+        "Loading submitted task for QA..."
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/qa/review/${encodeURIComponent(submissionId)}`,
+                {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail ||
+                "Could not load the submitted task."
+            );
+        }
+
+        activeQAReview =
+            data;
+
+        renderQAReview(
+            data
+        );
+
+        hideLoader();
+
+        const modal =
+            document.getElementById(
+                "qa-review-modal"
+            );
+
+        modal.classList.remove(
+            "hidden"
+        );
+
+        modal.classList.add(
+            "flex"
+        );
+
+    } catch (error) {
+
+        hideLoader();
+
+        alert(
+            error.message ||
+            "Could not open QA review."
+        );
+    }
+}
+
+
+function renderQAReview(
+    data
+) {
+
+    const submission =
+        data.submission || {};
+
+    document.getElementById(
+        "qa-review-title"
+    ).innerText =
+        submission.task_title ||
+        "Review Submission";
+
+    document.getElementById(
+        "qa-review-meta"
+    ).innerText =
+        `Task #${submission.task_id || "—"} · ${String(submission.task_type || "").toUpperCase()}`;
+
+    document.getElementById(
+        "qa-review-notes"
+    ).value =
+        submission.reviewer_notes ||
+        "";
+
+    showQAReviewNotice(
+        "",
+        "amber",
+        true
+    );
+
+    renderQASubmissionDetails(
+        submission
+    );
+
+    renderQATaskPreview(
+        data.task || {},
+        submission.task_type,
+        data.annotations || []
+    );
+
+    renderQAAnnotations(
+        data.annotations || []
+    );
+
+    const isPending =
+        String(
+            submission.status ||
+            submission.state ||
+            "PENDING_QA"
+        ).toUpperCase() ===
+        "PENDING_QA";
+
+    document.getElementById(
+        "qa-pass-button"
+    ).disabled =
+        !isPending;
+
+    document.getElementById(
+        "qa-return-button"
+    ).disabled =
+        !isPending;
+
+    document.getElementById(
+        "qa-review-notes"
+    ).disabled =
+        !isPending;
+}
+
+
+function renderQASubmissionDetails(
+    submission
+) {
+
+    const target =
+        document.getElementById(
+            "qa-submission-details"
+        );
+
+    target.innerHTML = `
+        <div>
+            <div class="text-zinc-600">Submission ID</div>
+            <div class="text-white mt-1">
+                #${escapeHtml(
+                    submission.id
+                )}
+            </div>
+        </div>
+
+        <div>
+            <div class="text-zinc-600">Contributor</div>
+            <div class="text-white mt-1 break-all">
+                ${escapeHtml(
+                    submission.contributor_email ||
+                    "Unassigned"
+                )}
+            </div>
+        </div>
+
+        <div>
+            <div class="text-zinc-600">Task</div>
+            <div class="text-white mt-1">
+                #${escapeHtml(
+                    submission.task_id ??
+                    "—"
+                )}
+            </div>
+        </div>
+
+        <div>
+            <div class="text-zinc-600">Status</div>
+            <div class="text-amber-400 mt-1">
+                ${escapeHtml(
+                    submission.status ||
+                    submission.state ||
+                    "PENDING_QA"
+                )}
+            </div>
+        </div>
+    `;
+}
+
+
+function findTaskMedia(
+    task
+) {
+
+    const data =
+        task &&
+        typeof task.data === "object"
+            ? task.data
+            : {};
+
+    for (
+        const [key, value]
+        of Object.entries(data)
+    ) {
+
+        if (
+            typeof value !==
+            "string" ||
+            !value.trim()
+        ) {
+            continue;
+        }
+
+        const lowerKey =
+            key.toLowerCase();
+
+        if (
+            lowerKey.includes("image") ||
+            lowerKey.includes("audio") ||
+            lowerKey.includes("video") ||
+            value.includes(
+                "/api/qa/submission-media?"
+            )
+        ) {
+
+            return {
+                type:
+                    lowerKey.includes("audio")
+                        ? "audio"
+                        : lowerKey.includes("video")
+                            ? "video"
+                            : "image",
+                url:
+                    value
+            };
+        }
+    }
+
+    return null;
+}
+
+
+function getAnnotationLabels(
+    resultValue
+) {
+
+    const candidates = [
+        resultValue?.rectanglelabels,
+        resultValue?.labels,
+        resultValue?.choices,
+        resultValue?.polygonlabels,
+        resultValue?.brushlabels
+    ];
+
+    for (const candidate of candidates) {
+
+        if (Array.isArray(candidate) && candidate.length) {
+            return candidate;
+        }
+    }
+
+    return [];
+}
+
+
+function getAnnotationResults(
+    annotations
+) {
+
+    const rows = [];
+
+    if (!Array.isArray(annotations)) {
+        return rows;
+    }
+
+    annotations.forEach(
+        (annotation, annotationIndex) => {
+
+            const results =
+                Array.isArray(
+                    annotation?.result
+                )
+                    ? annotation.result
+                    : [];
+
+            results.forEach(
+                (item, resultIndex) => {
+
+                    rows.push({
+                        annotationIndex:
+                            annotationIndex + 1,
+                        resultIndex:
+                            resultIndex + 1,
+                        item:
+                            item
+                    });
+                }
+            );
+        }
+    );
+
+    return rows;
+}
+
+
+function renderQATaskPreview(
+    task,
+    taskType,
+    annotations
+) {
+
+    const container =
+        document.getElementById(
+            "qa-task-preview"
+        );
+
+    const media =
+        findTaskMedia(
+            task
+        );
+
+    if (media) {
+
+        if (
+            media.type ===
+            "image"
+        ) {
+
+            container.innerHTML = `
+                <div class="qa-preview-stage">
+                    <img
+                        id="qa-preview-image"
+                        src="${escapeHtml(
+                            media.url
+                        )}"
+                        alt="Submitted task"
+                    />
+                    <div
+                        id="qa-box-overlay"
+                        class="qa-box-overlay"
+                    ></div>
+                </div>
+            `;
+
+            requestAnimationFrame(
+                () =>
+                    renderQAImageBoxes(
+                        annotations || []
+                    )
+            );
+
+        } else if (
+            media.type ===
+            "video"
+        ) {
+
+            container.innerHTML = `
+                <video
+                    src="${escapeHtml(
+                        media.url
+                    )}"
+                    controls
+                    class="max-w-full max-h-[620px] rounded-lg"
+                ></video>
+            `;
+
+        } else {
+
+            container.innerHTML = `
+                <audio
+                    src="${escapeHtml(
+                        media.url
+                    )}"
+                    controls
+                    class="w-full max-w-2xl"
+                ></audio>
             `;
         }
 
-        async function loadContributorSubmissions() {
-            const email = document.getElementById('user-email-display').innerText;
-            try {
-                const response = await fetch('/admin/submissions');
-                const submissions = await response.json();
-                const container = document.getElementById('contributor-submissions-container');
-                container.innerHTML = "";
+        return;
+    }
 
-                const mySubs = submissions.filter(sub => sub.contributor_email === email);
+    const data =
+        task &&
+        typeof task.data === "object"
+            ? task.data
+            : {};
 
-                if (mySubs.length === 0) {
-                    container.innerHTML = `<div class="col-span-3 bg-cardbg border border-bordercol p-6 rounded-xl text-center text-xs text-zinc-500 font-mono">No active submissions in review or revision. Start a task above to track its QA status.</div>`;
-                    return;
-                }
+    const textValue =
+        data.text ||
+        data.prompt ||
+        data.content ||
+        data.question ||
+        "No previewable task content was returned.";
 
-                mySubs.forEach(sub => {
-                    let statusBadge = `<span class="px-2.5 py-1 bg-amber-950/50 text-amber-400 border border-amber-900 rounded text-[10px] font-mono">PENDING QA</span>`;
-                    if (sub.status === "PASSED") statusBadge = `<span class="px-2.5 py-1 bg-emerald-950/50 text-emerald-400 border border-emerald-900 rounded text-[10px] font-mono">PASSED (+₹500)</span>`;
-                    if (sub.status === "RETURNED") statusBadge = `<span class="px-2.5 py-1 bg-blue-950/50 text-blue-400 border border-blue-900 rounded text-[10px] font-mono">REVISION REQUIRED</span>`;
-                    if (sub.status === "FAILED") statusBadge = `<span class="px-2.5 py-1 bg-red-950/50 text-red-400 border border-red-900 rounded text-[10px] font-mono">FAILED / REQUEUED</span>`;
+    container.innerHTML = `
+        <div class="w-full max-w-3xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-600 mb-3">
+                Task Content
+            </div>
 
-                    let notesHtml = sub.reviewer_notes ? `<p class="text-xs text-amber-300/90 mt-2 font-mono bg-darkbg p-2.5 rounded border border-bordercol">Admin Feedback: "${sub.reviewer_notes}"</p>` : '';
+            <div class="bg-[#080808] border border-zinc-800 rounded-xl p-5 text-sm text-zinc-200 whitespace-pre-wrap leading-7">
+                ${escapeHtml(
+                    textValue
+                )}
+            </div>
+        </div>
+    `;
+}
 
-                    let actionHtml = sub.status === "RETURNED" 
-                        ? `<button onclick="startAnnotationTask('${sub.task_type.toLowerCase()}')" class="mt-4 w-full bg-blue-600 text-white text-xs uppercase tracking-wider font-medium py-2 rounded-lg hover:bg-blue-500 transition">Resubmit Revision</button>`
-                        : (sub.status === "PENDING_QA" ? `<p class="mt-4 text-[11px] text-zinc-500 font-mono italic">Awaiting professional QA review...</p>` : `<p class="mt-4 text-[11px] text-emerald-400 font-mono">Settled & Credited</p>`);
 
-                    container.innerHTML += `
-                        <div class="bg-cardbg border border-bordercol p-6 rounded-2xl flex flex-col justify-between">
-                            <div>
-                                <div class="flex justify-between items-center mb-4">
-                                    <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 bg-zinc-900 border border-bordercol rounded text-zinc-300 font-mono">#${sub.id} &bull; ${sub.task_type}</span>
-                                    ${statusBadge}
+function renderQAImageBoxes(
+    annotations
+) {
+
+    const overlay =
+        document.getElementById(
+            "qa-box-overlay"
+        );
+
+    if (!overlay) {
+        return;
+    }
+
+    overlay.innerHTML = "";
+
+    const rows =
+        getAnnotationResults(
+            annotations
+        );
+
+    rows.forEach(
+        entry => {
+
+            const item =
+                entry.item || {};
+
+            const value =
+                item.value || {};
+
+            const x =
+                Number(
+                    value.x
+                );
+
+            const y =
+                Number(
+                    value.y
+                );
+
+            const width =
+                Number(
+                    value.width
+                );
+
+            const height =
+                Number(
+                    value.height
+                );
+
+            if (
+                !Number.isFinite(x) ||
+                !Number.isFinite(y) ||
+                !Number.isFinite(width) ||
+                !Number.isFinite(height)
+            ) {
+                return;
+            }
+
+            const box =
+                document.createElement(
+                    "div"
+                );
+
+            box.className =
+                "qa-box";
+
+            box.style.left =
+                `${x}%`;
+
+            box.style.top =
+                `${y}%`;
+
+            box.style.width =
+                `${width}%`;
+
+            box.style.height =
+                `${height}%`;
+
+            const labels =
+                getAnnotationLabels(
+                    value
+                );
+
+            if (labels.length) {
+
+                const label =
+                    document.createElement(
+                        "div"
+                    );
+
+                label.className =
+                    "qa-box-label";
+
+                label.innerText =
+                    labels.join(
+                        ", "
+                    );
+
+                box.appendChild(
+                    label
+                );
+            }
+
+            overlay.appendChild(
+                box
+            );
+        }
+    );
+}
+
+
+function renderQAAnnotations(
+    annotations
+) {
+
+    const target =
+        document.getElementById(
+            "qa-annotation-results"
+        );
+
+    if (
+        !Array.isArray(
+            annotations
+        ) ||
+        !annotations.length
+    ) {
+
+        target.innerHTML = `
+            <div class="text-xs text-zinc-600">
+                No submitted annotation results were returned.
+            </div>
+        `;
+
+        return;
+    }
+
+    target.innerHTML =
+        annotations.map(
+            (
+                annotation,
+                index
+            ) => {
+
+                const result =
+                    Array.isArray(
+                        annotation?.result
+                    )
+                        ? annotation.result
+                        : [];
+
+                const resultRows =
+                    result.map(
+                        item => {
+
+                            const value =
+                                item?.value ||
+                                {};
+
+                            const labels =
+                                getAnnotationLabels(
+                                    value
+                                );
+
+                            const text =
+                                value.text;
+
+                            return `
+                                <div class="border-t border-zinc-800 pt-3 mt-3">
+                                    <div class="text-zinc-300">
+                                        ${escapeHtml(
+                                            item?.type ||
+                                            "result"
+                                        )}
+                                    </div>
+
+                                    ${
+                                        labels.length
+                                            ? `
+                                                <div class="text-[11px] text-amber-300 mt-1">
+                                                    ${escapeHtml(
+                                                        labels.join(
+                                                            ", "
+                                                        )
+                                                    )}
+                                                </div>
+                                            `
+                                            : ""
+                                    }
+
+                                    ${
+                                        text
+                                            ? `
+                                                <div class="text-[11px] text-zinc-300 mt-1 whitespace-pre-wrap">
+                                                    ${escapeHtml(
+                                                        text
+                                                    )}
+                                                </div>
+                                            `
+                                            : ""
+                                    }
+
+                                    <div class="text-[10px] text-zinc-600 mt-1 break-all">
+                                        ${escapeHtml(
+                                            JSON.stringify(
+                                                value
+                                            )
+                                        )}
+                                    </div>
                                 </div>
-                                <h4 class="text-sm font-medium text-white mb-2">${sub.task_title}</h4>
-                                ${notesHtml}
-                            </div>
-                            <div>${actionHtml}</div>
+                            `;
+                        }
+                    ).join("");
+
+                return `
+                    <div class="border border-zinc-800 rounded-lg p-4">
+                        <div class="flex justify-between gap-3">
+                            <span class="text-xs text-zinc-300">
+                                Annotation ${index + 1}
+                            </span>
+
+                            <span class="text-[10px] text-zinc-600">
+                                ${escapeHtml(
+                                    annotation?.created_at ||
+                                    ""
+                                )}
+                            </span>
                         </div>
-                    `;
-                });
-            } catch (err) {
-                console.error("Failed to load contributor submissions", err);
+
+                        ${
+                            resultRows ||
+                            `<div class="text-xs text-zinc-600 mt-3">No result items.</div>`
+                        }
+                    </div>
+                `;
             }
-        }
+        ).join("");
+}
 
-        async function loadAdminQueue() {
-            try {
-                const response = await fetch('/admin/submissions');
-                const submissions = await response.json();
-                const tbody = document.getElementById('admin-table-body');
-                tbody.innerHTML = "";
 
-                if (submissions.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-zinc-500">No pending submissions in the QA queue.</td></tr>`;
-                    return;
+function showQAReviewNotice(
+    message,
+    tone = "amber",
+    hide = false
+) {
+
+    const notice =
+        document.getElementById(
+            "qa-review-notice"
+        );
+
+    if (!notice) {
+        return;
+    }
+
+    if (hide || !message) {
+        notice.classList.add(
+            "hidden"
+        );
+        notice.innerText = "";
+        return;
+    }
+
+    notice.innerText =
+        message;
+
+    notice.classList.remove(
+        "hidden"
+    );
+
+    notice.className =
+        `border rounded-xl p-4 text-xs ${
+            tone === "red"
+                ? "border-red-900/60 bg-red-950/10 text-red-300"
+                : "border-amber-900/60 bg-amber-950/10 text-amber-300"
+        }`;
+}
+
+
+async function submitQAReview(
+    decision
+) {
+
+    if (
+        !activeQAReview ||
+        !activeQAReview.submission ||
+        !activeQAReview.submission.id
+    ) {
+        return;
+    }
+
+    const normalizedDecision =
+        String(
+            decision || ""
+        ).toUpperCase();
+
+    const notesElement =
+        document.getElementById(
+            "qa-review-notes"
+        );
+
+    const notes =
+        notesElement
+            ? notesElement.value.trim()
+            : "";
+
+    if (
+        normalizedDecision ===
+        "FAILED" &&
+        !notes
+    ) {
+
+        alert(
+            "Add reviewer notes before returning this task for revision."
+        );
+
+        return;
+    }
+
+    const confirmation =
+        confirm(
+            normalizedDecision === "PASSED"
+                ? "Pass this submission through QA?"
+                : "Return this task to the contributor for revision?"
+        );
+
+    if (!confirmation) {
+        return;
+    }
+
+    showLoader(
+        normalizedDecision ===
+        "PASSED"
+            ? "Approving QA Review..."
+            : "Returning Task for Revision..."
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                `/admin/review-task?submission_id=${encodeURIComponent(
+                    activeQAReview.submission.id
+                )}&decision=${encodeURIComponent(
+                    normalizedDecision
+                )}&notes=${encodeURIComponent(
+                    notes
+                )}`,
+                {
+                    method: "POST",
+                    credentials: "same-origin"
                 }
+            );
 
-                submissions.forEach(sub => {
-                    let statusColor = sub.status === "PASSED" ? "text-emerald-400" : (sub.status === "FAILED" ? "text-red-400" : (sub.status === "RETURNED" ? "text-blue-400" : "text-amber-400"));
-                    let notesDisplay = sub.reviewer_notes ? `<span class="block text-[10px] text-zinc-400 mt-1 italic">Note: "${sub.reviewer_notes}"</span>` : '';
+        const data =
+            await response.json();
 
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-zinc-900/40 transition">
-                            <td class="p-5 text-zinc-500">#${sub.id}</td>
-                            <td class="p-5 text-white font-medium">${sub.contributor_email}</td>
-                            <td class="p-5 text-zinc-300">
-                                <span class="px-2.5 py-1 bg-zinc-900 border border-bordercol rounded text-[10px] mr-2">${sub.task_type}</span>
-                                <span class="block mt-1.5 text-white">${sub.task_title}</span>
-                            </td>
-                            <td class="p-5">
-                                <span class="font-bold ${statusColor}">${sub.status}</span>
-                                ${notesDisplay}
-                            </td>
-                            <td class="p-5 text-right space-y-2 md:space-y-0 md:space-x-1">
-                                <input type="text" id="notes-${sub.id}" placeholder="Audit feedback note..." class="bg-darkbg border border-bordercol rounded px-2 py-1 text-[11px] text-white w-36 mb-1 md:mb-0 focus:outline-none focus:border-zinc-500">
-                                <button onclick="reviewTask(${sub.id}, 'PASSED')" class="px-2.5 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded hover:bg-emerald-900 transition">Pass</button>
-                                <button onclick="reviewTask(${sub.id}, 'FAILED')" class="px-2.5 py-1 bg-red-950 text-red-400 border border-red-800 rounded hover:bg-red-900 transition" title="Requeues task to pool">Fail & Requeue</button>
-                                <button onclick="reviewTask(${sub.id}, 'RETURNED')" class="px-2.5 py-1 bg-blue-950 text-blue-400 border border-blue-800 rounded hover:bg-blue-900 transition">Return</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-            } catch (err) {
-                console.error("Failed to load admin queue", err);
-            }
+        if (!response.ok) {
+            throw new Error(
+                data.detail ||
+                "QA review failed."
+            );
         }
 
-        async function reviewTask(subId, decision) {
-            const notesInput = document.getElementById(`notes-${subId}`);
-            const notes = notesInput ? notesInput.value : "";
-            showLoader('Updating QA Audit Stream...');
+        hideLoader();
 
-            try {
-                const response = await fetch(`/admin/review-task?submission_id=${subId}&decision=${decision}&notes=${encodeURIComponent(notes)}`, { method: 'POST' });
-                hideLoader();
-                if (response.ok) { loadAdminQueue(); } else { alert("Failed to update review status."); }
-            } catch (err) {
-                hideLoader();
-                alert("Connection error with server.");
+        closeQAReview();
+
+        await loadAdminQueue();
+
+    } catch (error) {
+
+        hideLoader();
+
+        showQAReviewNotice(
+            error.message ||
+            "QA review failed.",
+            "red"
+        );
+    }
+}
+
+
+
+/* ============================================================
+   LOGOUT
+============================================================ */
+
+async function logout() {
+
+    try {
+        await fetch(
+            "/logout",
+            {
+                method: "POST",
+                credentials: "same-origin"
             }
+        );
+    } catch (error) {
+        console.warn(
+            "KELYVO logout request failed:",
+            error
+        );
+    }
+
+    [
+        "kelyvo_user_email",
+        "kelyvo_user_role",
+        "kelyvo_today",
+        "kelyvo_week",
+        "kelyvo_qa",
+        "kelyvo_earnings"
+    ].forEach(
+        key =>
+            localStorage.removeItem(
+                key
+            )
+    );
+
+    clearActiveTaskSession();
+
+    closeTaskWorkspace();
+    closeQAReview();
+
+    location.reload();
+}
+
+
+/* ============================================================
+   HTML ESCAPING
+============================================================ */
+
+function escapeHtml(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+}
+
+
+/* ============================================================
+   CONTRIBUTOR SUBMISSION HISTORY
+============================================================ */
+
+function getLocalContributorSubmissions() {
+
+    try {
+
+        const raw =
+            localStorage.getItem(
+                CONTRIBUTOR_SUBMISSIONS_STORAGE_KEY
+            );
+
+        if (!raw) {
+            return [];
         }
-    </script>
+
+        const parsed =
+            JSON.parse(raw);
+
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed;
+
+    } catch (error) {
+
+        console.warn(
+            "KELYVO: could not read local submission history:",
+            error
+        );
+
+        return [];
+    }
+}
+
+
+function saveLocalContributorSubmission(
+    submission
+) {
+
+    if (
+        !submission ||
+        !submission.task_id
+    ) {
+        return;
+    }
+
+    const existing =
+        getLocalContributorSubmissions();
+
+    const normalized = {
+
+        task_id:
+            Number(
+                submission.task_id
+            ),
+
+        project_id:
+            Number(
+                submission.project_id || 0
+            ),
+
+        task_type:
+            String(
+                submission.task_type || ""
+            ).toLowerCase(),
+
+        task_title:
+            String(
+                submission.task_title ||
+                ""
+            ),
+
+        status:
+            String(
+                submission.status ||
+                "PENDING_QA"
+            ),
+
+        submitted_at:
+            submission.submitted_at ||
+            new Date().toISOString()
+    };
+
+    const filtered =
+        existing.filter(
+            item =>
+                Number(
+                    item.task_id
+                ) !== normalized.task_id ||
+                String(
+                    item.task_type ||
+                    ""
+                ).toLowerCase() !==
+                normalized.task_type
+        );
+
+    filtered.unshift(
+        normalized
+    );
+
+    localStorage.setItem(
+        CONTRIBUTOR_SUBMISSIONS_STORAGE_KEY,
+        JSON.stringify(
+            filtered.slice(
+                0,
+                MAX_LOCAL_CONTRIBUTOR_SUBMISSIONS
+            )
+        )
+    );
+}
+
+
+function formatSubmissionTime(
+    value
+) {
+
+    if (!value) {
+        return "";
+    }
+
+    const date =
+        new Date(value);
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return "";
+    }
+
+    return date.toLocaleString(
+        undefined,
+        {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        }
+    );
+}
+
+
+function getSubmissionStatusMeta(
+    status
+) {
+
+    const normalized =
+        String(
+            status || "PENDING_QA"
+        ).toUpperCase();
+
+    if (
+        normalized ===
+        "PASSED"
+    ) {
+        return {
+            label:
+                "QA PASSED",
+            dot:
+                "passed",
+            text:
+                "text-emerald-400"
+        };
+    }
+
+    if (
+        normalized ===
+        "FAILED"
+    ) {
+        return {
+            label:
+                "REVISION REQUIRED",
+            dot:
+                "failed",
+            text:
+                "text-red-400"
+        };
+    }
+
+    return {
+        label:
+            "PENDING QA",
+        dot:
+            "pending",
+        text:
+            "text-amber-400"
+    };
+}
+
+
+/* ============================================================
+   CONTRIBUTOR REVISION
+============================================================ */
+
+async function startContributorRevision(
+    submissionId
+) {
+
+    if (!submissionId) {
+        return;
+    }
+
+    const confirmation =
+        confirm(
+            "Open this QA-returned task for correction and resubmission?"
+        );
+
+    if (!confirmation) {
+        return;
+    }
+
+    showLoader(
+        "Opening task for revision..."
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/contributor/revision-task?submission_id=${encodeURIComponent(
+                    submissionId
+                )}`,
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    cache: "no-store"
+                }
+            );
+
+        let data = null;
+
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            data = null;
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                data?.detail ||
+                "Could not open the task for revision."
+            );
+        }
+
+        if (
+            !data ||
+            data.status !== "success" ||
+            !data.task ||
+            !data.project_id ||
+            !data.assigned_task_id
+        ) {
+            throw new Error(
+                "The server did not return a valid revision task."
+            );
+        }
+
+        activeTaskData =
+            data.task;
+
+        activeModalityType =
+            String(
+                data.modality ||
+                ""
+            ).toLowerCase();
+
+        activeTaskSubmitted =
+            false;
+
+        activeAnnotationResult =
+            null;
+
+        saveActiveTaskSession(
+            data.project_id,
+            data.assigned_task_id,
+            activeModalityType
+        );
+
+        hideLoader();
+
+        openLabelStudioWorkspace(
+            data,
+            activeModalityType
+        );
+
+    } catch (error) {
+
+        hideLoader();
+
+        console.error(
+            "Revision task loading error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Could not open the task for revision."
+        );
+    }
+}
+
+
+/* ============================================================
+   CONTRIBUTOR SUBMISSIONS
+============================================================ */
+
+async function loadContributorSubmissions() {
+
+    const container =
+        document.getElementById(
+            "contributor-submissions-container"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const email =
+        localStorage.getItem(
+            "kelyvo_user_email"
+        ) || "";
+
+    let submissions = [];
+
+    /*
+     * The server is the source of truth for QA status.
+     * LocalStorage remains only as a temporary fallback so the dashboard
+     * still shows a just-submitted task if the network is briefly unavailable.
+     */
+    if (email) {
+        try {
+            const response =
+                await fetch(
+                    `/api/contributor/submissions?email=${encodeURIComponent(email)}`,
+                    {
+                        method: "GET",
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (
+                response.ok &&
+                data &&
+                Array.isArray(data.submissions)
+            ) {
+                submissions =
+                    data.submissions.map(
+                        item => ({
+                            ...item,
+                            task_id:
+                                item.task_id ??
+                                0,
+                            project_id:
+                                Number(
+                                    item.project_id || 0
+                                ),
+                            task_type:
+                                String(
+                                    item.task_type || ""
+                                ).toLowerCase(),
+                            task_title:
+                                String(
+                                    item.task_title || ""
+                                ),
+                            status:
+                                String(
+                                    item.status ||
+                                    "PENDING_QA"
+                                ),
+                            reviewer_notes:
+                                item.reviewer_notes ||
+                                "",
+                            submitted_at:
+                                item.submitted_at ||
+                                ""
+                        })
+                    );
+
+                localStorage.setItem(
+                    CONTRIBUTOR_SUBMISSIONS_STORAGE_KEY,
+                    JSON.stringify(
+                        submissions.slice(
+                            0,
+                            MAX_LOCAL_CONTRIBUTOR_SUBMISSIONS
+                        )
+                    )
+                );
+            } else {
+                submissions =
+                    getLocalContributorSubmissions();
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "KELYVO: server submission history unavailable; using local fallback:",
+                error
+            );
+
+            submissions =
+                getLocalContributorSubmissions();
+        }
+
+    } else {
+
+        submissions =
+            getLocalContributorSubmissions();
+    }
+
+    submissions =
+        Array.isArray(submissions)
+            ? submissions
+            : [];
+
+    const queueCount =
+        submissions.filter(
+            item =>
+                String(
+                    item.status ||
+                    ""
+                ).toUpperCase() ===
+                "PENDING_QA"
+        ).length;
+
+    const queueCounter =
+        document.getElementById(
+            "contributor-queue-count"
+        );
+
+    if (queueCounter) {
+        queueCounter.innerText =
+            String(queueCount);
+    }
+
+    const lastStatus =
+        document.getElementById(
+            "contributor-last-submission-status"
+        );
+
+    const lastTask =
+        document.getElementById(
+            "contributor-last-submission-task"
+        );
+
+    const lastTime =
+        document.getElementById(
+            "contributor-last-submission-time"
+        );
+
+    if (submissions.length) {
+
+        const latest =
+            submissions[0];
+
+        const latestMeta =
+            getSubmissionStatusMeta(
+                latest.status
+            );
+
+        if (lastStatus) {
+            lastStatus.innerHTML =
+                `<span class="kelyvo-status-dot ${latestMeta.dot}"></span>${escapeHtml(latestMeta.label)}`;
+            lastStatus.className =
+                `text-[10px] uppercase ${latestMeta.text}`;
+        }
+
+        if (lastTask) {
+            lastTask.innerText =
+                latest.task_title ||
+                `Task #${latest.task_id}`;
+        }
+
+        if (lastTime) {
+            lastTime.innerText =
+                formatSubmissionTime(
+                    latest.submitted_at
+                );
+        }
+
+    } else {
+
+        if (lastStatus) {
+            lastStatus.innerText =
+                "None";
+            lastStatus.className =
+                "text-[10px] text-zinc-600 uppercase";
+        }
+
+        if (lastTask) {
+            lastTask.innerText =
+                "No submissions yet";
+        }
+
+        if (lastTime) {
+            lastTime.innerText =
+                "";
+        }
+    }
+
+    container.innerHTML = "";
+
+    if (!submissions.length) {
+
+        container.innerHTML = `
+            <div
+                class="md:col-span-3 kelyvo-card p-7"
+            >
+                <div class="flex items-start gap-4">
+                    <div
+                        class="w-10 h-10 rounded-xl border border-zinc-800 flex items-center justify-center text-zinc-500"
+                    >
+                        ✓
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm text-zinc-200">
+                            No active QA submissions
+                        </h4>
+
+                        <p class="text-xs text-zinc-600 mt-2">
+                            Completed tasks will appear here after you submit them from the Label Studio workspace.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        return;
+    }
+
+    submissions.forEach(
+        submission => {
+
+            const meta =
+                getSubmissionStatusMeta(
+                    submission.status
+                );
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.className =
+                "kelyvo-card p-6";
+
+            const reviewerNotes =
+                String(
+                    submission.reviewer_notes ||
+                    ""
+                ).trim();
+
+            let statusMessage = "";
+
+            if (
+                String(
+                    submission.status ||
+                    ""
+                ).toUpperCase() ===
+                "FAILED" &&
+                reviewerNotes
+            ) {
+                statusMessage = `
+                    <div class="mt-5 border border-red-900/40 bg-red-950/10 rounded-lg p-4">
+                        <p class="text-[9px] uppercase tracking-widest text-red-400">
+                            Reviewer Notes
+                        </p>
+                        <p class="text-xs text-zinc-400 mt-2 whitespace-pre-wrap">
+                            ${escapeHtml(
+                                reviewerNotes
+                            )}
+                        </p>
+                    </div>
+                `;
+            }
+
+            const isFailed =
+                String(
+                    submission.status ||
+                    ""
+                ).toUpperCase() ===
+                "FAILED";
+
+            const revisionAction =
+                isFailed
+                    ? `
+                        <button
+                            type="button"
+                            class="w-full mt-5 bg-white text-black text-xs uppercase py-2.5 rounded-lg"
+                            onclick="startContributorRevision(${Number(
+                                submission.id
+                            )})"
+                        >
+                            Edit &amp; Resubmit
+                        </button>
+                    `
+                    : "";
+
+            card.innerHTML = `
+                <div class="flex items-start justify-between gap-4">
+
+                    <div>
+                        <span class="text-[9px] uppercase tracking-widest text-zinc-500">
+                            ${escapeHtml(
+                                String(
+                                    submission.task_type ||
+                                    "task"
+                                ).toUpperCase()
+                            )}
+                        </span>
+
+                        <h4 class="text-sm text-white mt-3">
+                            ${escapeHtml(
+                                submission.task_title ||
+                                `Task #${submission.task_id}`
+                            )}
+                        </h4>
+                    </div>
+
+                    <span class="kelyvo-pill ${meta.text}">
+                        <span
+                            class="kelyvo-status-dot ${meta.dot}"
+                        ></span>
+                        ${escapeHtml(
+                            meta.label
+                        )}
+                    </span>
+
+                </div>
+
+                <div class="kelyvo-soft-divider my-5"></div>
+
+                <div class="space-y-2 text-xs">
+
+                    <div class="flex justify-between gap-4">
+                        <span class="text-zinc-600">
+                            Task ID
+                        </span>
+
+                        <span class="text-zinc-400 kelyvo-mono">
+                            #${escapeHtml(
+                                submission.task_id ||
+                                "—"
+                            )}
+                        </span>
+                    </div>
+
+                    <div class="flex justify-between gap-4">
+                        <span class="text-zinc-600">
+                            Submitted
+                        </span>
+
+                        <span class="text-zinc-400 kelyvo-mono text-right">
+                            ${escapeHtml(
+                                formatSubmissionTime(
+                                    submission.submitted_at
+                                ) ||
+                                "Recorded"
+                            )}
+                        </span>
+                    </div>
+
+                </div>
+
+                ${statusMessage}
+
+                ${revisionAction}
+            `;
+
+            container.appendChild(
+                card
+            );
+        }
+    );
+}
+
+
+async function restoreAuthenticatedSession() {
+
+    /*
+     * localStorage is only a convenience cache. It is NOT proof that the
+     * contributor is authenticated. The secure HttpOnly KELYVO session
+     * cookie is authoritative and must be validated by the server first.
+     */
+    const cachedEmail =
+        localStorage.getItem(
+            "kelyvo_user_email"
+        );
+
+    if (!cachedEmail) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/session",
+                {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store"
+                }
+            );
+
+        let data = null;
+
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            data = null;
+        }
+
+        if (
+            !response.ok ||
+            !data ||
+            data.status !== "success" ||
+            !data.email ||
+            !data.role
+        ) {
+            /*
+             * A stale localStorage login must never keep the protected
+             * dashboard visible after the secure server session expires,
+             * is missing, or becomes invalid.
+             */
+            [
+                "kelyvo_user_email",
+                "kelyvo_user_role",
+                "kelyvo_today",
+                "kelyvo_week",
+                "kelyvo_qa",
+                "kelyvo_earnings"
+            ].forEach(
+                key =>
+                    localStorage.removeItem(
+                        key
+                    )
+            );
+
+            clearActiveTaskSession();
+
+            return;
+        }
+
+        /*
+         * Refresh the local cache from the authoritative database-backed
+         * session response so dashboard statistics cannot become stale.
+         */
+        localStorage.setItem(
+            "kelyvo_user_email",
+            data.email
+        );
+
+        localStorage.setItem(
+            "kelyvo_user_role",
+            data.role
+        );
+
+        localStorage.setItem(
+            "kelyvo_today",
+            data.tasks_today ?? 0
+        );
+
+        localStorage.setItem(
+            "kelyvo_week",
+            data.tasks_week ?? 0
+        );
+
+        localStorage.setItem(
+            "kelyvo_qa",
+            data.tasks_passed_qa ?? 0
+        );
+
+        localStorage.setItem(
+            "kelyvo_earnings",
+            data.earnings ?? 0
+        );
+
+        initializeAuthenticatedUI(
+            data
+        );
+
+    } catch (error) {
+
+        /*
+         * Do not trust the cached login if the server cannot validate the
+         * secure session. Leave the user at the authentication screen.
+         */
+        console.warn(
+            "KELYVO: secure session validation failed:",
+            error
+        );
+
+        [
+            "kelyvo_user_email",
+            "kelyvo_user_role",
+            "kelyvo_today",
+            "kelyvo_week",
+            "kelyvo_qa",
+            "kelyvo_earnings"
+        ].forEach(
+            key =>
+                localStorage.removeItem(
+                    key
+                )
+        );
+
+        clearActiveTaskSession();
+    }
+}
+
+
+window.addEventListener(
+    "load",
+    function() {
+        restoreAuthenticatedSession();
+    }
+);
+
+</script>
+
+
 </body>
 </html>
