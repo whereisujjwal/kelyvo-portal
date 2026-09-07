@@ -278,6 +278,259 @@ PROJECT_MAPPING = {
 }
 
 
+# ============================================================
+# ENTERPRISE PROJECT REGISTRY BRIDGE
+# ============================================================
+#
+# KELYVO's enterprise database is being introduced without breaking the
+# currently working Label Studio workflow.  For this first migration step,
+# the database becomes the registry for organizations/workspaces/projects,
+# while the existing in-memory reservation system remains in place as a
+# compatibility layer.  Later steps can safely move reservations and the
+# complete task lifecycle into these persistent tables.
+#
+# Label Studio remains the execution engine for now.  Its project IDs are
+# stored on the KELYVO Project records instead of being the only place where
+# KELYVO knows how its projects are structured.
+
+
+def _enterprise_role_for_user(user_role: str) -> str:
+    role = (user_role or "contributor").strip().lower()
+    if role == "admin":
+        return "admin"
+    if role == "qa":
+        return "qa"
+    return "contributor"
+
+
+def _ensure_enterprise_project_registry():
+    """Create/synchronize KELYVO's initial enterprise project registry.
+
+    This is intentionally idempotent and backward-compatible.  It never
+    deletes or changes existing contributor/submission records and it does not
+    depend on Label Studio being online.
+    """
+    db = SessionLocal()
+    try:
+        organization = (
+            db.query(models.Organization)
+            .filter(models.Organization.slug == "kelyvo")
+            .first()
+        )
+
+        if organization is None:
+            organization = models.Organization(
+                name="KELYVO",
+                slug="kelyvo",
+                organization_type="internal",
+                status="active",
+            )
+            db.add(organization)
+            db.flush()
+
+        workspace = (
+            db.query(models.Workspace)
+            .filter(
+                models.Workspace.organization_id == organization.id,
+                models.Workspace.slug == "operations",
+            )
+            .first()
+        )
+
+        if workspace is None:
+            workspace = models.Workspace(
+                organization_id=organization.id,
+                name="KELYVO Operations",
+                slug="operations",
+                description=(
+                    "Core KELYVO data operations workspace for annotation, "
+                    "QA, workforce and project execution."
+                ),
+                status="active",
+            )
+            db.add(workspace)
+            db.flush()
+
+        project_names = {
+            "image": "Image Data Operations",
+            "audio": "Audio Data Operations",
+            "video": "Video Data Operations",
+            "text": "Text Data Operations",
+        }
+
+        project_descriptions = {
+            "image": "KELYVO image annotation operations.",
+            "audio": "KELYVO audio annotation operations.",
+            "video": "KELYVO video annotation operations.",
+            "text": "KELYVO text annotation operations.",
+        }
+
+        for modality, external_project_id in PROJECT_MAPPING.items():
+            project_code = f"KELYVO-{modality.upper()}"
+
+            project = (
+                db.query(models.Project)
+                .filter(models.Project.project_code == project_code)
+                .first()
+            )
+
+            if project is None:
+                project = models.Project(
+                    workspace_id=workspace.id,
+                    name=project_names.get(
+                        modality,
+                        f"{modality.title()} Data Operations",
+                    ),
+                    project_code=project_code,
+                    description=project_descriptions.get(modality),
+                    modality=modality,
+                    status="active",
+                    external_engine="label_studio",
+                    external_project_id=int(external_project_id),
+                )
+                db.add(project)
+            else:
+                project.workspace_id = workspace.id
+                project.modality = modality
+                project.status = "active"
+                project.external_engine = "label_studio"
+                project.external_project_id = int(external_project_id)
+
+        # Put all currently registered portal users into the initial internal
+        # organization.  Existing memberships are never overwritten.
+        users = db.query(models.User).all()
+        for user in users:
+            membership = (
+                db.query(models.OrganizationMember)
+                .filter(
+                    models.OrganizationMember.organization_id == organization.id,
+                    models.OrganizationMember.user_id == user.id,
+                )
+                .first()
+            )
+
+            if membership is None:
+                db.add(
+                    models.OrganizationMember(
+                        organization_id=organization.id,
+                        user_id=user.id,
+                        role=_enterprise_role_for_user(user.role),
+                        status="active",
+                    )
+                )
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        # The enterprise registry is a compatibility layer at this stage.
+        # A registry problem must never prevent the existing portal from
+        # starting while the migration is being rolled out.
+    finally:
+        db.close()
+
+
+def _get_enterprise_project_for_modality(modality: str):
+    """Resolve a KELYVO project from the persistent project registry."""
+    modality = (modality or "").strip().lower()
+    db = SessionLocal()
+    try:
+        return (
+            db.query(models.Project)
+            .filter(
+                models.Project.modality == modality,
+                models.Project.status == "active",
+            )
+            .order_by(models.Project.created_at.asc())
+            .first()
+        )
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
+def _sync_enterprise_task(
+    project_id: int,
+    task_id: int,
+    task_payload=None,
+    status: str = "available",
+):
+    """Mirror one Label Studio task into KELYVO's canonical task table.
+
+    This is deliberately best-effort during the migration.  The current
+    Label Studio workflow remains authoritative for execution until the
+    persistent assignment engine is introduced in a later step.
+    """
+    if task_id is None:
+        return None
+
+    db = SessionLocal()
+    try:
+        project = (
+            db.query(models.Project)
+            .filter(
+                models.Project.external_engine == "label_studio",
+                models.Project.external_project_id == int(project_id),
+                models.Project.status == "active",
+            )
+            .first()
+        )
+
+        if project is None:
+            return None
+
+        task = (
+            db.query(models.Task)
+            .filter(
+                models.Task.project_id == project.id,
+                models.Task.external_task_id == int(task_id),
+            )
+            .first()
+        )
+
+        payload = task_payload if isinstance(task_payload, dict) else {}
+        title = payload.get("title")
+        if title is None:
+            title = f"{project.modality} task #{int(task_id)}"
+
+        if task is None:
+            task = models.Task(
+                project_id=project.id,
+                task_number=int(task_id),
+                external_task_id=int(task_id),
+                external_engine="label_studio",
+                external_project_id=int(project_id),
+                title=str(title),
+                task_type=project.modality,
+                status=status,
+                priority=0,
+                is_locked=False,
+            )
+            db.add(task)
+        else:
+            task.task_number = int(task_id)
+            task.external_engine = "label_studio"
+            task.external_project_id = int(project_id)
+            task.title = str(title)
+            task.task_type = project.modality
+            task.status = status
+
+        db.commit()
+        db.refresh(task)
+        return task.id
+    except Exception:
+        db.rollback()
+        return None
+    finally:
+        db.close()
+
+
+# Seed the enterprise registry once when the backend process loads.  This is
+# independent of Label Studio availability and therefore safe during cold
+# starts or temporary annotation-engine outages.
+_ensure_enterprise_project_registry()
+
+
 TASK_ASSIGNMENTS = {}
 TASK_ASSIGNMENT_TTL = 60 * 60
 
@@ -302,6 +555,53 @@ def mark_native_annotation_submitted(
         "task_id": int(task_id),
         "expires_at": time.time() + KELYVO_NATIVE_SUBMIT_TTL,
     }
+
+
+def _is_successful_native_annotation_write(
+    request_method: str,
+    clean_path: str,
+    response_status: int,
+    task_id: int,
+    body: bytes = b"",
+) -> bool:
+    """Detect Label Studio annotation writes that represent a contributor submit/save.
+
+    Label Studio versions can create/update annotations through slightly different
+    API paths.  KELYVO must detect the successful write at the proxy boundary so the
+    portal can create its own PENDING_QA submission record. Draft endpoints are
+    deliberately excluded because autosaved drafts are not QA submissions.
+    """
+    if request_method not in ("POST", "PUT", "PATCH"):
+        return False
+
+    if response_status not in (200, 201, 202):
+        return False
+
+    path = (clean_path or "").rstrip("/")
+    if "/annotations" not in path:
+        return False
+
+    if "/drafts" in path:
+        return False
+
+    task_path = f"/api/tasks/{int(task_id)}/annotations"
+    if path == task_path or path.startswith(task_path + "/"):
+        return True
+
+    # Some Label Studio versions use the global annotation endpoint.  Only accept
+    # it when the request body identifies the currently assigned task, preventing
+    # unrelated annotation writes from being attributed to this contributor task.
+    if path == "/api/annotations":
+        try:
+            payload = json.loads(body.decode("utf-8")) if body else {}
+            payload_task_id = payload.get("task")
+            if isinstance(payload_task_id, dict):
+                payload_task_id = payload_task_id.get("id")
+            return int(payload_task_id) == int(task_id)
+        except Exception:
+            return False
+
+    return False
 
 
 def consume_recent_native_submission(
@@ -1713,6 +2013,16 @@ def start_task(
             ]
         )
 
+    # Prefer the persistent KELYVO project registry when it is available.
+    # PROJECT_MAPPING remains the compatibility fallback during this first
+    # migration step so an enterprise-registry issue cannot break task flow.
+    enterprise_project = _get_enterprise_project_for_modality(modality_key)
+    if (
+        enterprise_project is not None
+        and enterprise_project.external_project_id is not None
+    ):
+        project_id = int(enterprise_project.external_project_id)
+
     contributor_user_id = None
 
     if email:
@@ -1801,6 +2111,13 @@ def start_task(
                             project_id,
                             int(reserved_task_id)
                         )
+
+                    _sync_enterprise_task(
+                        project_id=project_id,
+                        task_id=int(reserved_task_id),
+                        task_payload=existing_task,
+                        status="reserved",
+                    )
 
                     return {
                         "status":
@@ -2064,6 +2381,13 @@ def start_task(
             project_id,
             int(assigned_task_id)
         )
+
+    _sync_enterprise_task(
+        project_id=project_id,
+        task_id=int(assigned_task_id),
+        task_payload=task,
+        status="reserved",
+    )
 
     if (
         assigned_task_id
@@ -2628,6 +2952,9 @@ def get_admin_submissions(
     submissions = (
         db.query(
             models.TaskSubmission
+        )
+        .order_by(
+            models.TaskSubmission.id.desc()
         )
         .all()
     )
@@ -4374,11 +4701,12 @@ async def label_studio_browser_api_proxy(
         headers=forwarded_headers
     )
 
-    if (
-        request.method == "POST"
-        and clean_path.rstrip("/")
-        == f"/api/tasks/{task_id}/annotations"
-        and response.status_code in (200, 201)
+    if _is_successful_native_annotation_write(
+        request.method,
+        clean_path,
+        response.status_code,
+        task_id,
+        body,
     ):
         mark_native_annotation_submitted(
             request,
@@ -5068,11 +5396,12 @@ async def native_label_studio_api_fallback(
         headers=forwarded_headers
     )
 
-    if (
-        request.method == "POST"
-        and clean_path.rstrip("/")
-        == f"/api/tasks/{task_id}/annotations"
-        and response.status_code in (200, 201)
+    if _is_successful_native_annotation_write(
+        request.method,
+        clean_path,
+        response.status_code,
+        task_id,
+        body,
     ):
         mark_native_annotation_submitted(
             request,
