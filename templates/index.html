@@ -477,7 +477,6 @@ button {
 
             <select
                 id="role-select"
-                onchange="updateRegistrationRoleFields()"
                 class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
             >
 
@@ -490,32 +489,6 @@ button {
                 </option>
 
             </select>
-
-        </div>
-
-
-        <div
-            id="admin-registration-code-container"
-            class="hidden"
-        >
-
-            <label
-                class="block text-[10px] uppercase text-zinc-400 mb-2"
-            >
-                Admin Control Registration Code
-            </label>
-
-            <input
-                id="admin-registration-code"
-                type="password"
-                autocomplete="off"
-                class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
-                placeholder="Enter authorized admin code"
-            >
-
-            <p class="text-[10px] text-zinc-600 mt-2">
-                Required only for Admin Control accounts.
-            </p>
 
         </div>
 
@@ -1078,7 +1051,7 @@ button {
             <p
                 class="text-sm text-zinc-400 mt-2"
             >
-                Review contributor submissions.
+                Review contributor submissions by workflow status.
             </p>
 
         </div>
@@ -1095,48 +1068,148 @@ button {
 
 
     <div
-        class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-auto"
+        class="grid grid-cols-1 md:grid-cols-3 gap-3"
     >
 
-        <table class="w-full text-left">
+        <button
+            id="qa-tab-pending"
+            type="button"
+            onclick="setQAQueueTab('PENDING_QA')"
+            class="qa-queue-tab text-left bg-[#0a0a0a] border border-amber-500/40 rounded-xl px-5 py-4"
+        >
+            <div class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">
+                Pending QA
+            </div>
+            <div
+                id="qa-count-pending"
+                class="text-2xl text-white mt-1 font-light"
+            >
+                0
+            </div>
+            <div class="text-[10px] text-zinc-600 mt-1">
+                Awaiting review
+            </div>
+        </button>
 
-            <thead>
 
-                <tr
-                    class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase"
+        <button
+            id="qa-tab-returned"
+            type="button"
+            onclick="setQAQueueTab('FAILED')"
+            class="qa-queue-tab text-left bg-[#0a0a0a] border border-zinc-800 rounded-xl px-5 py-4"
+        >
+            <div class="text-[10px] uppercase tracking-widest text-red-400 font-mono">
+                Returned
+            </div>
+            <div
+                id="qa-count-returned"
+                class="text-2xl text-white mt-1 font-light"
+            >
+                0
+            </div>
+            <div class="text-[10px] text-zinc-600 mt-1">
+                Sent back for revision
+            </div>
+        </button>
+
+
+        <button
+            id="qa-tab-passed"
+            type="button"
+            onclick="setQAQueueTab('PASSED')"
+            class="qa-queue-tab text-left bg-[#0a0a0a] border border-zinc-800 rounded-xl px-5 py-4"
+        >
+            <div class="text-[10px] uppercase tracking-widest text-emerald-400 font-mono">
+                Passed
+            </div>
+            <div
+                id="qa-count-passed"
+                class="text-2xl text-white mt-1 font-light"
+            >
+                0
+            </div>
+            <div class="text-[10px] text-zinc-600 mt-1">
+                Completed QA records
+            </div>
+        </button>
+
+    </div>
+
+
+    <div
+        class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden"
+    >
+
+        <div
+            class="px-5 py-4 border-b border-zinc-800 flex items-center justify-between gap-4"
+        >
+            <div>
+                <div
+                    id="qa-active-tab-title"
+                    class="text-sm text-white font-medium"
                 >
+                    Pending QA
+                </div>
+                <div
+                    id="qa-active-tab-description"
+                    class="text-[10px] text-zinc-600 mt-1"
+                >
+                    Newest submissions appear first.
+                </div>
+            </div>
 
-                    <th class="p-5">
-                        ID
-                    </th>
-
-                    <th class="p-5">
-                        Contributor
-                    </th>
-
-                    <th class="p-5">
-                        Task
-                    </th>
-
-                    <th class="p-5">
-                        Status
-                    </th>
-
-                    <th class="p-5 text-right">
-                        Actions
-                    </th>
-
-                </tr>
-
-            </thead>
+            <div
+                id="qa-queue-meta"
+                class="text-[10px] text-zinc-600 font-mono"
+            >
+                0 records
+            </div>
+        </div>
 
 
-            <tbody
-                id="admin-table-body"
-                class="text-xs font-mono divide-y divide-zinc-800"
-            ></tbody>
+        <div class="overflow-auto">
 
-        </table>
+            <table class="w-full text-left">
+
+                <thead>
+
+                    <tr
+                        class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase"
+                    >
+
+                        <th class="p-5">
+                            ID
+                        </th>
+
+                        <th class="p-5">
+                            Contributor
+                        </th>
+
+                        <th class="p-5">
+                            Task
+                        </th>
+
+                        <th class="p-5">
+                            Status
+                        </th>
+
+                        <th class="p-5 text-right">
+                            Actions
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody
+                    id="admin-table-body"
+                    class="text-xs font-mono divide-y divide-zinc-800"
+                ></tbody>
+
+            </table>
+
+        </div>
 
     </div>
 
@@ -1742,47 +1815,6 @@ function hideLoader() {
    AUTH TABS
 ============================================================ */
 
-function updateRegistrationRoleFields() {
-
-    const roleSelect =
-        document.getElementById(
-            "role-select"
-        );
-
-    const codeContainer =
-        document.getElementById(
-            "admin-registration-code-container"
-        );
-
-    const codeInput =
-        document.getElementById(
-            "admin-registration-code"
-        );
-
-    if (!roleSelect || !codeContainer || !codeInput) {
-        return;
-    }
-
-    if (roleSelect.value === "admin") {
-
-        codeContainer.classList.remove(
-            "hidden"
-        );
-
-        codeInput.required = true;
-
-    } else {
-
-        codeContainer.classList.add(
-            "hidden"
-        );
-
-        codeInput.required = false;
-        codeInput.value = "";
-    }
-}
-
-
 function switchTab(mode) {
 
     currentMode = mode;
@@ -1837,8 +1869,6 @@ function switchTab(mode) {
 
         submitButton.innerText =
             "Create Account";
-
-        updateRegistrationRoleFields();
     }
 
     document.getElementById(
@@ -1895,13 +1925,8 @@ async function handleAuth(event) {
                     "role-select"
                 ).value;
 
-            const registrationCode =
-                document.getElementById(
-                    "admin-registration-code"
-                ).value.trim();
-
             url =
-                `/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}&registration_code=${encodeURIComponent(registrationCode)}`;
+                `/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`;
         }
 
 
@@ -3847,6 +3872,10 @@ async function updatePayout(
 ============================================================ */
 
 
+let adminQueueSubmissions = [];
+let activeQAQueueTab = "PENDING_QA";
+
+
 async function loadAdminQueue() {
 
     const tbody =
@@ -3902,7 +3931,20 @@ async function loadAdminQueue() {
             );
         }
 
-        renderAdminQueue(data);
+        adminQueueSubmissions =
+            data.slice().sort(
+                (a, b) =>
+                    Number(b.id || 0) -
+                    Number(a.id || 0)
+            );
+
+        updateQAQueueCounts(
+            adminQueueSubmissions
+        );
+
+        renderAdminQueue(
+            adminQueueSubmissions
+        );
 
     } catch (error) {
 
@@ -3928,9 +3970,124 @@ async function loadAdminQueue() {
 }
 
 
-/* ============================================================
-   RENDER ADMIN QUEUE
-============================================================ */
+function updateQAQueueCounts(
+    submissions
+) {
+
+    const pending =
+        submissions.filter(
+            submission =>
+                String(
+                    submission.status ||
+                    "PENDING_QA"
+                ).toUpperCase() ===
+                "PENDING_QA"
+        ).length;
+
+    const returned =
+        submissions.filter(
+            submission =>
+                String(
+                    submission.status || ""
+                ).toUpperCase() ===
+                "FAILED"
+        ).length;
+
+    const passed =
+        submissions.filter(
+            submission =>
+                String(
+                    submission.status || ""
+                ).toUpperCase() ===
+                "PASSED"
+        ).length;
+
+    const pendingElement =
+        document.getElementById(
+            "qa-count-pending"
+        );
+
+    const returnedElement =
+        document.getElementById(
+            "qa-count-returned"
+        );
+
+    const passedElement =
+        document.getElementById(
+            "qa-count-passed"
+        );
+
+    if (pendingElement) {
+        pendingElement.innerText = pending;
+    }
+
+    if (returnedElement) {
+        returnedElement.innerText = returned;
+    }
+
+    if (passedElement) {
+        passedElement.innerText = passed;
+    }
+}
+
+
+function setQAQueueTab(
+    status
+) {
+
+    activeQAQueueTab =
+        String(status || "PENDING_QA").toUpperCase();
+
+    const tabs = [
+        [
+            "qa-tab-pending",
+            "PENDING_QA"
+        ],
+        [
+            "qa-tab-returned",
+            "FAILED"
+        ],
+        [
+            "qa-tab-passed",
+            "PASSED"
+        ]
+    ];
+
+    tabs.forEach(
+        ([id, tabStatus]) => {
+            const element =
+                document.getElementById(id);
+
+            if (!element) {
+                return;
+            }
+
+            if (
+                tabStatus ===
+                activeQAQueueTab
+            ) {
+                element.classList.add(
+                    "border-amber-500/40"
+                );
+                element.classList.remove(
+                    "border-zinc-800"
+                );
+            } else {
+                element.classList.add(
+                    "border-zinc-800"
+                );
+                element.classList.remove(
+                    "border-amber-500/40"
+                );
+            }
+        }
+    );
+
+    renderAdminQueue(
+        adminQueueSubmissions
+    );
+}
+
 
 function renderAdminQueue(
     submissions
@@ -3945,25 +4102,107 @@ function renderAdminQueue(
         return;
     }
 
+    const filteredSubmissions =
+        submissions
+            .filter(
+                submission => {
+                    const status =
+                        String(
+                            submission.status ||
+                            "PENDING_QA"
+                        ).toUpperCase();
+
+                    return status ===
+                        activeQAQueueTab;
+                }
+            )
+            .sort(
+                (a, b) =>
+                    Number(b.id || 0) -
+                    Number(a.id || 0)
+            );
+
+    const titleElement =
+        document.getElementById(
+            "qa-active-tab-title"
+        );
+
+    const descriptionElement =
+        document.getElementById(
+            "qa-active-tab-description"
+        );
+
+    const metaElement =
+        document.getElementById(
+            "qa-queue-meta"
+        );
+
+    const tabMeta = {
+        "PENDING_QA": [
+            "Pending QA",
+            "Newest submissions appear first."
+        ],
+        "FAILED": [
+            "Returned",
+            "Newest returned submissions appear first."
+        ],
+        "PASSED": [
+            "Passed",
+            "Newest completed QA records appear first."
+        ]
+    };
+
+    const currentMeta =
+        tabMeta[activeQAQueueTab] ||
+        tabMeta["PENDING_QA"];
+
+    if (titleElement) {
+        titleElement.innerText =
+            currentMeta[0];
+    }
+
+    if (descriptionElement) {
+        descriptionElement.innerText =
+            currentMeta[1];
+    }
+
+    if (metaElement) {
+        metaElement.innerText =
+            `${filteredSubmissions.length} record${filteredSubmissions.length === 1 ? "" : "s"}`;
+    }
+
     tbody.innerHTML = "";
 
-    if (!submissions.length) {
+    if (!filteredSubmissions.length) {
+
+        const emptyMessages = {
+            "PENDING_QA":
+                "No submissions are currently waiting for QA.",
+            "FAILED":
+                "No submissions have been returned for revision.",
+            "PASSED":
+                "No completed QA records yet."
+        };
 
         tbody.innerHTML = `
             <tr>
                 <td
                     colspan="5"
-                    class="p-8 text-center text-zinc-500"
+                    class="p-10 text-center text-zinc-600"
                 >
-                    No submissions in the QA queue.
+                    ${escapeHtml(
+                        emptyMessages[activeQAQueueTab] ||
+                        "No records found."
+                    )}
                 </td>
             </tr>
         `;
 
+        setQAQueueTabVisualState();
         return;
     }
 
-    submissions.forEach(
+    filteredSubmissions.forEach(
         submission => {
 
             const row =
@@ -3994,16 +4233,11 @@ function renderAdminQueue(
                     "text-red-400";
             }
 
-            let actions = `
-                <div class="flex justify-end">
-                    <button
-                        class="px-3 py-2 border border-zinc-700 text-zinc-200 rounded-md"
-                        onclick="openQAReview(${Number(submission.id)})"
-                    >
-                        ${normalizedStatus === "PENDING_QA" ? "Open Review" : "View Task"}
-                    </button>
-                </div>
-            `;
+            const actionLabel =
+                normalizedStatus ===
+                "PENDING_QA"
+                    ? "Open Review"
+                    : "View Task";
 
             row.innerHTML = `
                 <td class="p-5">
@@ -4033,7 +4267,7 @@ function renderAdminQueue(
                         )}
                     </div>
 
-                    <div class="text-[10px] text-zinc-600">
+                    <div class="text-[10px] text-zinc-600 mt-1">
                         ${escapeHtml(
                             String(
                                 submission.task_type ||
@@ -4050,12 +4284,65 @@ function renderAdminQueue(
                 </td>
 
                 <td class="p-5 text-right">
-                    ${actions}
+                    <div class="flex justify-end">
+                        <button
+                            class="px-3 py-2 border border-zinc-700 text-zinc-200 rounded-md hover:border-zinc-500 transition-colors"
+                            onclick="openQAReview(${Number(submission.id)})"
+                        >
+                            ${actionLabel}
+                        </button>
+                    </div>
                 </td>
             `;
 
             tbody.appendChild(
                 row
+            );
+        }
+    );
+
+    setQAQueueTabVisualState();
+}
+
+
+function setQAQueueTabVisualState() {
+
+    const tabs = [
+        [
+            "qa-tab-pending",
+            "PENDING_QA"
+        ],
+        [
+            "qa-tab-returned",
+            "FAILED"
+        ],
+        [
+            "qa-tab-passed",
+            "PASSED"
+        ]
+    ];
+
+    tabs.forEach(
+        ([id, tabStatus]) => {
+            const element =
+                document.getElementById(id);
+
+            if (!element) {
+                return;
+            }
+
+            const active =
+                tabStatus ===
+                activeQAQueueTab;
+
+            element.classList.toggle(
+                "border-amber-500/40",
+                active
+            );
+
+            element.classList.toggle(
+                "border-zinc-800",
+                !active
             );
         }
     );
