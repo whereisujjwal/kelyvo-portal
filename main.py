@@ -564,23 +564,21 @@ def _is_successful_native_annotation_write(
     task_id: int,
     body: bytes = b"",
 ) -> bool:
-    """Detect Label Studio annotation writes that represent a contributor submit/save.
+    """Detect a real Label Studio contributor submission without treating autosaves as submits.
 
-    Label Studio versions can create/update annotations through slightly different
-    API paths.  KELYVO must detect the successful write at the proxy boundary so the
-    portal can create its own PENDING_QA submission record. Draft endpoints are
-    deliberately excluded because autosaved drafts are not QA submissions.
+    The previously working KELYVO flow used POST /api/tasks/<task_id>/annotations.
+    Keep that proven path as the primary signal. A global POST /api/annotations
+    is also accepted only when its request body identifies the assigned task.
+    PUT/PATCH annotation updates are deliberately excluded because they can be
+    ordinary edits/autosaves and must not increment contributor work or enter QA.
     """
-    if request_method not in ("POST", "PUT", "PATCH"):
+    if request_method != "POST":
         return False
 
     if response_status not in (200, 201, 202):
         return False
 
     path = (clean_path or "").rstrip("/")
-    if "/annotations" not in path:
-        return False
-
     if "/drafts" in path:
         return False
 
@@ -588,9 +586,6 @@ def _is_successful_native_annotation_write(
     if path == task_path or path.startswith(task_path + "/"):
         return True
 
-    # Some Label Studio versions use the global annotation endpoint.  Only accept
-    # it when the request body identifies the currently assigned task, preventing
-    # unrelated annotation writes from being attributed to this contributor task.
     if path == "/api/annotations":
         try:
             payload = json.loads(body.decode("utf-8")) if body else {}
@@ -602,6 +597,120 @@ def _is_successful_native_annotation_write(
             return False
 
     return False
+
+
+def _register_native_submission_in_kelyvo(
+    request: Request,
+    project_id: int,
+    task_id: int,
+):
+    """Register a successful Label Studio native submission directly in KELYVO.
+
+    The contributor workspace is proxied through KELYVO, so a successful
+    annotation write is already a server-side proof that the assigned task was
+    submitted. Persist the KELYVO QA record at that same boundary instead of
+    relying only on the browser polling /submit-task afterwards. This makes the
+    Label Studio -> KELYVO handoff durable while keeping /submit-task as a
+    backwards-compatible idempotent path.
+    """
+    session = read_session_token(request)
+    if not session or session.get("role") != "contributor":
+        return None
+
+    email = normalize_email(session.get("email", ""))
+    if not email:
+        return None
+
+    reverse_mapping = {
+        int(value): key
+        for key, value in PROJECT_MAPPING.items()
+    }
+    task_type = reverse_mapping.get(int(project_id))
+    if not task_type:
+        return None
+
+    db = SessionLocal()
+    try:
+        user = (
+            db.query(models.User)
+            .filter(models.User.email == email)
+            .first()
+        )
+        if not user:
+            return None
+
+        task_title = f"{task_type.upper()} Task #{int(task_id)}"
+
+        existing_submission = (
+            db.query(models.TaskSubmission)
+            .filter(
+                models.TaskSubmission.user_id == user.id,
+                models.TaskSubmission.task_title == task_title,
+                models.TaskSubmission.task_type == task_type,
+                models.TaskSubmission.status == "PENDING_QA",
+            )
+            .first()
+        )
+
+        if existing_submission:
+            return {
+                "submission_id": int(existing_submission.id),
+                "created": False,
+                "tasks_today": int(user.tasks_today or 0),
+                "tasks_week": int(user.tasks_week or 0),
+            }
+
+        revision_submission = (
+            db.query(models.TaskSubmission)
+            .filter(
+                models.TaskSubmission.user_id == user.id,
+                models.TaskSubmission.task_title == task_title,
+                models.TaskSubmission.task_type == task_type,
+                models.TaskSubmission.status == "FAILED",
+            )
+            .order_by(models.TaskSubmission.id.desc())
+            .first()
+        )
+
+        if revision_submission:
+            revision_submission.status = "PENDING_QA"
+            revision_submission.reviewer_notes = None
+            db.commit()
+            db.refresh(user)
+            return {
+                "submission_id": int(revision_submission.id),
+                "created": False,
+                "revision": True,
+                "tasks_today": int(user.tasks_today or 0),
+                "tasks_week": int(user.tasks_week or 0),
+            }
+
+        user.tasks_today = int(user.tasks_today or 0) + 1
+        user.tasks_week = int(user.tasks_week or 0) + 1
+
+        submission = models.TaskSubmission(
+            user_id=user.id,
+            task_type=task_type,
+            task_title=task_title,
+            status="PENDING_QA",
+            reviewer_notes=None,
+        )
+        db.add(submission)
+        db.commit()
+        db.refresh(submission)
+        db.refresh(user)
+
+        return {
+            "submission_id": int(submission.id),
+            "created": True,
+            "tasks_today": int(user.tasks_today or 0),
+            "tasks_week": int(user.tasks_week or 0),
+        }
+    except Exception:
+        db.rollback()
+        return None
+    finally:
+        db.close()
 
 
 def consume_recent_native_submission(
@@ -4713,6 +4822,11 @@ async def label_studio_browser_api_proxy(
             project_id,
             task_id,
         )
+        _register_native_submission_in_kelyvo(
+            request,
+            project_id,
+            task_id,
+        )
 
     if (
         request.method in ("PUT", "PATCH")
@@ -5404,6 +5518,11 @@ async def native_label_studio_api_fallback(
         body,
     ):
         mark_native_annotation_submitted(
+            request,
+            project_id,
+            task_id,
+        )
+        _register_native_submission_in_kelyvo(
             request,
             project_id,
             task_id,
