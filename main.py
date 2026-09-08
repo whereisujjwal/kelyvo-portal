@@ -593,7 +593,9 @@ def _get_kelyvo_blocked_task_ids(
 # moving the contributor to another task.
 KELYVO_RECENT_NATIVE_SUBMISSIONS = {}
 KELYVO_RECENT_REVISION_UPDATES = {}
+KELYVO_RECENT_COMPLETED_SUBMISSIONS = {}
 KELYVO_NATIVE_SUBMIT_TTL = 30
+KELYVO_COMPLETED_SUBMIT_TTL = 15
 
 
 def _utc_now():
@@ -725,6 +727,41 @@ def mark_native_annotation_submitted(
     }
 
 
+def mark_kelyvo_submission_completed(
+    request: Request,
+    project_id: int,
+    task_id: int,
+):
+    identity = get_browser_identity(request)
+    key = make_assignment_key(identity, int(project_id))
+    KELYVO_RECENT_COMPLETED_SUBMISSIONS[key] = {
+        "task_id": int(task_id),
+        "expires_at": time.time() + KELYVO_COMPLETED_SUBMIT_TTL,
+    }
+
+
+def get_recent_kelyvo_completed_submission(
+    request: Request,
+    project_id: int | None = None,
+):
+    identity = get_browser_identity(request)
+    now = time.time()
+    matches = []
+    for key, entry in list(KELYVO_RECENT_COMPLETED_SUBMISSIONS.items()):
+        expires_at = float(entry.get("expires_at", 0) or 0)
+        if expires_at <= now:
+            KELYVO_RECENT_COMPLETED_SUBMISSIONS.pop(key, None)
+            continue
+        if not key.startswith(identity + ":"):
+            continue
+        if project_id is not None and key != make_assignment_key(identity, int(project_id)):
+            continue
+        matches.append(entry)
+    if not matches:
+        return None
+    return max(matches, key=lambda item: int(item.get("task_id", 0) or 0))
+
+
 def _is_successful_native_annotation_write(
     request_method: str,
     clean_path: str,
@@ -806,12 +843,54 @@ def _register_native_submission_in_kelyvo(
         )
 
         if existing_submission:
-            return {
-                "submission_id": int(existing_submission.id),
-                "created": False,
-                "tasks_today": int(user.tasks_today or 0),
-                "tasks_week": int(user.tasks_week or 0),
-            }
+            # A contributor can legitimately receive the same Label Studio task
+            # again after the previous annotation/submission state was cleared.
+            # In that case the old PENDING_QA record belongs to the earlier
+            # assignment and must not block the new submission.
+            active_assignment = (
+                db.query(models.TaskAssignment)
+                .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+                .filter(
+                    models.TaskAssignment.user_id == int(user.id),
+                    models.TaskAssignment.status == "reserved",
+                    models.Task.external_project_id == int(project_id),
+                    models.Task.external_task_id == int(task_id),
+                )
+                .order_by(models.TaskAssignment.assigned_at.desc())
+                .first()
+            )
+            old_submission_time = (
+                getattr(existing_submission, "submitted_at", None)
+                or getattr(existing_submission, "created_at", None)
+            )
+            assignment_time = (
+                getattr(active_assignment, "assigned_at", None)
+                if active_assignment is not None
+                else None
+            )
+
+            is_stale_prior_submission = (
+                assignment_time is not None
+                and old_submission_time is not None
+                and assignment_time > old_submission_time
+            )
+
+            if is_stale_prior_submission:
+                existing_submission.status = "CANCELLED"
+                existing_submission.reviewer_notes = (
+                    "Superseded by a new contributor assignment after the "
+                    "previous KELYVO submission state was cleared."
+                )
+                db.commit()
+                existing_submission = None
+            else:
+                return {
+                    "submission_id": int(existing_submission.id),
+                    "created": False,
+                    "duplicate": True,
+                    "tasks_today": int(user.tasks_today or 0),
+                    "tasks_week": int(user.tasks_week or 0),
+                }
 
         revision_submission = (
             db.query(models.TaskSubmission)
@@ -3265,130 +3344,6 @@ def exit_contributor_task(
     }
 
 
-def _task_submission_ready_after_assignment_repair(
-    request: Request,
-    project_id: int,
-    task_id: int,
-):
-    response = label_studio_request(
-        "GET",
-        f"/api/tasks/{int(task_id)}",
-        params={"project": int(project_id), "resolve_uri": "true"},
-    )
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail="Unable to verify the saved Label Studio annotation.",
-        )
-    try:
-        payload = response.json()
-    except ValueError:
-        raise HTTPException(
-            status_code=502,
-            detail="Label Studio returned an invalid task response.",
-        )
-    annotations = payload.get("annotations", []) if isinstance(payload, dict) else []
-    if not isinstance(annotations, list):
-        annotations = []
-    return {
-        "ready": bool(annotations),
-        "annotation_count": len(annotations),
-        "task_id": int(task_id),
-        "project_id": int(project_id),
-    }
-
-@app.get("/api/task-submission-ready")
-def task_submission_ready(
-    request: Request,
-    project_id: int,
-    task_id: int
-):
-    """Verify that the active contributor task has a saved Label Studio annotation before KELYVO finalizes it."""
-    require_contributor_session(request)
-
-    user_id = _get_authenticated_user_id(request)
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="Contributor session is not authenticated.")
-
-    db = SessionLocal()
-    try:
-        assignment = _get_active_persistent_assignment(
-            db,
-            int(user_id),
-            project_id=int(project_id),
-            task_id=int(task_id),
-        )
-        if assignment is None:
-            # The contributor is already inside the KELYVO task workspace, but
-            # the persistent assignment can be lost because of a browser reload,
-            # an older session hand-off, or a previous release path. Re-establish
-            # the exact current assignment instead of rejecting a legitimate
-            # submission with a misleading 403.
-            db.close()
-            normalized_session = read_session_token(request)
-            session_email = normalize_email(
-                normalized_session.get("email", "")
-                if normalized_session else ""
-            )
-            if not session_email:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Contributor session is not authenticated.",
-                )
-            repaired_assignment = reserve_task_for_contributor(
-                "user:" + session_email,
-                int(project_id),
-                int(task_id),
-                user_id=int(user_id),
-            )
-            if repaired_assignment is None or int(repaired_assignment) != int(task_id):
-                raise HTTPException(
-                    status_code=403,
-                    detail="This task is no longer the active task for this contributor.",
-                )
-            return _task_submission_ready_after_assignment_repair(
-                request,
-                int(project_id),
-                int(task_id),
-            )
-    finally:
-        try:
-            db.close()
-        except Exception:
-            pass
-
-    response = label_studio_request(
-        "GET",
-        f"/api/tasks/{int(task_id)}",
-        params={"project": int(project_id), "resolve_uri": "true"},
-    )
-
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail="Unable to verify the saved Label Studio annotation.",
-        )
-
-    try:
-        payload = response.json()
-    except ValueError:
-        raise HTTPException(
-            status_code=502,
-            detail="Label Studio returned an invalid task response.",
-        )
-
-    annotations = payload.get("annotations", []) if isinstance(payload, dict) else []
-    if not isinstance(annotations, list):
-        annotations = []
-
-    return {
-        "ready": bool(annotations),
-        "annotation_count": len(annotations),
-        "task_id": int(task_id),
-        "project_id": int(project_id),
-    }
-
-
 @app.post("/submit-task")
 def submit_task(
     request: Request,
@@ -3515,6 +3470,7 @@ def submit_task(
         db.commit()
 
         if task_id and project_id:
+            mark_kelyvo_submission_completed(request, project_id, task_id)
             release_reserved_task(
                 "user:" + email,
                 project_id,
@@ -3538,13 +3494,53 @@ def submit_task(
         }
 
     if existing_submission:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "This task already has a KELYVO submission. "
-                "Please start a different task or open the revision queue."
-            ),
+        active_assignment = (
+            db.query(models.TaskAssignment)
+            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+            .filter(
+                models.TaskAssignment.user_id == int(user.id),
+                models.TaskAssignment.status == "reserved",
+                models.Task.external_project_id == int(project_id),
+                models.Task.external_task_id == int(task_id),
+            )
+            .order_by(models.TaskAssignment.assigned_at.desc())
+            .first()
+            if task_id and project_id
+            else None
         )
+
+        old_submission_time = (
+            getattr(existing_submission, "submitted_at", None)
+            or getattr(existing_submission, "created_at", None)
+        )
+        assignment_time = (
+            getattr(active_assignment, "assigned_at", None)
+            if active_assignment is not None
+            else None
+        )
+
+        is_stale_prior_submission = (
+            assignment_time is not None
+            and old_submission_time is not None
+            and assignment_time > old_submission_time
+        )
+
+        if is_stale_prior_submission:
+            existing_submission.status = "CANCELLED"
+            existing_submission.reviewer_notes = (
+                "Superseded by a new contributor assignment after the "
+                "previous KELYVO submission state was cleared."
+            )
+            db.commit()
+            existing_submission = None
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This task already has a KELYVO submission. "
+                    "Please start a different task or open the revision queue."
+                ),
+            )
 
     user.tasks_today += 1
     user.tasks_week += 1
@@ -3570,6 +3566,7 @@ def submit_task(
     )
 
     if task_id and project_id:
+        mark_kelyvo_submission_completed(request, project_id, task_id)
         release_reserved_task(
             "user:" + email,
             project_id,
@@ -3612,6 +3609,76 @@ def submit_task(
             contributor_pending_qa_count,
         "qa_pending_count":
             pending_qa_count,
+    }
+
+
+@app.get("/api/task-submission-ready")
+def task_submission_ready(
+    request: Request,
+    project_id: int,
+    task_id: int,
+):
+    """Verify a contributor's active task has a saved Label Studio annotation."""
+    require_contributor_session(request)
+
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Contributor session is not authenticated.")
+
+    db = SessionLocal()
+    try:
+        assignment = _get_active_persistent_assignment(
+            db,
+            int(user_id),
+            project_id=int(project_id),
+            task_id=int(task_id),
+        )
+    finally:
+        db.close()
+
+    if assignment is None:
+        session = read_session_token(request) or {}
+        email = normalize_email(session.get("email", ""))
+        if not email:
+            raise HTTPException(status_code=401, detail="Contributor session is not authenticated.")
+        try:
+            reserve_task_for_contributor(
+                "user:" + email,
+                int(project_id),
+                int(task_id),
+                user_id=int(user_id),
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=403,
+                detail="This task is not currently assigned to this contributor.",
+            ) from exc
+
+    response = label_studio_request(
+        "GET",
+        f"/api/tasks/{int(task_id)}",
+        params={"project": int(project_id), "resolve_uri": "true"},
+    )
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail="Unable to verify the saved Label Studio annotation.")
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail="Label Studio returned an invalid task response.") from exc
+
+    annotations = payload.get("annotations", []) if isinstance(payload, dict) else []
+    if not isinstance(annotations, list):
+        annotations = []
+
+    return {
+        "ready": bool(annotations),
+        "annotation_count": len(annotations),
+        "task_id": int(task_id),
+        "project_id": int(project_id),
     }
 
 
@@ -5726,21 +5793,20 @@ async def native_label_studio_api_fallback(
     ).lstrip("/")
 
     kelyvo_paths = {
-        "/api/start-task",
-        "/api/current-task",
-        "/api/skip-task",
-        "/api/label-studio-media",
-        "/api/label-studio-task-workspace",
-        "/api/task-submission-ready",
-        "/api/native-submit-status",
+        "/start-task",
+        "/current-task",
+        "/skip-task",
+        "/label-studio-media",
+        "/label-studio-task-workspace",
+        "/task-submission-ready",
     }
 
     kelyvo_prefixes = (
-        "/api/pipeline/",
-        "/api/contributor/",
-        "/api/label-studio-react/",
-        "/api/label-studio-proxy/",
-        "/api/label-studio-static/",
+        "/pipeline/",
+        "/contributor/",
+        "/label-studio-react/",
+        "/label-studio-proxy/",
+        "/label-studio-static/",
     )
 
     if (
@@ -5785,6 +5851,31 @@ async def native_label_studio_api_fallback(
         db.close()
 
     if not assignments:
+        requested_project_hint = None
+        path_parts_hint = clean_path.strip("/").split("/")
+        if (
+            len(path_parts_hint) >= 3
+            and path_parts_hint[0] == "api"
+            and path_parts_hint[1] == "projects"
+            and path_parts_hint[2].isdigit()
+        ):
+            requested_project_hint = int(path_parts_hint[2])
+
+        recent_completed = get_recent_kelyvo_completed_submission(
+            request,
+            requested_project_hint,
+        )
+        if recent_completed is not None:
+            return JSONResponse(
+                content={
+                    "status": "ok",
+                    "submitted": True,
+                    "task_id": int(recent_completed.get("task_id", 0) or 0),
+                },
+                status_code=200,
+                headers={"Cache-Control": "no-store"},
+            )
+
         raise HTTPException(
             status_code=403,
             detail="No active contributor task."
@@ -6111,6 +6202,7 @@ async def native_label_studio_api_fallback(
         )
 
     query_string = request.url.query
+
     endpoint = clean_path
 
     if query_string:
@@ -6346,3 +6438,4 @@ async def native_label_studio_api_fallback(
         status_code=response.status_code,
         headers=response_headers
     )
+
