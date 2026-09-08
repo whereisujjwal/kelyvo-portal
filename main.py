@@ -3265,8 +3265,6 @@ def exit_contributor_task(
     }
 
 
-
-
 def _task_submission_ready_after_assignment_repair(
     request: Request,
     project_id: int,
@@ -5728,19 +5726,21 @@ async def native_label_studio_api_fallback(
     ).lstrip("/")
 
     kelyvo_paths = {
-        "/start-task",
-        "/current-task",
-        "/skip-task",
-        "/label-studio-media",
-        "/label-studio-task-workspace",
+        "/api/start-task",
+        "/api/current-task",
+        "/api/skip-task",
+        "/api/label-studio-media",
+        "/api/label-studio-task-workspace",
+        "/api/task-submission-ready",
+        "/api/native-submit-status",
     }
 
     kelyvo_prefixes = (
-        "/pipeline/",
-        "/contributor/",
-        "/label-studio-react/",
-        "/label-studio-proxy/",
-        "/label-studio-static/",
+        "/api/pipeline/",
+        "/api/contributor/",
+        "/api/label-studio-react/",
+        "/api/label-studio-proxy/",
+        "/api/label-studio-static/",
     )
 
     if (
@@ -6111,7 +6111,6 @@ async def native_label_studio_api_fallback(
         )
 
     query_string = request.url.query
-
     endpoint = clean_path
 
     if query_string:
@@ -6347,4 +6346,3 @@ async def native_label_studio_api_fallback(
         status_code=response.status_code,
         headers=response_headers
     )
-
