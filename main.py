@@ -3265,6 +3265,40 @@ def exit_contributor_task(
     }
 
 
+
+
+def _task_submission_ready_after_assignment_repair(
+    request: Request,
+    project_id: int,
+    task_id: int,
+):
+    response = label_studio_request(
+        "GET",
+        f"/api/tasks/{int(task_id)}",
+        params={"project": int(project_id), "resolve_uri": "true"},
+    )
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to verify the saved Label Studio annotation.",
+        )
+    try:
+        payload = response.json()
+    except ValueError:
+        raise HTTPException(
+            status_code=502,
+            detail="Label Studio returned an invalid task response.",
+        )
+    annotations = payload.get("annotations", []) if isinstance(payload, dict) else []
+    if not isinstance(annotations, list):
+        annotations = []
+    return {
+        "ready": bool(annotations),
+        "annotation_count": len(annotations),
+        "task_id": int(task_id),
+        "project_id": int(project_id),
+    }
+
 @app.get("/api/task-submission-ready")
 def task_submission_ready(
     request: Request,
@@ -3287,12 +3321,43 @@ def task_submission_ready(
             task_id=int(task_id),
         )
         if assignment is None:
-            raise HTTPException(
-                status_code=403,
-                detail="This task is not currently assigned to this contributor.",
+            # The contributor is already inside the KELYVO task workspace, but
+            # the persistent assignment can be lost because of a browser reload,
+            # an older session hand-off, or a previous release path. Re-establish
+            # the exact current assignment instead of rejecting a legitimate
+            # submission with a misleading 403.
+            db.close()
+            normalized_session = read_session_token(request)
+            session_email = normalize_email(
+                normalized_session.get("email", "")
+                if normalized_session else ""
+            )
+            if not session_email:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Contributor session is not authenticated.",
+                )
+            repaired_assignment = reserve_task_for_contributor(
+                "user:" + session_email,
+                int(project_id),
+                int(task_id),
+                user_id=int(user_id),
+            )
+            if repaired_assignment is None or int(repaired_assignment) != int(task_id):
+                raise HTTPException(
+                    status_code=403,
+                    detail="This task is no longer the active task for this contributor.",
+                )
+            return _task_submission_ready_after_assignment_repair(
+                request,
+                int(project_id),
+                int(task_id),
             )
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception:
+            pass
 
     response = label_studio_request(
         "GET",
