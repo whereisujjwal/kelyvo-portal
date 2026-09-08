@@ -3265,6 +3265,67 @@ def exit_contributor_task(
     }
 
 
+@app.get("/api/task-submission-ready")
+def task_submission_ready(
+    request: Request,
+    project_id: int,
+    task_id: int
+):
+    """Verify that the active contributor task has a saved Label Studio annotation before KELYVO finalizes it."""
+    require_contributor_session(request)
+
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Contributor session is not authenticated.")
+
+    db = SessionLocal()
+    try:
+        assignment = _get_active_persistent_assignment(
+            db,
+            int(user_id),
+            project_id=int(project_id),
+            task_id=int(task_id),
+        )
+        if assignment is None:
+            raise HTTPException(
+                status_code=403,
+                detail="This task is not currently assigned to this contributor.",
+            )
+    finally:
+        db.close()
+
+    response = label_studio_request(
+        "GET",
+        f"/api/tasks/{int(task_id)}",
+        params={"project": int(project_id), "resolve_uri": "true"},
+    )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to verify the saved Label Studio annotation.",
+        )
+
+    try:
+        payload = response.json()
+    except ValueError:
+        raise HTTPException(
+            status_code=502,
+            detail="Label Studio returned an invalid task response.",
+        )
+
+    annotations = payload.get("annotations", []) if isinstance(payload, dict) else []
+    if not isinstance(annotations, list):
+        annotations = []
+
+    return {
+        "ready": bool(annotations),
+        "annotation_count": len(annotations),
+        "task_id": int(task_id),
+        "project_id": int(project_id),
+    }
+
+
 @app.post("/submit-task")
 def submit_task(
     request: Request,

@@ -1462,10 +1462,9 @@ button {
             <button
                 id="workspace-submit-button"
                 onclick="submitFromWorkspace()"
-                class="hidden"
-                aria-hidden="true"
+                class="border border-emerald-700 text-emerald-300 text-[11px] px-5 py-2.5 rounded-lg uppercase hover:border-emerald-500 hover:text-emerald-200 transition"
             >
-                Mark Task Submitted
+                Submit to QA
             </button>
 
             <button
@@ -2908,11 +2907,12 @@ async function openLabelStudioWorkspace(
             false;
 
         submitButton.innerText =
-            "Mark Task Submitted";
+            "Submit to QA";
 
         submitButton.classList.remove(
             "opacity-50",
-            "pointer-events-none"
+            "pointer-events-none",
+            "hidden"
         );
     }
 
@@ -3691,16 +3691,52 @@ async function handleAnnotationSubmission() {
     }
 
 
-    activeTaskSubmitted =
-        true;
-
-
     showLoader(
-        "Submitting Task for QA..."
+        "Verifying annotation..."
     );
 
-
     try {
+        const projectId = Number(
+            activeTaskData.project ||
+            activeTaskData.project_id ||
+            0
+        );
+        const taskId = Number(activeTaskData.id || 0);
+
+        const readinessResponse = await fetch(
+            `/api/task-submission-ready?project_id=${encodeURIComponent(projectId)}&task_id=${encodeURIComponent(taskId)}`,
+            {
+                method: "GET",
+                credentials: "same-origin",
+                cache: "no-store"
+            }
+        );
+
+        let readinessData = null;
+        try {
+            readinessData = await readinessResponse.json();
+        } catch (parseError) {
+            readinessData = null;
+        }
+
+        if (!readinessResponse.ok) {
+            throw new Error(
+                readinessData?.detail ||
+                "KELYVO could not verify the saved annotation."
+            );
+        }
+
+        if (!readinessData || readinessData.ready !== true) {
+            throw new Error(
+                "Your annotation has not been saved by Label Studio yet. Please finish the annotation and save it in Label Studio, then click Submit to QA again."
+            );
+        }
+
+        activeTaskSubmitted = true;
+
+        showLoader(
+            "Submitting Task for QA..."
+        );
 
         const taskTitle =
             `${String(activeModalityType).toUpperCase()} Task #${activeTaskData.id}`;
