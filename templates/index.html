@@ -290,12 +290,193 @@ button {
     white-space: nowrap;
 }
 
+.qa-mask-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
 .qa-readonly-notice {
     border: 1px solid #27272a;
     background: #09090b;
     color: #a1a1aa;
 }
 
+
+
+
+/* ============================================================
+   KELYVO TASK SUBMISSION SUCCESS ANIMATION
+   ============================================================ */
+.kelyvo-submit-success-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, rgba(20,20,20,.82), rgba(0,0,0,.97));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    animation: kelyvoSubmitFadeIn .22s ease-out forwards;
+}
+.kelyvo-submit-success-scene {
+    position: relative;
+    width: min(420px, 90vw);
+    text-align: center;
+    animation: kelyvoSubmitPop .5s cubic-bezier(.18,.9,.2,1.18) forwards;
+}
+.kelyvo-submit-success-radiance {
+    position: absolute;
+    left: 50%;
+    top: 58px;
+    width: 250px;
+    height: 250px;
+    transform: translate(-50%,-50%) scale(.3);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.17), rgba(255,255,255,.04) 45%, transparent 72%);
+    filter: blur(8px);
+    pointer-events: none;
+    animation: kelyvoSubmitRadiance .9s ease-out forwards;
+}
+.kelyvo-submit-success-orbit {
+    position: absolute;
+    left: 50%;
+    top: -18px;
+    width: 178px;
+    height: 178px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 50%;
+    animation: kelyvoSubmitSpin 1.6s linear infinite;
+}
+.kelyvo-submit-success-orbit::before,
+.kelyvo-submit-success-orbit::after {
+    content: "";
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 16px rgba(255,255,255,.9);
+}
+.kelyvo-submit-success-orbit::before { top: -4px; left: 50%; transform: translateX(-50%); }
+.kelyvo-submit-success-orbit::after { bottom: -4px; left: 50%; transform: translateX(-50%); }
+.kelyvo-submit-success-ring {
+    position: relative;
+    width: 118px;
+    height: 118px;
+    margin: 0 auto;
+    border: 1px solid rgba(255,255,255,.24);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.14), rgba(255,255,255,.03) 58%, transparent 59%);
+    box-shadow: 0 0 65px rgba(255,255,255,.11), inset 0 0 26px rgba(255,255,255,.04);
+    animation: kelyvoSubmitPulse .85s ease-in-out infinite alternate;
+}
+.kelyvo-submit-success-ring::before,
+.kelyvo-submit-success-ring::after {
+    content: "";
+    position: absolute;
+    inset: -9px;
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 50%;
+}
+.kelyvo-submit-success-ring::after { inset: -19px; border-color: rgba(255,255,255,.03); }
+.kelyvo-submit-check {
+    position: absolute;
+    left: 36px;
+    top: 31px;
+    width: 44px;
+    height: 25px;
+    border-left: 5px solid #fff;
+    border-bottom: 5px solid #fff;
+    transform: rotate(-45deg) scale(.3);
+    opacity: 0;
+    filter: drop-shadow(0 0 12px rgba(255,255,255,.55));
+    animation: kelyvoSubmitCheck .48s .16s cubic-bezier(.22,.8,.2,1) forwards;
+}
+.kelyvo-submit-success-particles {
+    position: absolute;
+    left: 50%;
+    top: 50px;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+.kelyvo-submit-success-particle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 14px rgba(255,255,255,.8);
+    opacity: 0;
+    animation: kelyvoSubmitParticle .9s cubic-bezier(.1,.75,.2,1) forwards;
+}
+.kelyvo-submit-success-kicker {
+    position: relative;
+    margin-top: 38px;
+    color: rgba(255,255,255,.47);
+    font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: .34em;
+    text-transform: uppercase;
+}
+.kelyvo-submit-success-title {
+    position: relative;
+    margin-top: 12px;
+    color: #fff;
+    font-size: clamp(30px, 7vw, 46px);
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -.035em;
+}
+.kelyvo-submit-success-subtitle {
+    position: relative;
+    margin-top: 12px;
+    color: rgba(255,255,255,.48);
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.kelyvo-submit-success-progress {
+    position: relative;
+    width: 170px;
+    height: 2px;
+    margin: 24px auto 0;
+    overflow: hidden;
+    border-radius: 99px;
+    background: rgba(255,255,255,.08);
+}
+.kelyvo-submit-success-progress span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    transform-origin: left center;
+    animation: kelyvoSubmitProgress 1.55s linear forwards;
+}
+@keyframes kelyvoSubmitFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kelyvoSubmitPop { from { opacity: 0; transform: translateY(16px) scale(.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes kelyvoSubmitRadiance { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.2); } 40% { opacity: 1; } 100% { opacity: .08; transform: translate(-50%,-50%) scale(1.35); } }
+@keyframes kelyvoSubmitSpin { from { transform: translateX(-50%) rotate(0deg); } to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes kelyvoSubmitPulse { from { transform: scale(.98); } to { transform: scale(1.035); } }
+@keyframes kelyvoSubmitCheck { 0% { opacity: 0; transform: rotate(-45deg) scale(.3); } 45% { opacity: 1; transform: rotate(-45deg) scale(1.06); } 100% { opacity: 1; transform: rotate(-45deg) scale(1); } }
+@keyframes kelyvoSubmitParticle { 0% { opacity: 0; transform: translate(0,0) scale(.2); } 12% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--px),var(--py)) scale(.7); } }
+@keyframes kelyvoSubmitProgress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+    .kelyvo-submit-success-overlay,
+    .kelyvo-submit-success-scene,
+    .kelyvo-submit-success-radiance,
+    .kelyvo-submit-success-orbit,
+    .kelyvo-submit-success-ring,
+    .kelyvo-submit-check,
+    .kelyvo-submit-success-particle,
+    .kelyvo-submit-success-progress span { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+}
 
 </style>
 </head>
@@ -2060,6 +2241,26 @@ function initializeAuthenticatedUI(user) {
 
         loadAdminQueue();
 
+        if (!window.kelyvoQAQueueRefreshTimer) {
+            window.kelyvoQAQueueRefreshTimer =
+                setInterval(
+                    function () {
+                        const adminSection =
+                            document.getElementById(
+                                "admin-section"
+                            );
+
+                        if (
+                            adminSection &&
+                            !adminSection.classList.contains("hidden")
+                        ) {
+                            loadAdminQueue();
+                        }
+                    },
+                    2500
+                );
+        }
+
     } else {
 
         document.getElementById(
@@ -2079,6 +2280,26 @@ function initializeAuthenticatedUI(user) {
         );
 
         loadContributorSubmissions();
+
+        if (!window.kelyvoContributorQueueRefreshTimer) {
+            window.kelyvoContributorQueueRefreshTimer =
+                setInterval(
+                    function () {
+                        const dashboard =
+                            document.getElementById(
+                                "dashboard-section"
+                            );
+
+                        if (
+                            dashboard &&
+                            !dashboard.classList.contains("hidden")
+                        ) {
+                            loadContributorSubmissions();
+                        }
+                    },
+                    2500
+                );
+        }
 
         loadPipelineProjects();
 
@@ -3382,6 +3603,63 @@ window.addEventListener(
 
 
 /* ============================================================
+   TASK SUBMISSION SUCCESS ANIMATION
+============================================================ */
+
+function showTaskSubmittedAnimation() {
+    const existing = document.getElementById("kelyvo-submit-success-overlay");
+    if (existing) {
+        existing.remove();
+    }
+
+    const overlay = document.createElement("div");
+    overlay.id = "kelyvo-submit-success-overlay";
+    overlay.className = "kelyvo-submit-success-overlay";
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+
+    const scene = document.createElement("div");
+    scene.className = "kelyvo-submit-success-scene";
+
+    const particleLayer = document.createElement("div");
+    particleLayer.className = "kelyvo-submit-success-particles";
+    const vectors = [
+        [-118,-62],[-98,-94],[-62,-118],[-18,-132],[28,-124],[70,-106],[108,-70],[124,-20],
+        [116,34],[88,80],[48,112],[4,126],[-44,112],[-86,84],[-116,42]
+    ];
+    vectors.forEach(([px,py], i) => {
+        const particle = document.createElement("span");
+        particle.className = "kelyvo-submit-success-particle";
+        particle.style.setProperty("--px", `${px}px`);
+        particle.style.setProperty("--py", `${py}px`);
+        particle.style.animationDelay = `${70 + i * 22}ms`;
+        particleLayer.appendChild(particle);
+    });
+
+    scene.innerHTML = `
+        <div class="kelyvo-submit-success-radiance"></div>
+        <div class="kelyvo-submit-success-orbit"></div>
+        <div class="kelyvo-submit-success-ring">
+            <span class="kelyvo-submit-check"></span>
+        </div>
+        <div class="kelyvo-submit-success-kicker">KELYVO WORKFLOW</div>
+        <div class="kelyvo-submit-success-title">Task Submitted</div>
+        <div class="kelyvo-submit-success-subtitle">Sent to QA review</div>
+        <div class="kelyvo-submit-success-progress"><span></span></div>
+    `;
+    scene.appendChild(particleLayer);
+    overlay.appendChild(scene);
+    document.body.appendChild(overlay);
+
+    window.setTimeout(() => {
+        overlay.style.transition = "opacity .22s ease";
+        overlay.style.opacity = "0";
+        window.setTimeout(() => overlay.remove(), 240);
+    }, 1550);
+}
+
+
+/* ============================================================
    SUBMIT TASK
 ============================================================ */
 
@@ -3514,14 +3792,63 @@ async function handleAnnotationSubmission() {
 
         hideLoader();
 
-
         clearActiveTaskSession();
-
 
         closeTaskWorkspace();
 
+        updateStats({
+            tasks_today: data.tasks_today,
+            tasks_week: data.tasks_week,
+            tasks_passed_qa: Number(localStorage.getItem("kelyvo_qa") || 0),
+            earnings: Number(localStorage.getItem("kelyvo_earnings") || 0)
+        });
 
-        loadContributorSubmissions();
+        await loadContributorSubmissions();
+
+        const contributorQueueCounter =
+            document.getElementById(
+                "contributor-queue-count"
+            );
+
+        if (
+            contributorQueueCounter &&
+            Number.isFinite(Number(data.queue_count))
+        ) {
+            contributorQueueCounter.innerText =
+                String(Number(data.queue_count));
+        }
+
+        // Re-read the server session immediately after submission so the
+        // dashboard counters are sourced from the authoritative database,
+        // not from stale browser state.
+        try {
+            const sessionResponse = await fetch(
+                "/api/session",
+                {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store"
+                }
+            );
+
+            if (sessionResponse.ok) {
+                const sessionData = await sessionResponse.json();
+                if (sessionData && sessionData.role === "contributor") {
+                    updateStats(sessionData);
+                }
+            }
+        } catch (sessionError) {
+            console.debug(
+                "KELYVO: post-submit session refresh unavailable:",
+                sessionError
+            );
+        }
+
+        // One immediate second queue read closes any tiny database/render
+        // timing gap while keeping the server as the source of truth.
+        await loadContributorSubmissions();
+        loadPipelineProjects();
+        showTaskSubmittedAnimation();
 
 
     } catch (error) {
@@ -3558,8 +3885,7 @@ function startNativeSubmitWatcher(
 ) {
     stopNativeSubmitWatcher();
 
-    nativeSubmitPollTimer = setInterval(
-        async function() {
+    const checkNativeSubmitStatus = async function() {
             if (
                 activeTaskSubmitted ||
                 !activeTaskData
@@ -3598,9 +3924,10 @@ function startNativeSubmitWatcher(
                     error
                 );
             }
-        },
-        1000
-    );
+    };
+
+    checkNativeSubmitStatus();
+    nativeSubmitPollTimer = setInterval(checkNativeSubmitStatus, 1000);
 }
 
 
@@ -3925,18 +4252,46 @@ async function loadAdminQueue() {
             );
         }
 
-        if (!Array.isArray(data)) {
+        const rawSubmissions =
+            Array.isArray(data)
+                ? data
+                : (
+                    data &&
+                    Array.isArray(data.submissions)
+                        ? data.submissions
+                        : null
+                );
+
+        if (!Array.isArray(rawSubmissions)) {
             throw new Error(
                 "Invalid QA queue response."
             );
         }
 
         adminQueueSubmissions =
-            data.slice().sort(
-                (a, b) =>
-                    Number(b.id || 0) -
-                    Number(a.id || 0)
-            );
+            rawSubmissions
+                .map(
+                    submission => ({
+                        ...submission,
+                        id: Number(submission.id || 0),
+                        status: String(
+                            submission.status ||
+                            "PENDING_QA"
+                        ).trim().toUpperCase(),
+                        contributor_email:
+                            submission.contributor_email ||
+                            submission.email ||
+                            "Unassigned",
+                        task_title:
+                            submission.task_title ||
+                            `Task #${submission.task_id ?? ""}`
+                    })
+                )
+                .sort(
+                    (a, b) =>
+                        Number(b.id || 0) -
+                        Number(a.id || 0)
+                );
 
         updateQAQueueCounts(
             adminQueueSubmissions
@@ -4719,6 +5074,11 @@ function renderQATaskPreview(
                         )}"
                         alt="Submitted task"
                     />
+                    <canvas
+                        id="qa-mask-canvas"
+                        class="qa-mask-canvas"
+                        aria-hidden="true"
+                    ></canvas>
                     <div
                         id="qa-box-overlay"
                         class="qa-box-overlay"
@@ -4726,12 +5086,31 @@ function renderQATaskPreview(
                 </div>
             `;
 
-            requestAnimationFrame(
+            const previewImage =
+                document.getElementById(
+                    "qa-preview-image"
+                );
+
+            const renderImageAnnotations =
                 () =>
-                    renderQAImageBoxes(
+                    renderQAImageAnnotations(
                         annotations || []
-                    )
-            );
+                    );
+
+            if (
+                previewImage &&
+                !previewImage.complete
+            ) {
+                previewImage.addEventListener(
+                    "load",
+                    renderImageAnnotations,
+                    { once: true }
+                );
+            } else {
+                requestAnimationFrame(
+                    renderImageAnnotations
+                );
+            }
 
         } else if (
             media.type ===
@@ -4793,68 +5172,551 @@ function renderQATaskPreview(
 }
 
 
-function renderQAImageBoxes(
+function createLSBitReader(
+    bytes
+) {
+    let byteIndex = 0;
+    let bitOffset = 0;
+
+    return {
+        read(count) {
+            let value = 0;
+
+            for (let i = 0; i < count; i += 1) {
+                if (byteIndex >= bytes.length) {
+                    throw new Error(
+                        "Unexpected end of Label Studio RLE data."
+                    );
+                }
+
+                const bit =
+                    (
+                        bytes[byteIndex] >>
+                        (7 - bitOffset)
+                    ) & 1;
+
+                value =
+                    (value << 1) |
+                    bit;
+
+                bitOffset += 1;
+
+                if (bitOffset === 8) {
+                    bitOffset = 0;
+                    byteIndex += 1;
+                }
+            }
+
+            return value;
+        },
+
+        readBit() {
+            return this.read(1);
+        }
+    };
+}
+
+
+function paintSourcePixelRun(
+    context,
+    startPixel,
+    length,
+    sourceWidth,
+    sourceHeight,
+    canvasWidth,
+    canvasHeight
+) {
+    if (
+        !context ||
+        !Number.isFinite(startPixel) ||
+        !Number.isFinite(length) ||
+        length <= 0 ||
+        !sourceWidth ||
+        !sourceHeight ||
+        !canvasWidth ||
+        !canvasHeight
+    ) {
+        return;
+    }
+
+    let pixel =
+        Math.max(
+            0,
+            Math.floor(startPixel)
+        );
+
+    let remaining =
+        Math.max(
+            0,
+            Math.floor(length)
+        );
+
+    const maxPixels =
+        sourceWidth *
+        sourceHeight;
+
+    if (pixel >= maxPixels) {
+        return;
+    }
+
+    remaining =
+        Math.min(
+            remaining,
+            maxPixels - pixel
+        );
+
+    while (remaining > 0) {
+        const row =
+            Math.floor(
+                pixel /
+                sourceWidth
+            );
+
+        const column =
+            pixel -
+            (row * sourceWidth);
+
+        const take =
+            Math.min(
+                remaining,
+                sourceWidth - column
+            );
+
+        const x =
+            (column / sourceWidth) *
+            canvasWidth;
+
+        const y =
+            (row / sourceHeight) *
+            canvasHeight;
+
+        const width =
+            (take / sourceWidth) *
+            canvasWidth;
+
+        const height =
+            Math.max(
+                1,
+                canvasHeight /
+                sourceHeight
+            );
+
+        context.fillRect(
+            x,
+            y,
+            Math.max(1, width),
+            height
+        );
+
+        pixel += take;
+        remaining -= take;
+    }
+}
+
+
+function decodeLabelStudioBrushMask(
+    rle,
+    sourceWidth,
+    sourceHeight,
+    context,
+    canvasWidth,
+    canvasHeight
+) {
+    if (
+        !Array.isArray(rle) ||
+        !rle.length ||
+        !context ||
+        !sourceWidth ||
+        !sourceHeight
+    ) {
+        return false;
+    }
+
+    const expectedPixels =
+        sourceWidth *
+        sourceHeight;
+
+    if (
+        !Number.isFinite(expectedPixels) ||
+        expectedPixels <= 0
+    ) {
+        return false;
+    }
+
+    /*
+     * Label Studio BrushLabels uses the packed RLE format from
+     * HumanSignal's brush converter. The decoded stream is RGBA.
+     * We render only its alpha channel directly to the display-sized
+     * canvas so QA does not need to allocate a full-size RGBA buffer.
+     */
+    const bytes =
+        new Uint8Array(
+            rle.map(
+                value =>
+                    Number(value) & 255
+            )
+        );
+
+    const reader =
+        createLSBitReader(bytes);
+
+    const decodedLength =
+        reader.read(32);
+
+    const wordSize =
+        reader.read(5) + 1;
+
+    const runLengthBits = [
+        reader.read(4) + 1,
+        reader.read(4) + 1,
+        reader.read(4) + 1,
+        reader.read(4) + 1
+    ];
+
+    if (
+        !Number.isFinite(decodedLength) ||
+        decodedLength <= 0 ||
+        decodedLength >
+            expectedPixels * 4 * 2
+    ) {
+        return false;
+    }
+
+    let outputIndex = 0;
+    let paintedPixels = 0;
+
+    while (
+        outputIndex <
+        decodedLength
+    ) {
+        const repeated =
+            reader.readBit();
+
+        const runSelector =
+            reader.read(2);
+
+        const runLength =
+            1 +
+            reader.read(
+                runLengthBits[
+                    runSelector
+                ]
+            );
+
+        const runEnd =
+            Math.min(
+                decodedLength,
+                outputIndex + runLength
+            );
+
+        if (repeated) {
+            const value =
+                reader.read(
+                    wordSize
+                );
+
+            if (value !== 0) {
+                const firstAlpha =
+                    outputIndex +
+                    (
+                        (
+                            3 -
+                            (outputIndex % 4) +
+                            4
+                        ) % 4
+                    );
+
+                if (firstAlpha < runEnd) {
+                    const firstPixel =
+                        Math.floor(
+                            firstAlpha / 4
+                        );
+
+                    const lastPixel =
+                        Math.floor(
+                            (runEnd - 1) / 4
+                        );
+
+                    const count =
+                        lastPixel -
+                        firstPixel +
+                        1;
+
+                    paintSourcePixelRun(
+                        context,
+                        firstPixel,
+                        count,
+                        sourceWidth,
+                        sourceHeight,
+                        canvasWidth,
+                        canvasHeight
+                    );
+
+                    paintedPixels +=
+                        count;
+                }
+            }
+        } else {
+            /*
+             * Literal runs contain RGBA bytes. Read every byte in the
+             * packed stream but only inspect every fourth byte (alpha).
+             */
+            let activeRunStart = -1;
+            let activeRunLength = 0;
+            let byteIndex = outputIndex;
+
+            while (
+                byteIndex <
+                runEnd
+            ) {
+                const value =
+                    reader.read(
+                        wordSize
+                    );
+
+                if (
+                    byteIndex % 4 === 3
+                ) {
+                    const pixelIndex =
+                        Math.floor(
+                            byteIndex / 4
+                        );
+
+                    if (value > 0) {
+                        if (
+                            activeRunStart < 0
+                        ) {
+                            activeRunStart =
+                                pixelIndex;
+                            activeRunLength = 1;
+                        } else if (
+                            pixelIndex ===
+                            activeRunStart +
+                            activeRunLength
+                        ) {
+                            activeRunLength += 1;
+                        } else {
+                            paintSourcePixelRun(
+                                context,
+                                activeRunStart,
+                                activeRunLength,
+                                sourceWidth,
+                                sourceHeight,
+                                canvasWidth,
+                                canvasHeight
+                            );
+
+                            paintedPixels +=
+                                activeRunLength;
+
+                            activeRunStart =
+                                pixelIndex;
+                            activeRunLength = 1;
+                        }
+                    } else if (
+                        activeRunStart >= 0
+                    ) {
+                        paintSourcePixelRun(
+                            context,
+                            activeRunStart,
+                            activeRunLength,
+                            sourceWidth,
+                            sourceHeight,
+                            canvasWidth,
+                            canvasHeight
+                        );
+
+                        paintedPixels +=
+                            activeRunLength;
+
+                        activeRunStart = -1;
+                        activeRunLength = 0;
+                    }
+                }
+
+                byteIndex += 1;
+            }
+
+            if (
+                activeRunStart >= 0
+            ) {
+                paintSourcePixelRun(
+                    context,
+                    activeRunStart,
+                    activeRunLength,
+                    sourceWidth,
+                    sourceHeight,
+                    canvasWidth,
+                    canvasHeight
+                );
+
+                paintedPixels +=
+                    activeRunLength;
+            }
+        }
+
+        outputIndex =
+            runEnd;
+    }
+
+    return paintedPixels > 0;
+}
+
+
+function renderQAImageAnnotations(
     annotations
 ) {
+    const image =
+        document.getElementById(
+            "qa-preview-image"
+        );
 
-    const overlay =
+    const canvas =
+        document.getElementById(
+            "qa-mask-canvas"
+        );
+
+    const boxOverlay =
         document.getElementById(
             "qa-box-overlay"
         );
 
-    if (!overlay) {
+    if (
+        !image ||
+        !canvas ||
+        !boxOverlay
+    ) {
         return;
     }
 
-    overlay.innerHTML = "";
+    const displayWidth =
+        Math.max(
+            1,
+            image.clientWidth
+        );
+
+    const displayHeight =
+        Math.max(
+            1,
+            image.clientHeight
+        );
+
+    canvas.width =
+        displayWidth;
+
+    canvas.height =
+        displayHeight;
+
+    const context =
+        canvas.getContext("2d");
+
+    if (!context) {
+        return;
+    }
+
+    context.clearRect(
+        0,
+        0,
+        displayWidth,
+        displayHeight
+    );
+
+    boxOverlay.innerHTML = "";
 
     const rows =
         getAnnotationResults(
             annotations
         );
 
+    let brushCount = 0;
+
     rows.forEach(
         entry => {
-
             const item =
                 entry.item || {};
 
             const value =
                 item.value || {};
 
+            const type =
+                String(
+                    item.type || ""
+                ).toLowerCase();
+
+            if (
+                type === "brushlabels" ||
+                value.format === "rle" ||
+                Array.isArray(value.rle)
+            ) {
+                const width =
+                    Number(
+                        item.original_width ||
+                        value.original_width
+                    );
+
+                const height =
+                    Number(
+                        item.original_height ||
+                        value.original_height
+                    );
+
+                if (
+                    Number.isFinite(width) &&
+                    Number.isFinite(height) &&
+                    width > 0 &&
+                    height > 0 &&
+                    Array.isArray(value.rle)
+                ) {
+                    context.fillStyle =
+                        "rgba(251, 191, 36, 0.34)";
+
+                    try {
+                        if (
+                            decodeLabelStudioBrushMask(
+                                value.rle,
+                                width,
+                                height,
+                                context,
+                                displayWidth,
+                                displayHeight
+                            )
+                        ) {
+                            brushCount += 1;
+                        }
+                    } catch (error) {
+                        console.warn(
+                            "KELYVO: could not decode Label Studio brush RLE:",
+                            error
+                        );
+                    }
+                }
+
+                return;
+            }
+
             const x =
-                Number(
-                    value.x
-                );
+                Number(value.x);
 
             const y =
-                Number(
-                    value.y
-                );
+                Number(value.y);
 
-            const width =
-                Number(
-                    value.width
-                );
+            const boxWidth =
+                Number(value.width);
 
-            const height =
-                Number(
-                    value.height
-                );
+            const boxHeight =
+                Number(value.height);
 
             if (
                 !Number.isFinite(x) ||
                 !Number.isFinite(y) ||
-                !Number.isFinite(width) ||
-                !Number.isFinite(height)
+                !Number.isFinite(boxWidth) ||
+                !Number.isFinite(boxHeight)
             ) {
                 return;
             }
 
             const box =
-                document.createElement(
-                    "div"
-                );
+                document.createElement("div");
 
             box.className =
                 "qa-box";
@@ -4866,10 +5728,10 @@ function renderQAImageBoxes(
                 `${y}%`;
 
             box.style.width =
-                `${width}%`;
+                `${boxWidth}%`;
 
             box.style.height =
-                `${height}%`;
+                `${boxHeight}%`;
 
             const labels =
                 getAnnotationLabels(
@@ -4877,32 +5739,38 @@ function renderQAImageBoxes(
                 );
 
             if (labels.length) {
-
                 const label =
-                    document.createElement(
-                        "div"
-                    );
+                    document.createElement("div");
 
                 label.className =
                     "qa-box-label";
 
                 label.innerText =
-                    labels.join(
-                        ", "
-                    );
+                    labels.join(", ");
 
-                box.appendChild(
-                    label
-                );
+                box.appendChild(label);
             }
 
-            overlay.appendChild(
+            boxOverlay.appendChild(
                 box
             );
         }
     );
+
+    canvas.style.display =
+        brushCount > 0
+            ? "block"
+            : "none";
 }
 
+
+function renderQAImageBoxes(
+    annotations
+) {
+    renderQAImageAnnotations(
+        annotations
+    );
+}
 
 function renderQAAnnotations(
     annotations
@@ -5939,6 +6807,43 @@ async function loadContributorSubmissions() {
 }
 
 
+async function neutralizeStaleKelyvoServiceWorkers() {
+
+    if (!("serviceWorker" in navigator)) {
+        return;
+    }
+
+    try {
+        const registrations =
+            await navigator.serviceWorker.getRegistrations();
+
+        await Promise.all(
+            registrations.map(
+                registration =>
+                    registration.unregister()
+            )
+        );
+
+        if ("caches" in window) {
+            const cacheNames =
+                await caches.keys();
+
+            await Promise.all(
+                cacheNames.map(
+                    cacheName =>
+                        caches.delete(cacheName)
+                )
+            );
+        }
+    } catch (error) {
+        console.debug(
+            "KELYVO: service-worker cleanup skipped:",
+            error
+        );
+    }
+}
+
+
 async function restoreAuthenticatedSession() {
 
     /*
@@ -6076,8 +6981,9 @@ async function restoreAuthenticatedSession() {
 
 window.addEventListener(
     "load",
-    function() {
-        restoreAuthenticatedSession();
+    async function() {
+        await neutralizeStaleKelyvoServiceWorkers();
+        await restoreAuthenticatedSession();
     }
 );
 

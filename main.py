@@ -4,6 +4,7 @@ import json
 import os
 import re
 import time
+from datetime import datetime, timedelta, timezone
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from urllib.parse import quote, unquote
 
@@ -12,7 +13,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database import SessionLocal, engine
 import models
@@ -189,7 +190,8 @@ async def intercept_legacy_label_studio_project_drafts(
         contributor_identity = get_browser_identity(request)
         assigned_task_id = get_reserved_task(
             contributor_identity,
-            int(project_value)
+            int(project_value),
+            user_id=_get_authenticated_user_id(request),
         )
 
         if assigned_task_id is None:
@@ -285,9 +287,9 @@ PROJECT_MAPPING = {
 # KELYVO's enterprise database is being introduced without breaking the
 # currently working Label Studio workflow.  For this first migration step,
 # the database becomes the registry for organizations/workspaces/projects,
-# while the existing in-memory reservation system remains in place as a
-# compatibility layer.  Later steps can safely move reservations and the
-# complete task lifecycle into these persistent tables.
+# while task reservations are now persisted in TaskAssignment.  Later steps can
+# safely expand the persistent task lifecycle without breaking the working
+# Label Studio execution flow.
 #
 # Label Studio remains the execution engine for now.  Its project IDs are
 # stored on the KELYVO Project records instead of being the only place where
@@ -531,7 +533,6 @@ def _sync_enterprise_task(
 _ensure_enterprise_project_registry()
 
 
-TASK_ASSIGNMENTS = {}
 TASK_ASSIGNMENT_TTL = 60 * 60
 
 # Short-lived marker used to stop Label Studio's automatic post-submit
@@ -541,6 +542,121 @@ TASK_ASSIGNMENT_TTL = 60 * 60
 KELYVO_RECENT_NATIVE_SUBMISSIONS = {}
 KELYVO_RECENT_REVISION_UPDATES = {}
 KELYVO_NATIVE_SUBMIT_TTL = 30
+
+
+def _utc_now():
+    return datetime.now(timezone.utc)
+
+
+def _get_authenticated_user_id(request: Request):
+    session = read_session_token(request)
+    if not session or not session.get("email"):
+        return None
+
+    db = SessionLocal()
+    try:
+        user = (
+            db.query(models.User)
+            .filter(models.User.email == normalize_email(session.get("email", "")))
+            .first()
+        )
+        return int(user.id) if user else None
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
+def _get_user_id_for_identity(identity: str):
+    if not identity:
+        return None
+
+    if identity.startswith("user:"):
+        email = normalize_email(identity[5:])
+        if not email:
+            return None
+        db = SessionLocal()
+        try:
+            user = (
+                db.query(models.User)
+                .filter(models.User.email == email)
+                .first()
+            )
+            return int(user.id) if user else None
+        except Exception:
+            return None
+        finally:
+            db.close()
+
+    return None
+
+
+def _cleanup_expired_persistent_task_assignments():
+    now = _utc_now()
+    db = SessionLocal()
+    try:
+        expired = (
+            db.query(models.TaskAssignment)
+            .options(joinedload(models.TaskAssignment.task))
+            .filter(
+                models.TaskAssignment.status == "reserved",
+                models.TaskAssignment.expires_at.isnot(None),
+                models.TaskAssignment.expires_at <= now,
+            )
+            .all()
+        )
+
+        if not expired:
+            return
+
+        for assignment in expired:
+            assignment.status = "expired"
+            assignment.released_at = now
+            if assignment.task is not None:
+                assignment.task.is_locked = False
+                assignment.task.status = "available"
+
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _get_active_persistent_assignment(
+    db: Session,
+    user_id: int,
+    project_id: int = None,
+    task_id: int = None,
+):
+    if user_id is None:
+        return None
+
+    query = (
+        db.query(models.TaskAssignment)
+        .options(joinedload(models.TaskAssignment.task))
+        .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+        .filter(
+            models.TaskAssignment.user_id == int(user_id),
+            models.TaskAssignment.status == "reserved",
+        )
+    )
+
+    if project_id is not None:
+        query = query.filter(
+            models.Task.external_project_id == int(project_id)
+        )
+
+    if task_id is not None:
+        query = query.filter(
+            models.Task.external_task_id == int(task_id)
+        )
+
+    return (
+        query
+        .order_by(models.TaskAssignment.assigned_at.desc())
+        .first()
+    )
 
 
 def mark_native_annotation_submitted(
@@ -564,14 +680,7 @@ def _is_successful_native_annotation_write(
     task_id: int,
     body: bytes = b"",
 ) -> bool:
-    """Detect a real Label Studio contributor submission without treating autosaves as submits.
-
-    The previously working KELYVO flow used POST /api/tasks/<task_id>/annotations.
-    Keep that proven path as the primary signal. A global POST /api/annotations
-    is also accepted only when its request body identifies the assigned task.
-    PUT/PATCH annotation updates are deliberately excluded because they can be
-    ordinary edits/autosaves and must not increment contributor work or enter QA.
-    """
+    """Detect a real Label Studio contributor submission without treating autosaves as submits."""
     if request_method != "POST":
         return False
 
@@ -604,15 +713,7 @@ def _register_native_submission_in_kelyvo(
     project_id: int,
     task_id: int,
 ):
-    """Register a successful Label Studio native submission directly in KELYVO.
-
-    The contributor workspace is proxied through KELYVO, so a successful
-    annotation write is already a server-side proof that the assigned task was
-    submitted. Persist the KELYVO QA record at that same boundary instead of
-    relying only on the browser polling /submit-task afterwards. This makes the
-    Label Studio -> KELYVO handoff durable while keeping /submit-task as a
-    backwards-compatible idempotent path.
-    """
+    """Register a successful Label Studio native submission directly in KELYVO."""
     session = read_session_token(request)
     if not session or session.get("role") != "contributor":
         return None
@@ -732,9 +833,6 @@ def consume_recent_native_submission(
     if int(entry.get("task_id", 0)) != int(task_id):
         return False
 
-    # The browser watcher may poll more than once before the UI finishes
-    # closing the workspace. Keep the marker until TTL expiry rather than
-    # consuming it on the first status check.
     return True
 
 
@@ -813,6 +911,120 @@ def mark_native_revision_updated(
     }
 
 
+def _reconcile_native_submission_from_label_studio(
+    request: Request,
+    project_id: int,
+    task_id: int,
+):
+    """Best-effort server-side fallback for native Label Studio submissions.
+
+    The contributor workspace is embedded inside a proxied iframe. In some
+    Label Studio/community builds the final annotation write is not observed
+    by the KELYVO browser-side message bridge. When that happens, the polling
+    endpoint asks Label Studio for the active task itself and reconciles a real
+    saved annotation into KELYVO's submission queue.
+
+    This path is intentionally limited to a live contributor session and an
+    active persistent assignment. Revision submissions are left to the
+    existing revision-update marker path because a returned task may already
+    contain an older annotation.
+    """
+    session = read_session_token(request)
+    if not session or session.get("role") != "contributor":
+        return False
+
+    normalized_email = normalize_email(session.get("email", ""))
+    if not normalized_email:
+        return False
+
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        return False
+
+    db = SessionLocal()
+    try:
+        user = (
+            db.query(models.User)
+            .filter(models.User.id == int(user_id))
+            .first()
+        )
+        if user is None:
+            return False
+
+        assignment = _get_active_persistent_assignment(
+            db,
+            int(user_id),
+            project_id=int(project_id),
+            task_id=int(task_id),
+        )
+        if assignment is None:
+            return False
+
+        task_type = next(
+            (
+                key
+                for key, value in PROJECT_MAPPING.items()
+                if int(value) == int(project_id)
+            ),
+            None,
+        )
+        if not task_type:
+            return False
+
+        task_title = f"{task_type.upper()} Task #{int(task_id)}"
+
+        # Do not auto-promote a revision task from the task's pre-existing
+        # annotation. The dedicated revision update path handles those.
+        failed_revision_exists = (
+            db.query(models.TaskSubmission.id)
+            .filter(
+                models.TaskSubmission.user_id == user.id,
+                models.TaskSubmission.task_type == task_type,
+                models.TaskSubmission.task_title == task_title,
+                models.TaskSubmission.status == "FAILED",
+            )
+            .first()
+            is not None
+        )
+        if failed_revision_exists:
+            return False
+    finally:
+        db.close()
+
+    response = label_studio_request(
+        "GET",
+        f"/api/tasks/{int(task_id)}",
+    )
+    if response.status_code >= 400:
+        return False
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return False
+
+    annotations = []
+    if isinstance(payload, dict):
+        raw_annotations = payload.get("annotations")
+        if isinstance(raw_annotations, list):
+            annotations = raw_annotations
+
+    if not annotations:
+        return False
+
+    # The annotation is real, so mark it for the browser-side watcher.
+    # Do NOT create the KELYVO submission record here and do NOT release the
+    # persistent assignment. /submit-task is the single authoritative
+    # finalization point that increments counters, creates PENDING_QA, and
+    # releases the assignment exactly once.
+    mark_native_annotation_submitted(
+        request,
+        int(project_id),
+        int(task_id),
+    )
+    return True
+
+
 @app.get("/api/native-submit-status")
 def native_submit_status(
     request: Request,
@@ -823,6 +1035,18 @@ def native_submit_status(
     """Report a recent native Label Studio submission for this task."""
     cleanup_task_assignments()
 
+    reconciled = _reconcile_native_submission_from_label_studio(
+        request,
+        int(project_id),
+        int(task_id),
+    )
+    if reconciled:
+        return {
+            "submitted": True,
+            "revision_updated": False,
+            "task_id": int(task_id),
+        }
+
     browser_identity = get_browser_identity(request)
     identity = browser_identity
 
@@ -831,7 +1055,8 @@ def native_submit_status(
         email_identity = "user:" + normalized_email
         email_task_id = get_reserved_task(
             email_identity,
-            project_id
+            project_id,
+            user_id=_get_authenticated_user_id(request),
         )
 
         if email_task_id is not None:
@@ -895,16 +1120,7 @@ def native_submit_status(
 
 
 def cleanup_task_assignments():
-    now = time.time()
-
-    expired_keys = [
-        key
-        for key, assignment in TASK_ASSIGNMENTS.items()
-        if assignment.get("expires_at", 0) <= now
-    ]
-
-    for key in expired_keys:
-        TASK_ASSIGNMENTS.pop(key, None)
+    _cleanup_expired_persistent_task_assignments()
 
 
 def normalize_email(email: str) -> str:
@@ -954,20 +1170,24 @@ def sync_browser_assignment_for_request(
     project_id: int,
     task_id: int
 ):
-    """Keep email and browser assignments synchronized."""
-    browser_identity = get_browser_identity(request)
-    browser_key = make_assignment_key(browser_identity, project_id)
-    cleanup_task_assignments()
-    existing = TASK_ASSIGNMENTS.get(browser_key)
-    if existing and int(existing.get("task_id", 0)) != int(task_id):
-        TASK_ASSIGNMENTS.pop(browser_key, None)
-    reserve_task_for_contributor(browser_identity, project_id, int(task_id))
+    """Keep the browser view synchronized with the authenticated user's persistent assignment."""
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        return None
+
+    return reserve_task_for_contributor(
+        "user:" + normalize_email(read_session_token(request).get("email", "")),
+        project_id,
+        int(task_id),
+        user_id=user_id,
+    )
 
 
 def reserve_task_for_contributor(
     identity: str,
     project_id: int,
-    task_id: int
+    task_id: int,
+    user_id: int = None,
 ):
     cleanup_task_assignments()
 
@@ -977,107 +1197,269 @@ def reserve_task_for_contributor(
             detail="Unable to identify the contributor."
         )
 
-    key = make_assignment_key(
-        identity,
-        project_id
-    )
+    if user_id is None:
+        user_id = _get_user_id_for_identity(identity)
 
-    existing = TASK_ASSIGNMENTS.get(key)
-
-    if existing:
-        if existing.get("task_id") != task_id:
-            return existing["task_id"]
-
-        existing["expires_at"] = (
-            time.time()
-            + TASK_ASSIGNMENT_TTL
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Unable to resolve the authenticated contributor."
         )
 
-        return task_id
+    db = SessionLocal()
+    try:
+        task = (
+            db.query(models.Task)
+            .filter(
+                models.Task.external_engine == "label_studio",
+                models.Task.external_project_id == int(project_id),
+                models.Task.external_task_id == int(task_id),
+            )
+            .first()
+        )
 
-    TASK_ASSIGNMENTS[key] = {
-        "identity": identity,
-        "project_id": project_id,
-        "task_id": task_id,
-        "created_at": time.time(),
-        "expires_at": (
-            time.time()
-            + TASK_ASSIGNMENT_TTL
-        ),
-    }
+        if task is None:
+            task_id_uuid = _sync_enterprise_task(
+                project_id=int(project_id),
+                task_id=int(task_id),
+                status="reserved",
+            )
+            if task_id_uuid is not None:
+                db.expire_all()
+                task = db.query(models.Task).filter(
+                    models.Task.id == task_id_uuid
+                ).first()
 
-    return task_id
+        if task is None:
+            raise HTTPException(
+                status_code=404,
+                detail="The task could not be registered in KELYVO."
+            )
+
+        active_assignment = _get_active_persistent_assignment(
+            db,
+            int(user_id),
+            project_id=int(project_id),
+        )
+
+        if active_assignment is not None:
+            active_task_external_id = active_assignment.task.external_task_id
+            if int(active_task_external_id or 0) != int(task_id):
+                return int(active_task_external_id)
+
+            active_assignment.expires_at = _utc_now() + timedelta(seconds=TASK_ASSIGNMENT_TTL)
+            active_assignment.status = "reserved"
+            active_assignment.released_at = None
+            active_assignment.completed_at = None
+            active_assignment.task.is_locked = True
+            active_assignment.task.status = "reserved"
+            db.commit()
+            return int(task_id)
+
+        task_assignment = (
+            db.query(models.TaskAssignment)
+            .options(joinedload(models.TaskAssignment.task))
+            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+            .filter(
+                models.TaskAssignment.task_id == task.id,
+                models.TaskAssignment.status == "reserved",
+            )
+            .first()
+        )
+
+        if task_assignment is not None:
+            if int(task_assignment.user_id) == int(user_id):
+                task_assignment.expires_at = _utc_now() + timedelta(seconds=TASK_ASSIGNMENT_TTL)
+                task_assignment.task.is_locked = True
+                task_assignment.task.status = "reserved"
+                db.commit()
+                return int(task_id)
+            raise HTTPException(
+                status_code=409,
+                detail="This task is already reserved by another contributor."
+            )
+
+        assignment = models.TaskAssignment(
+            task_id=task.id,
+            user_id=int(user_id),
+            status="reserved",
+            assigned_at=_utc_now(),
+            expires_at=_utc_now() + timedelta(seconds=TASK_ASSIGNMENT_TTL),
+        )
+        db.add(assignment)
+        task.is_locked = True
+        task.status = "reserved"
+        db.commit()
+        return int(task_id)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        return None
+    finally:
+        db.close()
 
 
 def get_reserved_task(
     identity: str,
-    project_id: int
+    project_id: int,
+    user_id: int = None,
 ):
     cleanup_task_assignments()
 
-    key = make_assignment_key(
-        identity,
-        project_id
-    )
+    if user_id is None:
+        user_id = _get_user_id_for_identity(identity)
 
-    assignment = TASK_ASSIGNMENTS.get(key)
-
-    if not assignment:
+    if user_id is None:
         return None
 
-    assignment["expires_at"] = (
-        time.time()
-        + TASK_ASSIGNMENT_TTL
-    )
+    db = SessionLocal()
+    try:
+        assignment = _get_active_persistent_assignment(
+            db,
+            int(user_id),
+            project_id=int(project_id),
+        )
+        if assignment is None:
+            return None
 
-    return assignment.get("task_id")
+        assignment.expires_at = _utc_now() + timedelta(seconds=TASK_ASSIGNMENT_TTL)
+        assignment.task.is_locked = True
+        assignment.task.status = "reserved"
+        db.commit()
+        return int(assignment.task.external_task_id)
+    except Exception:
+        db.rollback()
+        return None
+    finally:
+        db.close()
 
 
 def release_reserved_task(
     identity: str,
     project_id: int,
-    task_id: int = None
+    task_id: int = None,
+    user_id: int = None,
+    final_task_status: str = "available",
 ):
     cleanup_task_assignments()
 
-    key = make_assignment_key(
-        identity,
-        project_id
-    )
+    if user_id is None:
+        user_id = _get_user_id_for_identity(identity)
 
-    assignment = TASK_ASSIGNMENTS.get(key)
-
-    if not assignment:
+    if user_id is None:
         return
 
-    if task_id is not None:
-        if assignment.get("task_id") != task_id:
+    db = SessionLocal()
+    try:
+        assignment = _get_active_persistent_assignment(
+            db,
+            int(user_id),
+            project_id=int(project_id),
+            task_id=int(task_id) if task_id is not None else None,
+        )
+        if assignment is None:
             return
 
-    TASK_ASSIGNMENTS.pop(
-        key,
-        None
-    )
+        now = _utc_now()
+        if final_task_status == "submitted":
+            assignment.status = "completed"
+            assignment.completed_at = now
+        else:
+            assignment.status = "released"
+            assignment.released_at = now
+
+        assignment.expires_at = now
+        assignment.task.is_locked = False
+        assignment.task.status = final_task_status
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
 
 
 def release_browser_assignment_for_request(
-    request: Request
+    request: Request,
+    final_task_status: str = "available",
 ):
-    identity = get_browser_identity(request)
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        return
 
+    session = read_session_token(request)
+    email = normalize_email(session.get("email", "")) if session else ""
+    if not email:
+        return
+
+    db = SessionLocal()
+    try:
+        assignments = (
+            db.query(models.TaskAssignment)
+            .options(joinedload(models.TaskAssignment.task))
+            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+            .filter(
+                models.TaskAssignment.user_id == int(user_id),
+                models.TaskAssignment.status == "reserved",
+            )
+            .all()
+        )
+
+        now = _utc_now()
+        for assignment in assignments:
+            if final_task_status == "submitted":
+                assignment.status = "completed"
+                assignment.completed_at = now
+            else:
+                assignment.status = "released"
+                assignment.released_at = now
+            assignment.expires_at = now
+            assignment.task.is_locked = False
+            assignment.task.status = final_task_status
+
+        if assignments:
+            db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _is_task_reserved_by_other_contributor(
+    project_id: int,
+    task_id: int,
+    contributor_identity: str,
+    contributor_user_id=None,
+) -> bool:
+    """Prevent the same task from being handed to two active contributors."""
     cleanup_task_assignments()
 
-    keys_to_remove = [
-        key
-        for key, assignment in TASK_ASSIGNMENTS.items()
-        if assignment.get("identity") == identity
-    ]
+    if contributor_user_id is None:
+        contributor_user_id = _get_user_id_for_identity(contributor_identity)
 
-    for key in keys_to_remove:
-        TASK_ASSIGNMENTS.pop(
-            key,
-            None
+    db = SessionLocal()
+    try:
+        assignment = (
+            db.query(models.TaskAssignment)
+            .options(joinedload(models.TaskAssignment.task))
+            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+            .filter(
+                models.TaskAssignment.status == "reserved",
+                models.Task.external_project_id == int(project_id),
+                models.Task.external_task_id == int(task_id),
+            )
+            .first()
         )
+        if assignment is None:
+            return False
+        if contributor_user_id is not None and int(assignment.user_id) == int(contributor_user_id):
+            return False
+        return True
+    except Exception:
+        return False
+    finally:
+        db.close()
 
 
 def _extract_kelyvo_task_id(task_title: str):
@@ -1094,29 +1476,6 @@ def _extract_kelyvo_task_id(task_title: str):
         return None
 
     return int(match.group(2))
-
-
-def _is_task_reserved_by_other_contributor(
-    project_id: int,
-    task_id: int,
-    contributor_identity: str,
-) -> bool:
-    """Prevent the same task from being handed to two active contributors."""
-    cleanup_task_assignments()
-
-    for assignment in TASK_ASSIGNMENTS.values():
-        if int(assignment.get("project_id", 0)) != int(project_id):
-            continue
-
-        if int(assignment.get("task_id", 0)) != int(task_id):
-            continue
-
-        if assignment.get("identity") == contributor_identity:
-            continue
-
-        return True
-
-    return False
 
 
 def _ensure_revision_draft_from_existing_annotation(
@@ -1438,6 +1797,7 @@ def _get_requeued_tasks_for_contributor(
             project_id,
             task_id,
             contributor_identity,
+            contributor_user_id=contributor_user_id,
         ):
             continue
 
@@ -2151,7 +2511,8 @@ def start_task(
     reserved_task_id = (
         get_reserved_task(
             contributor_identity,
-            project_id
+            project_id,
+            user_id=_get_authenticated_user_id(request),
         )
     )
 
@@ -2441,6 +2802,7 @@ def start_task(
             project_id,
             int(candidate_task_id),
             contributor_identity,
+            contributor_user_id=contributor_user_id,
         ):
             continue
 
@@ -2604,7 +2966,8 @@ def current_task(
     task_id = (
         get_reserved_task(
             contributor_identity,
-            project_id
+            project_id,
+            user_id=_get_authenticated_user_id(request),
         )
     )
 
@@ -2728,7 +3091,8 @@ def skip_task(
     assigned_task_id = (
         get_reserved_task(
             contributor_identity,
-            project_id
+            project_id,
+            user_id=_get_authenticated_user_id(request),
         )
     )
 
@@ -2800,10 +3164,12 @@ def exit_contributor_task(
     email_task_id = get_reserved_task(
         email_identity,
         project_id,
+        user_id=_get_authenticated_user_id(request),
     )
     browser_task_id = get_reserved_task(
         browser_identity,
         project_id,
+        user_id=_get_authenticated_user_id(request),
     )
 
     if (
@@ -2892,7 +3258,8 @@ def submit_task(
         assigned_task_id = (
             get_reserved_task(
                 contributor_identity,
-                project_id
+                project_id,
+                user_id=_get_authenticated_user_id(request),
             )
         )
 
@@ -2901,13 +3268,22 @@ def submit_task(
             or int(assigned_task_id)
             != int(task_id)
         ):
-            raise HTTPException(
-                status_code=403,
-                detail=(
-                    "This task is not assigned "
-                    "to this contributor."
+            # A successful native Label Studio annotation is stronger proof
+            # than the transient assignment state. This fallback prevents a
+            # race with old/stale assignment cleanup from losing a legitimate
+            # submission.
+            if not consume_recent_native_submission(
+                request,
+                int(project_id),
+                int(task_id),
+            ):
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        "This task is not assigned "
+                        "to this contributor."
+                    )
                 )
-            )
 
     existing_submission = None
 
@@ -2968,11 +3344,14 @@ def submit_task(
             release_reserved_task(
                 "user:" + email,
                 project_id,
-                task_id
+                task_id,
+                user_id=int(user.id),
+                final_task_status="submitted",
             )
 
         release_browser_assignment_for_request(
-            request
+            request,
+            final_task_status="submitted",
         )
 
         return {
@@ -2989,11 +3368,14 @@ def submit_task(
             release_reserved_task(
                 "user:" + email,
                 project_id,
-                task_id
+                task_id,
+                user_id=int(user.id),
+                final_task_status="submitted",
             )
 
         release_browser_assignment_for_request(
-            request
+            request,
+            final_task_status="submitted",
         )
 
         return {
@@ -3041,13 +3423,38 @@ def submit_task(
         request
     )
 
+    pending_qa_count = (
+        db.query(models.TaskSubmission)
+        .filter(models.TaskSubmission.status == "PENDING_QA")
+        .count()
+    )
+
+    contributor_pending_qa_count = (
+        db.query(models.TaskSubmission)
+        .filter(
+            models.TaskSubmission.user_id == user.id,
+            models.TaskSubmission.status == "PENDING_QA",
+        )
+        .count()
+    )
+
     return {
         "status":
             "success",
+        "message":
+            "Task submitted successfully and sent for QA review.",
+        "created":
+            True,
         "tasks_today":
             user.tasks_today,
         "tasks_week":
-            user.tasks_week
+            user.tasks_week,
+        "submission_id":
+            submission.id,
+        "queue_count":
+            contributor_pending_qa_count,
+        "qa_pending_count":
+            pending_qa_count,
     }
 
 
@@ -3298,6 +3705,36 @@ def get_qa_review_task(
     if not isinstance(annotations, list):
         annotations = []
 
+    # Label Studio can return the task object without embedding the finalized
+    # annotation collection in some API responses. For QA we must always load
+    # the actual submitted annotation explicitly rather than silently showing
+    # an unannotated task.
+    if not annotations:
+        annotation_response = label_studio_request(
+            "GET",
+            f"/api/tasks/{int(task_id)}/annotations",
+            params={"project": project_id},
+        )
+
+        if annotation_response.status_code < 400:
+            try:
+                annotation_payload = annotation_response.json()
+            except ValueError:
+                annotation_payload = []
+
+            if isinstance(annotation_payload, dict):
+                candidate_annotations = (
+                    annotation_payload.get("annotations")
+                    or annotation_payload.get("results")
+                    or annotation_payload.get("data")
+                    or []
+                )
+            else:
+                candidate_annotations = annotation_payload
+
+            if isinstance(candidate_annotations, list):
+                annotations = candidate_annotations
+
     return {
         "status": "success",
         "submission": {
@@ -3396,7 +3833,8 @@ def start_contributor_revision(
     # to open a revision while another task is already actively assigned.
     current_task_id = get_reserved_task(
         contributor_identity,
-        project_id
+        project_id,
+        user_id=_get_authenticated_user_id(request),
     )
 
     if (
@@ -3994,7 +4432,8 @@ def _validate_workspace_assignment(
     assigned_task_id = (
         get_reserved_task(
             contributor_identity,
-            project_id
+            project_id,
+            user_id=_get_authenticated_user_id(request),
         )
     )
 
@@ -4344,7 +4783,8 @@ def contributor_label_studio_native_workspace(
 
     assigned_task_id = get_reserved_task(
         contributor_identity,
-        int(project_id)
+        int(project_id),
+        user_id=_get_authenticated_user_id(request),
     )
 
     requested_task = request.query_params.get(
@@ -4500,35 +4940,37 @@ async def label_studio_browser_api_proxy(
 
     cleanup_task_assignments()
 
-    matching_assignments = [
-        assignment
-        for assignment in TASK_ASSIGNMENTS.values()
-        if assignment.get("identity") == contributor_identity
-    ]
-
-    if matching_assignments:
-        active_assignment = max(
-            matching_assignments,
-            key=lambda item: item.get("created_at", 0)
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="A valid contributor session is required."
         )
 
-    if not active_assignment:
+    db = SessionLocal()
+    try:
+        active_assignment = (
+            db.query(models.TaskAssignment)
+            .options(joinedload(models.TaskAssignment.task))
+            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+            .filter(
+                models.TaskAssignment.user_id == int(user_id),
+                models.TaskAssignment.status == "reserved",
+            )
+            .order_by(models.TaskAssignment.assigned_at.desc())
+            .first()
+        )
+        if active_assignment is not None:
+            project_id = int(active_assignment.task.external_project_id)
+            task_id = int(active_assignment.task.external_task_id)
+    finally:
+        db.close()
+
+    if active_assignment is None:
         raise HTTPException(
             status_code=403,
             detail="No active contributor task."
         )
-
-    project_id = int(
-        active_assignment.get(
-            "project_id"
-        )
-    )
-
-    task_id = int(
-        active_assignment.get(
-            "task_id"
-        )
-    )
 
     contributor_next_task_action = _is_contributor_next_task_action(
         request,
@@ -4711,7 +5153,8 @@ async def label_studio_browser_api_proxy(
         if email_value:
             email_task_id = get_reserved_task(
                 "user:" + email_value,
-                project_number
+                project_number,
+                user_id=_get_authenticated_user_id(request),
             )
             if email_task_id is not None:
                 sync_browser_assignment_for_request(
@@ -4818,11 +5261,6 @@ async def label_studio_browser_api_proxy(
         body,
     ):
         mark_native_annotation_submitted(
-            request,
-            project_id,
-            task_id,
-        )
-        _register_native_submission_in_kelyvo(
             request,
             project_id,
             task_id,
@@ -5064,8 +5502,22 @@ def label_studio_root_static_proxy(path: str):
 
 @app.get("/sw.js")
 def label_studio_service_worker():
-    return _proxy_label_studio_root_asset(
-        "/sw.js"
+    # KELYVO must not install Label Studio's root-scoped service worker on the
+    # portal origin. That worker can cache KELYVO API responses such as
+    # /admin/submissions and make contributor/QA queues appear stale.
+    # Label Studio remains fully usable in its embedded workspace without
+    # exposing its service worker to the parent KELYVO application scope.
+    return Response(
+        content=(
+            "self.addEventListener('install', event => self.skipWaiting());\n"
+            "self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));\n"
+            "self.addEventListener('fetch', event => {});\n"
+        ),
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Service-Worker-Allowed": "/",
+        },
     )
 
 
@@ -5133,11 +5585,28 @@ async def native_label_studio_api_fallback(
 
     cleanup_task_assignments()
 
-    assignments = [
-        assignment
-        for assignment in TASK_ASSIGNMENTS.values()
-        if assignment.get("identity") == contributor_identity
-    ]
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="A valid contributor session is required."
+        )
+
+    db = SessionLocal()
+    try:
+        assignments = (
+            db.query(models.TaskAssignment)
+            .options(joinedload(models.TaskAssignment.task))
+            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+            .filter(
+                models.TaskAssignment.user_id == int(user_id),
+                models.TaskAssignment.status == "reserved",
+            )
+            .order_by(models.TaskAssignment.assigned_at.desc())
+            .all()
+        )
+    finally:
+        db.close()
 
     if not assignments:
         raise HTTPException(
@@ -5192,7 +5661,7 @@ async def native_label_studio_api_fallback(
     if requested_task_id is not None:
         for assignment in assignments:
             if (
-                int(assignment.get("task_id"))
+                int(assignment.task.external_task_id)
                 == requested_task_id
             ):
                 active_assignment = assignment
@@ -5204,7 +5673,7 @@ async def native_label_studio_api_fallback(
     ):
         for assignment in assignments:
             if (
-                int(assignment.get("project_id"))
+                int(assignment.task.external_project_id)
                 == requested_project_id
             ):
                 active_assignment = assignment
@@ -5213,10 +5682,7 @@ async def native_label_studio_api_fallback(
     if active_assignment is None:
         active_assignment = max(
             assignments,
-            key=lambda item: item.get(
-                "created_at",
-                0
-            )
+            key=lambda item: item.assigned_at or _utc_now()
         )
 
     if active_assignment is None:
@@ -5228,17 +5694,9 @@ async def native_label_studio_api_fallback(
             )
         )
 
-    project_id = int(
-        active_assignment.get(
-            "project_id"
-        )
-    )
+    project_id = int(active_assignment.task.external_project_id)
 
-    task_id = int(
-        active_assignment.get(
-            "task_id"
-        )
-    )
+    task_id = int(active_assignment.task.external_task_id)
 
     contributor_next_task_action = _is_contributor_next_task_action(
         request,
@@ -5518,11 +5976,6 @@ async def native_label_studio_api_fallback(
         body,
     ):
         mark_native_annotation_submitted(
-            request,
-            project_id,
-            task_id,
-        )
-        _register_native_submission_in_kelyvo(
             request,
             project_id,
             task_id,
