@@ -2806,10 +2806,6 @@ def start_task(
             contributor_identity=contributor_identity,
             contributor_user_id=contributor_user_id,
         )
-        blocked_submission_task_ids = _get_kelyvo_blocked_task_ids(
-            db=requeue_db,
-            task_type=modality_key,
-        )
     finally:
         requeue_db.close()
 
@@ -2826,15 +2822,6 @@ def start_task(
             continue
 
         candidate_task_id = int(candidate_task_id)
-
-        # KELYVO owns submission state. Do not offer a task again while it is
-        # pending QA or has already passed. FAILED remains eligible through the
-        # dedicated revision/requeue path.
-        if (
-            candidate_task_id in blocked_submission_task_ids
-            and candidate_task_id not in requeue_task_ids
-        ):
-            continue
 
         detail_response = label_studio_request(
             "GET",
@@ -3427,61 +3414,13 @@ def submit_task(
         }
 
     if existing_submission:
-        if task_id and project_id:
-            release_reserved_task(
-                "user:" + email,
-                project_id,
-                task_id,
-                user_id=int(user.id),
-                final_task_status="submitted",
-            )
-
-        release_browser_assignment_for_request(
-            request,
-            final_task_status="submitted",
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This task already has a KELYVO submission. "
+                "Please start a different task or open the revision queue."
+            ),
         )
-
-        pending_qa_count = (
-            db.query(
-                models.TaskSubmission
-            )
-            .filter(
-                models.TaskSubmission.status == "PENDING_QA"
-            )
-            .count()
-        )
-
-        contributor_pending_qa_count = (
-            db.query(
-                models.TaskSubmission
-            )
-            .filter(
-                models.TaskSubmission.user_id == user.id,
-                models.TaskSubmission.status == "PENDING_QA",
-            )
-            .count()
-        )
-
-        return {
-            "status":
-                "success",
-            "message":
-                "Task has already been submitted.",
-            "created":
-                False,
-            "already_submitted":
-                True,
-            "submission_id":
-                existing_submission.id,
-            "tasks_today":
-                user.tasks_today,
-            "tasks_week":
-                user.tasks_week,
-            "queue_count":
-                contributor_pending_qa_count,
-            "qa_pending_count":
-                pending_qa_count,
-        }
 
     user.tasks_today += 1
     user.tasks_week += 1
