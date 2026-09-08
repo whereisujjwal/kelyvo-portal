@@ -3728,6 +3728,17 @@ async function handleAnnotationSubmission() {
             );
         }
 
+        if (
+            data.already_submitted === true
+            && data.created !== true
+            && data.revision !== true
+        ) {
+            throw new Error(
+                data.message ||
+                "This task has already been submitted."
+            );
+        }
+
 
         localStorage.setItem(
             "kelyvo_today",
@@ -3809,6 +3820,13 @@ async function handleAnnotationSubmission() {
             document.getElementById(
                 "contributor-queue-count"
             );
+
+        if (
+            Number.isFinite(Number(data.queue_count))
+        ) {
+            window.kelyvoContributorQueueCount =
+                Number(data.queue_count);
+        }
 
         if (
             contributorQueueCounter &&
@@ -6434,6 +6452,8 @@ async function startContributorRevision(
 
 async function loadContributorSubmissions() {
 
+    window.kelyvoContributorQueueCount = null;
+
     const container =
         document.getElementById(
             "contributor-submissions-container"
@@ -6475,6 +6495,15 @@ async function loadContributorSubmissions() {
                 data &&
                 Array.isArray(data.submissions)
             ) {
+                if (
+                    Number.isFinite(
+                        Number(data.queue_count)
+                    )
+                ) {
+                    window.kelyvoContributorQueueCount =
+                        Number(data.queue_count);
+                }
+
                 submissions =
                     data.submissions.map(
                         item => ({
@@ -6545,14 +6574,18 @@ async function loadContributorSubmissions() {
             : [];
 
     const queueCount =
-        submissions.filter(
-            item =>
-                String(
-                    item.status ||
-                    ""
-                ).toUpperCase() ===
-                "PENDING_QA"
-        ).length;
+        Number.isFinite(
+            Number(window.kelyvoContributorQueueCount)
+        )
+            ? Number(window.kelyvoContributorQueueCount)
+            : submissions.filter(
+                item =>
+                    String(
+                        item.status ||
+                        ""
+                    ).toUpperCase() ===
+                    "PENDING_QA"
+            ).length;
 
     const queueCounter =
         document.getElementById(

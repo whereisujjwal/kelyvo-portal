@@ -535,6 +535,57 @@ _ensure_enterprise_project_registry()
 
 TASK_ASSIGNMENT_TTL = 60 * 60
 
+KELYVO_BLOCKED_SUBMISSION_STATUSES = {
+    "PENDING_QA",
+    "PASSED",
+}
+
+
+def _extract_task_id_from_submission_title(task_title):
+    match = re.search(
+        r"(?:task|#)\s*#?\s*(\d+)\s*$",
+        str(task_title or ""),
+        re.IGNORECASE
+    )
+
+    if not match:
+        return None
+
+    return int(match.group(1))
+
+
+def _get_kelyvo_blocked_task_ids(
+    db: Session,
+    task_type: str,
+):
+    """Return task IDs that KELYVO must not offer as fresh work."""
+    rows = (
+        db.query(
+            models.TaskSubmission.task_title
+        )
+        .filter(
+            models.TaskSubmission.task_type
+            == str(task_type).strip().lower(),
+            models.TaskSubmission.status.in_(
+                KELYVO_BLOCKED_SUBMISSION_STATUSES
+            ),
+        )
+        .all()
+    )
+
+    blocked_ids = set()
+
+    for row in rows:
+        task_id = _extract_task_id_from_submission_title(
+            row.task_title
+        )
+
+        if task_id is not None:
+            blocked_ids.add(int(task_id))
+
+    return blocked_ids
+
+
 # Short-lived marker used to stop Label Studio's automatic post-submit
 # next-task navigation. KELYVO controls task advancement itself via
 # MARK TASK SUBMITTED, so native Submit must save the annotation without
@@ -2184,7 +2235,16 @@ def serve_portal():
             "r",
             encoding="utf-8"
         ) as f:
-            return f.read()
+            html_content = f.read()
+
+        response = HTMLResponse(
+            content=html_content,
+            status_code=200
+        )
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
     return "Template not found"
 
@@ -2757,10 +2817,26 @@ def start_task(
         if isinstance(item, dict) and item.get("id") is not None
     }
 
+    blocked_submission_task_ids = _get_kelyvo_blocked_task_ids(
+        db=requeue_db,
+        task_type=modality_key,
+    )
+
     for task in tasks:
         candidate_task_id = task.get("id")
 
         if candidate_task_id is None:
+            continue
+
+        candidate_task_id = int(candidate_task_id)
+
+        # KELYVO owns submission state. Do not offer a task again while it is
+        # pending QA or has already passed. FAILED remains eligible through the
+        # dedicated revision/requeue path.
+        if (
+            candidate_task_id in blocked_submission_task_ids
+            and candidate_task_id not in requeue_task_ids
+        ):
             continue
 
         detail_response = label_studio_request(
@@ -3378,15 +3454,46 @@ def submit_task(
             final_task_status="submitted",
         )
 
+        pending_qa_count = (
+            db.query(
+                models.TaskSubmission
+            )
+            .filter(
+                models.TaskSubmission.status == "PENDING_QA"
+            )
+            .count()
+        )
+
+        contributor_pending_qa_count = (
+            db.query(
+                models.TaskSubmission
+            )
+            .filter(
+                models.TaskSubmission.user_id == user.id,
+                models.TaskSubmission.status == "PENDING_QA",
+            )
+            .count()
+        )
+
         return {
             "status":
                 "success",
             "message":
                 "Task has already been submitted.",
+            "created":
+                False,
+            "already_submitted":
+                True,
+            "submission_id":
+                existing_submission.id,
             "tasks_today":
                 user.tasks_today,
             "tasks_week":
                 user.tasks_week,
+            "queue_count":
+                contributor_pending_qa_count,
+            "qa_pending_count":
+                pending_qa_count,
         }
 
     user.tasks_today += 1
@@ -3620,13 +3727,30 @@ def get_contributor_submissions(
                 submitted_at
         })
 
+    pending_qa_count = (
+        db.query(
+            models.TaskSubmission
+        )
+        .filter(
+            models.TaskSubmission.user_id == user.id,
+            models.TaskSubmission.status == "PENDING_QA",
+        )
+        .count()
+    )
+
     return {
         "status":
             "success",
         "email":
             user.email,
         "submissions":
-            result
+            result,
+        "queue_count":
+            pending_qa_count,
+        "tasks_today":
+            int(user.tasks_today or 0),
+        "tasks_week":
+            int(user.tasks_week or 0),
     }
 
 
