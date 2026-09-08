@@ -538,6 +538,7 @@ TASK_ASSIGNMENT_TTL = 60 * 60
 KELYVO_BLOCKED_SUBMISSION_STATUSES = {
     "PENDING_QA",
     "PASSED",
+    "FAILED",
 }
 
 
@@ -1872,12 +1873,9 @@ def _get_requeued_tasks_for_contributor(
         if not isinstance(task, dict):
             continue
 
-        annotations = task.get("annotations", [])
-        cancelled_annotations = task.get("cancelled_annotations", 0)
-
-        if annotations or cancelled_annotations:
-            continue
-
+        # A returned/FAILED task is intentionally eligible for rework even if
+        # Label Studio still contains the contributor's previous annotation.
+        # KELYVO's FAILED submission state is what puts it into the requeue pool.
         seen_task_ids.add(task_id)
         candidates.append(task)
 
@@ -2808,6 +2806,10 @@ def start_task(
             contributor_identity=contributor_identity,
             contributor_user_id=contributor_user_id,
         )
+        blocked_submission_task_ids = _get_kelyvo_blocked_task_ids(
+            db=requeue_db,
+            task_type=modality_key,
+        )
     finally:
         requeue_db.close()
 
@@ -2816,11 +2818,6 @@ def start_task(
         for item in available_tasks
         if isinstance(item, dict) and item.get("id") is not None
     }
-
-    blocked_submission_task_ids = _get_kelyvo_blocked_task_ids(
-        db=requeue_db,
-        task_type=modality_key,
-    )
 
     for task in tasks:
         candidate_task_id = task.get("id")
@@ -2858,21 +2855,11 @@ def start_task(
             # task picker.
             detail_task = task
 
-        annotations = detail_task.get(
-            "annotations",
-            []
-        )
-
-        cancelled_annotations = detail_task.get(
-            "cancelled_annotations",
-            0
-        )
-
-        if annotations:
-            continue
-
-        if cancelled_annotations:
-            continue
+        # KELYVO is the workflow source of truth. Label Studio can contain
+        # imported, historical, or draft annotation objects that do not mean
+        # the task has been completed inside KELYVO. Fresh-work eligibility is
+        # therefore decided from KELYVO submission state plus reservations,
+        # not from `annotations` or `cancelled_annotations` in Label Studio.
 
         if _is_task_reserved_by_other_contributor(
             project_id,
