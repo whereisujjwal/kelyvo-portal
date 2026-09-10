@@ -1,0 +1,8 @@
+
+# Local KELYVO development files
+.env
+venv/
+.DS_Store
+kelyvo.db
+.kelyvo_task*_legacy_draft_repair_v1.done
+/index.html

@@ -212,6 +212,12 @@ button {
     background: #111111;
 }
 
+.kelyvo-preference-option { position: relative; }
+.kelyvo-preference-option input { position: absolute; opacity: 0; pointer-events: none; }
+.kelyvo-preference-option label { display:block; height:100%; border:1px solid #27272a; background:#050505; border-radius:12px; padding:12px; transition:border-color .15s ease, background .15s ease; }
+.kelyvo-preference-option label:hover { border-color:#52525b; background:#0a0a0a; }
+.kelyvo-preference-option input:checked + label { border-color:#e5e7eb; background:#101010; }
+
 .kelyvo-quality-check {
     display: flex;
     align-items: flex-start;
@@ -653,7 +659,7 @@ button {
             <label
                 class="block text-[10px] uppercase text-zinc-400 mb-2"
             >
-                Portal Gateway
+                Account Type
             </label>
 
             <select
@@ -662,14 +668,49 @@ button {
             >
 
                 <option value="contributor">
-                    Contributor Workspace
+                    Contributor
+                </option>
+
+                <option value="qa">
+                    QA
                 </option>
 
                 <option value="admin">
-                    Admin Control Center
+                    Admin
                 </option>
 
             </select>
+
+        </div>
+
+
+        <script>
+        document.addEventListener("change", function (event) {
+            if (event.target && event.target.id === "role-select") {
+                updateRegistrationCodeVisibility();
+            }
+        });
+        </script>
+
+
+        <div
+            id="registration-code-container"
+            class="hidden"
+        >
+
+            <label
+                class="block text-[10px] uppercase text-zinc-400 mb-2"
+            >
+                Admin Registration Code
+            </label>
+
+            <input
+                id="registration-code"
+                type="password"
+                autocomplete="off"
+                class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
+                placeholder="Enter admin registration code"
+            >
 
         </div>
 
@@ -798,6 +839,53 @@ button {
 
     </div>
 
+
+
+<!-- ============================================================
+     CONTRIBUTOR WORKFORCE PROFILE
+============================================================ -->
+
+<section
+    id="contributor-profile-card"
+    class="kelyvo-card p-7 border-amber-500/30"
+>
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+        <div>
+            <span class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">
+                Required before production work
+            </span>
+            <h3 class="text-2xl font-light mt-2">My Workforce Profile</h3>
+            <p class="text-xs text-zinc-500 mt-2 max-w-2xl">
+                Complete your professional profile before starting a new KELYVO task. This information helps KELYVO qualify and match you to suitable work.
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="contributor-profile-completion-status" class="text-[10px] uppercase text-amber-400 font-mono">Profile required</span>
+            <button type="button" onclick="openContributorProfileModal()" class="bg-white text-black text-[10px] px-5 py-2.5 rounded-lg uppercase tracking-wider">Complete Profile</button>
+        </div>
+    </div>
+    <div class="mt-5">
+        <div class="flex justify-between text-[10px] uppercase font-mono text-zinc-600">
+            <span id="contributor-profile-progress-label">0 / 11 required fields</span>
+            <span id="contributor-profile-progress-percent">0%</span>
+        </div>
+        <div class="h-1.5 bg-zinc-900 rounded-full mt-2 overflow-hidden">
+            <div id="contributor-profile-progress-bar" class="h-full bg-amber-400" style="width:0%"></div>
+        </div>
+    </div>
+</section>
+
+
+<section id="contributor-preferences-card" class="kelyvo-card p-7">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+        <div><span class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Your work preferences</span><h3 class="text-2xl font-light mt-2">What kind of work are you interested in?</h3><p class="text-xs text-zinc-500 mt-2 max-w-2xl">Choose the work areas and languages you are interested in. This helps KELYVO find the right people when a real project arrives. No qualification test is given here.</p></div>
+        <button type="button" onclick="openContributorPreferencesModal()" class="bg-white text-black text-[10px] px-5 py-2.5 rounded-lg uppercase tracking-wider">Edit Preferences</button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
+        <div><div class="text-[10px] uppercase tracking-widest text-zinc-600 font-mono">Work interests</div><div id="contributor-preferences-interests" class="mt-2 flex flex-wrap gap-2 text-xs text-zinc-300"><span class="text-zinc-600">Not set</span></div></div>
+        <div><div class="text-[10px] uppercase tracking-widest text-zinc-600 font-mono">Languages</div><div id="contributor-preferences-languages" class="mt-2 flex flex-wrap gap-2 text-xs text-zinc-300"><span class="text-zinc-600">Not set</span></div></div>
+    </div>
+</section>
 
 
 <!-- ============================================================
@@ -1033,95 +1121,6 @@ button {
 
 
 <!-- ============================================================
-     PAYOUT
-============================================================ -->
-
-    <div
-        class="bg-[#080808] border border-zinc-800 p-8 rounded-2xl"
-    >
-
-        <h3 class="text-lg">
-            INR Settlement & Payout Destination
-        </h3>
-
-        <p
-            class="text-xs text-zinc-400 mt-1 mb-6"
-        >
-            Configure your payout destination.
-        </p>
-
-
-        <div id="payout-container">
-
-            <form
-                onsubmit="updatePayout(event)"
-                class="grid grid-cols-1 md:grid-cols-3 gap-5 items-end"
-            >
-
-                <div>
-
-                    <label
-                        class="block text-[10px] uppercase text-zinc-400 mb-2"
-                    >
-                        Payout Method
-                    </label>
-
-                    <select
-                        id="payout-method"
-                        class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
-                    >
-
-                        <option value="UPI">
-                            UPI
-                        </option>
-
-                        <option value="Bank Transfer">
-                            Bank Transfer
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div>
-
-                    <label
-                        class="block text-[10px] uppercase text-zinc-400 mb-2"
-                    >
-                        UPI / Account Details
-                    </label>
-
-                    <input
-                        id="payout-details"
-                        required
-                        class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"
-                        placeholder="username@upi"
-                    >
-
-                </div>
-
-
-                <button
-                    class="bg-white text-black text-xs py-3.5 rounded-lg uppercase"
-                >
-                    Save Payout Details
-                </button>
-
-            </form>
-
-        </div>
-
-
-        <div
-            id="payout-status-msg"
-            class="text-xs font-mono mt-4"
-        ></div>
-
-    </div>
-
-
-<!-- ============================================================
      SUBMISSIONS
 ============================================================ -->
 
@@ -1199,6 +1198,227 @@ button {
             class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5"
         ></div>
 
+    </div>
+
+</section>
+
+
+<!-- ============================================================
+     ADMIN OPERATIONS CONTROL CENTER
+============================================================ -->
+
+<section
+    id="admin-ops-section"
+    class="hidden space-y-8"
+>
+
+    <div class="pb-6 border-b border-zinc-800 flex flex-col lg:flex-row justify-between gap-5 lg:items-end">
+        <div>
+            <span class="text-[11px] font-mono text-amber-400 uppercase">
+                Admin Operations
+            </span>
+            <h2 class="text-3xl font-light mt-3">
+                Operations Control Center
+            </h2>
+            <p class="text-sm text-zinc-400 mt-2">
+                One place to monitor contributors, QA, tasks, reservations and project activity.
+            </p>
+        </div>
+
+        <button
+            type="button"
+            onclick="loadAdminOperations()"
+            class="text-xs uppercase border border-zinc-800 px-4 py-2.5 rounded-lg"
+        >
+            Refresh Operations
+        </button>
+    </div>
+
+    <div id="admin-ops-error" class="hidden p-4 border border-red-900/60 bg-red-950/20 rounded-xl text-xs text-red-300 font-mono"></div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Contributors</div>
+            <div id="admin-stat-contributors" class="text-2xl mt-2 font-light">0</div>
+        </div>
+        <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">QA</div>
+            <div id="admin-stat-qa" class="text-2xl mt-2 font-light">0</div>
+        </div>
+        <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Reserved</div>
+            <div id="admin-stat-reserved" class="text-2xl mt-2 font-light">0</div>
+        </div>
+        <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Pending QA</div>
+            <div id="admin-stat-pending" class="text-2xl mt-2 font-light">0</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Total Tasks</div>
+            <div id="admin-stat-total-tasks" class="text-xl mt-2 font-light">0</div>
+        </div>
+        <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Available</div>
+            <div id="admin-stat-available" class="text-xl mt-2 font-light">0</div>
+        </div>
+        <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Returned</div>
+            <div id="admin-stat-returned" class="text-xl mt-2 font-light">0</div>
+        </div>
+        <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
+            <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Passed</div>
+            <div id="admin-stat-passed" class="text-xl mt-2 font-light">0</div>
+        </div>
+    </div>
+
+    <section
+        id="admin-workforce-section"
+        class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden"
+    >
+        <div class="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <div>
+                <div class="text-sm font-medium text-white">Workforce Management</div>
+                <div class="text-[10px] text-zinc-600 mt-1">Manage KELYVO contributor, QA and admin accounts from one controlled workspace.</div>
+            </div>
+            <button type="button" onclick="toggleAdminCreateUser()" class="text-xs uppercase border border-zinc-700 px-4 py-2.5 rounded-lg hover:border-zinc-500 transition">Add User</button>
+        </div>
+
+        <div id="admin-create-user-panel" class="hidden px-5 py-5 border-b border-zinc-800 bg-[#050505]">
+            <form onsubmit="createAdminManagedUser(event)" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">Email</label>
+                    <input id="admin-create-user-email" type="email" required autocomplete="off" placeholder="person@example.com" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">Initial Password</label>
+                    <input id="admin-create-user-password" type="password" required minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">Role</label>
+                    <select id="admin-create-user-role" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                        <option value="contributor">Contributor</option>
+                        <option value="qa">QA</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="flex-1 bg-white text-black text-xs py-3 rounded-lg uppercase tracking-wider">Create User</button>
+                    <button type="button" onclick="toggleAdminCreateUser(false)" class="px-4 py-3 border border-zinc-800 rounded-lg text-xs uppercase">Cancel</button>
+                </div>
+            </form>
+            <div id="admin-create-user-message" class="mt-3 text-xs font-mono min-h-[18px]"></div>
+        </div>
+
+        <div class="px-5 py-4 border-b border-zinc-800 flex flex-col md:flex-row gap-3">
+            <input id="admin-workforce-search" type="search" placeholder="Search users by email..." oninput="filterAdminWorkforceUsers()" class="flex-1 bg-[#030303] border border-zinc-800 rounded-lg px-4 py-2.5 text-xs">
+            <select id="admin-workforce-role-filter" onchange="filterAdminWorkforceUsers()" class="bg-[#030303] border border-zinc-800 rounded-lg px-4 py-2.5 text-xs">
+                <option value="all">All roles</option>
+                <option value="contributor">Contributors</option>
+                <option value="qa">QA</option>
+                <option value="admin">Admins</option>
+            </select>
+            <button type="button" onclick="loadAdminWorkforceUsers()" class="border border-zinc-800 rounded-lg px-4 py-2.5 text-xs uppercase">Refresh</button>
+        </div>
+
+        <div class="overflow-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
+                        <th class="p-4">User</th><th class="p-4">Role</th><th class="p-4">Status</th><th class="p-4">Today</th><th class="p-4">QA Passed</th><th class="p-4">Earnings</th><th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-workforce-users-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4"><div><div class="text-sm font-medium text-white">Contributor Interest Pools</div><div class="text-[10px] text-zinc-600 mt-1">Filter the contributor database by work interest and language. These are preferences, not qualifications.</div></div><div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto"><select id="admin-interest-pool-interest" onchange="loadAdminInterestPools()" class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[210px]"><option value="all">All work interests</option></select><select id="admin-interest-pool-language" onchange="loadAdminInterestPools()" class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[190px]"><option value="all">All languages</option></select><input id="admin-interest-pool-search" oninput="loadAdminInterestPoolsDebounced()" type="search" placeholder="Search email..." class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[190px]"></div></div>
+        <div class="px-5 py-4 border-b border-zinc-800 grid grid-cols-2 gap-3"><div><div class="text-[10px] uppercase text-zinc-600 font-mono">Matching contributors</div><div id="admin-interest-pool-matching-count" class="text-xl mt-2">0</div></div><div><div class="text-[10px] uppercase text-zinc-600 font-mono">Preferences set</div><div id="admin-interest-pool-preferences-count" class="text-xl mt-2">0</div></div></div>
+        <div class="overflow-auto max-h-[420px]"><table class="w-full text-left"><thead><tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase"><th class="p-4">Contributor</th><th class="p-4">Work interests</th><th class="p-4">Languages</th></tr></thead><tbody id="admin-interest-pool-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody></table></div>
+    </section>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-zinc-800">
+                <div class="text-sm font-medium text-white">Active Reservations</div>
+                <div class="text-[10px] text-zinc-600 mt-1">Who currently holds a task and when the reservation expires.</div>
+            </div>
+            <div class="overflow-auto max-h-[360px]">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
+                            <th class="p-4">Contributor</th>
+                            <th class="p-4">Task</th>
+                            <th class="p-4">Expires</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-reservations-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-zinc-800">
+                <div class="text-sm font-medium text-white">People & Roles</div>
+                <div class="text-[10px] text-zinc-600 mt-1">High-level view of contributors, QA and admin accounts.</div>
+            </div>
+            <div class="overflow-auto max-h-[360px]">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
+                            <th class="p-4">User</th>
+                            <th class="p-4">Role</th>
+                            <th class="p-4 text-right">Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-users-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-zinc-800">
+            <div class="text-sm font-medium text-white">Projects</div>
+            <div class="text-[10px] text-zinc-600 mt-1">KELYVO projects and their current task volume.</div>
+        </div>
+        <div class="overflow-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
+                        <th class="p-4">Project</th>
+                        <th class="p-4">Modality</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4 text-right">Tasks</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-projects-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-zinc-800">
+            <div class="text-sm font-medium text-white">Recent Workflow Activity</div>
+            <div class="text-[10px] text-zinc-600 mt-1">Latest submitted records across the platform.</div>
+        </div>
+        <div class="overflow-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
+                        <th class="p-4">ID</th>
+                        <th class="p-4">Contributor</th>
+                        <th class="p-4">Task</th>
+                        <th class="p-4">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-recent-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
+            </table>
+        </div>
     </div>
 
 </section>
@@ -1401,6 +1621,211 @@ button {
 
 
 <!-- ============================================================
+     CONTRIBUTOR WORK PREFERENCES MODAL
+============================================================ -->
+<div id="contributor-preferences-modal" class="fixed inset-0 bg-black/95 z-[250] hidden items-center justify-center p-4">
+    <div class="w-full max-w-4xl max-h-[92vh] overflow-hidden bg-[#080808] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col">
+        <header class="shrink-0 p-5 md:p-6 border-b border-zinc-800 flex items-center justify-between gap-4">
+            <div><span class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">Simple onboarding</span><h2 class="text-2xl mt-2 font-light">Choose your work preferences</h2><p class="text-xs text-zinc-500 mt-1">No test right now. Just tell KELYVO what work and languages interest you.</p></div>
+            <button id="contributor-preferences-close" type="button" onclick="closeContributorPreferencesModal()" class="border border-zinc-800 rounded-lg px-4 py-2 text-xs uppercase">Close</button>
+        </header>
+        <form id="contributor-preferences-form" onsubmit="saveContributorPreferences(event)" class="overflow-auto p-5 md:p-6 space-y-7">
+            <section><div class="flex items-end justify-between gap-4 mb-3"><div><div class="text-sm text-white">Work interests</div><div class="text-[10px] text-zinc-600 mt-1">Select everything you would be comfortable doing.</div></div><span id="contributor-preferences-interest-count" class="text-[10px] font-mono text-zinc-600">0 selected</span></div><div id="contributor-preferences-interest-options" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div></section>
+            <section><div class="flex items-end justify-between gap-4 mb-3"><div><div class="text-sm text-white">Languages</div><div class="text-[10px] text-zinc-600 mt-1">Select the languages you can work in.</div></div><span id="contributor-preferences-language-count" class="text-[10px] font-mono text-zinc-600">0 selected</span></div><div id="contributor-preferences-language-options" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"></div><div class="mt-4"><label class="block text-[10px] uppercase text-zinc-500 mb-2">Other language(s), if not listed</label><input id="contributor-preferences-other-language" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="e.g. Awadhi, Magahi, Garhwali"></div></section>
+            <div id="contributor-preferences-message" class="text-xs font-mono min-h-[18px]"></div><div class="flex justify-end"><button id="contributor-preferences-save" type="submit" class="bg-white text-black text-xs px-7 py-3 rounded-lg uppercase tracking-wider">Save Preferences</button></div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ============================================================
+     CONTRIBUTOR WORKFORCE PROFILE MODAL
+============================================================ -->
+<div id="contributor-profile-modal" class="fixed inset-0 bg-black/90 z-[230] hidden items-center justify-center p-4">
+    <div class="w-full max-w-5xl max-h-[94vh] overflow-hidden bg-[#080808] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col">
+        <header class="shrink-0 p-5 md:p-6 border-b border-zinc-800 flex items-center justify-between gap-4">
+            <div>
+                <span class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">KELYVO Workforce Onboarding</span>
+                <h2 class="text-2xl mt-2 font-light">My Workforce Profile</h2>
+                <p class="text-xs text-zinc-500 mt-1">Complete the required fields before starting new production work.</p>
+                <div id="cp-profile-lock-banner" class="mt-3 text-[10px] font-mono uppercase tracking-widest text-amber-400">PROFILE STATUS: UNLOCKED</div>
+            </div>
+            <button id="contributor-profile-close" type="button" onclick="closeContributorProfileModal()" class="border border-zinc-800 rounded-lg px-4 py-2 text-xs uppercase">Close</button>
+        </header>
+
+        <form id="contributor-profile-form" onsubmit="return false;" class="overflow-auto p-5 md:p-6 space-y-6">
+            <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="text-sm text-white mb-4">Identity & Location</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Full Name *</label>
+                        <input id="cp-display-name" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Your full name">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Country *</label>
+                        <input id="cp-country" required value="India" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">State / Region *</label>
+                        <input id="cp-region" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="e.g. Maharashtra">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">City *</label>
+                        <input id="cp-city" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="e.g. Mumbai">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Timezone *</label>
+                        <input id="cp-timezone" required value="Asia/Kolkata" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="text-sm text-white mb-4">Capabilities</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Workforce Type *</label>
+                        <select id="cp-workforce-type" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                            <option value="">Select workforce type</option>
+                            <option>Annotation / Labeling</option>
+                            <option>AI / LLM Evaluation</option>
+                            <option>Audio / Speech</option>
+                            <option>Image / Video</option>
+                            <option>Data Collection</option>
+                            <option>Translation / Localization</option>
+                            <option>Mixed / Multi-service</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Languages *</label>
+                        <input id="cp-languages" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Hindi, English, Gujarati">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Skills / Capabilities *</label>
+                        <input id="cp-skills" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Image annotation, transcription, LLM evaluation">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Dialects / Regional Variants</label>
+                        <input id="cp-dialects" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Awadhi, Bhojpuri">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Domain Expertise</label>
+                        <input id="cp-domain-expertise" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Retail, healthcare, finance, education...">
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="text-sm text-white mb-4">Availability & Experience</div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Availability *</label>
+                        <select id="cp-availability-status" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                            <option value="">Select availability</option>
+                            <option value="full-time">Full-time</option>
+                            <option value="part-time">Part-time</option>
+                            <option value="on-demand">On-demand</option>
+                            <option value="evenings">Evenings</option>
+                            <option value="weekends">Weekends</option>
+                            <option value="flexible">Flexible</option>
+                            <option value="available">Available</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Hours / Week *</label>
+                        <input id="cp-hours" type="number" min="1" max="168" step="0.5" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="20">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Preferred Shift</label>
+                        <input id="cp-preferred-shift" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Morning / evening / flexible">
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Experience Summary *</label>
+                        <textarea id="cp-experience" required rows="5" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Describe relevant annotation, evaluation, transcription, translation, data collection, or domain experience."></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <section id="contributor-payment-section" class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="flex items-center justify-between gap-4 mb-4">
+                    <div>
+                        <div class="text-sm text-white">Payment Details</div>
+                        <p class="text-[10px] text-zinc-600 mt-1">Choose one payment method. Submit one payment method only. After submission these details are locked and can only be reopened by a KELYVO Admin.</p>
+                    </div>
+                    <span id="cp-payment-lock-status" class="text-[10px] uppercase tracking-widest font-mono text-amber-400">UNLOCKED</span>
+                </div>
+                <div id="cp-payment-locked-note" class="hidden mb-4 border border-zinc-800 rounded-lg px-4 py-3 text-[11px] text-zinc-500">Payment details are locked. Contact KELYVO Operations if a correction is required.</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Payment Method *</label>
+                        <select id="cp-payment-method" required onchange="setContributorPaymentMethod()" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                            <option value="">Select payment method</option>
+                            <option value="upi">UPI</option>
+                            <option value="bank_account">Bank Account</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="cp-upi-fields" class="hidden mt-4">
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">UPI ID *</label>
+                    <input id="cp-upi-id" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="name@upi">
+                </div>
+                <div id="cp-bank-fields" class="hidden mt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Account Holder Name *</label><input id="cp-bank-account-name" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm"></div>
+                        <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Account Number *</label><input id="cp-bank-account-number" inputmode="numeric" autocomplete="off" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm"></div>
+                        <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">IFSC *</label><input id="cp-bank-ifsc" autocapitalize="characters" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="ABCD0123456"></div>
+                        <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Bank Name *</label><input id="cp-bank-name" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm"></div>
+                        <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Branch *</label><input id="cp-bank-branch" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm"></div>
+                        <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Account Type *</label><select id="cp-bank-account-type" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm"><option value="">Select account type</option><option value="savings">Savings</option><option value="current">Current</option></select></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="text-sm text-white mb-3">KELYVO qualification status</div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><div class="text-[10px] uppercase text-zinc-600">Worker Tier</div><div id="cp-worker-tier" class="text-sm text-zinc-300 mt-2">General</div></div>
+                    <div><div class="text-[10px] uppercase text-zinc-600">Qualification</div><div id="cp-qualification-status" class="text-sm text-zinc-300 mt-2">Pending</div></div>
+                    <div><div class="text-[10px] uppercase text-zinc-600">Overall Quality</div><div id="cp-quality-score" class="text-sm text-zinc-300 mt-2">0.00</div></div>
+                </div>
+                <p class="text-[10px] text-zinc-600 mt-4">These fields are controlled by KELYVO operations and may change after qualification tests and QA performance.</p>
+            </section>
+
+            <div id="contributor-profile-message" class="text-xs font-mono min-h-[18px]"></div>
+            <div class="flex justify-end gap-3">
+                <button id="contributor-profile-save" type="button" onclick="saveContributorProfile(event)" class="bg-white text-black text-xs px-7 py-3 rounded-lg uppercase tracking-wider">Submit & Lock Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ============================================================
+     ADMIN WORKFORCE PROFILE MODAL
+============================================================ -->
+<div id="admin-workforce-profile-modal" class="fixed inset-0 bg-black/90 z-[240] hidden items-center justify-center p-4">
+    <div class="w-full max-w-6xl max-h-[94vh] overflow-hidden bg-[#080808] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col">
+        <header class="shrink-0 p-5 md:p-6 border-b border-zinc-800 flex items-center justify-between gap-4">
+            <div>
+                <span class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">KELYVO Workforce</span>
+                <h2 id="admin-workforce-profile-title" class="text-2xl mt-2 font-light">Contributor Profile</h2>
+                <p id="admin-workforce-profile-email" class="text-xs text-zinc-500 font-mono mt-1"></p>
+            </div>
+            <button type="button" onclick="closeAdminWorkforceProfile()" class="border border-zinc-800 rounded-lg px-4 py-2 text-xs uppercase">Close</button>
+        </header>
+        <div id="admin-workforce-profile-body" class="overflow-auto p-5 md:p-6 space-y-6">
+            <div class="text-sm text-zinc-500">Loading workforce profile...</div>
+        </div>
+        <footer class="shrink-0 p-5 border-t border-zinc-800 flex items-center justify-between gap-4">
+            <div id="admin-workforce-profile-message" class="text-xs font-mono text-zinc-500 min-h-[18px]"></div>
+            <button id="admin-workforce-profile-save" type="button" onclick="saveAdminWorkforceProfile()" class="bg-white text-black text-xs px-6 py-3 rounded-lg uppercase tracking-wider">Save Profile</button>
+        </footer>
+    </div>
+</div>
+
+
+<!-- ============================================================
      FOOTER
 ============================================================ -->
 
@@ -1468,6 +1893,7 @@ button {
             </button>
 
             <button
+                type="button"
                 onclick="exitTaskWorkspace()"
                 class="border border-zinc-700 text-zinc-300 text-[11px] px-5 py-2.5 rounded-lg uppercase"
             >
@@ -1719,7 +2145,7 @@ let activeTaskData = null;
 let activeModalityType = "";
 
 let activeTaskSubmitted = false;
-let nativeSubmitPollTimer = null;
+let submissionRequestInFlight = false;
 
 let activeLabelStudio = null;
 
@@ -2014,11 +2440,25 @@ function switchTab(mode) {
             "role-selector-container"
         );
 
+    const registrationCodeContainer =
+        document.getElementById(
+            "registration-code-container"
+        );
+
+    const roleSelect =
+        document.getElementById(
+            "role-select"
+        );
+
+    const registrationCode =
+        document.getElementById(
+            "registration-code"
+        );
+
     const submitButton =
         document.getElementById(
             "submit-btn"
         );
-
 
     if (mode === "login") {
 
@@ -2028,9 +2468,19 @@ function switchTab(mode) {
         registerTab.className =
             "flex-1 pb-3 text-zinc-500 uppercase";
 
+        // Sign in is always email + password.
         roleContainer.classList.add(
             "hidden"
         );
+
+        registrationCodeContainer.classList.add(
+            "hidden"
+        );
+
+        if (registrationCode) {
+            registrationCode.value = "";
+            registrationCode.required = false;
+        }
 
         submitButton.innerText =
             "Sign In";
@@ -2043,9 +2493,16 @@ function switchTab(mode) {
         registerTab.className =
             "flex-1 pb-3 text-white border-b-2 border-white uppercase";
 
+        // Registration has exactly three account types.
         roleContainer.classList.remove(
             "hidden"
         );
+
+        if (roleSelect && !roleSelect.value) {
+            roleSelect.value = "contributor";
+        }
+
+        updateRegistrationCodeVisibility();
 
         submitButton.innerText =
             "Create Account";
@@ -2055,6 +2512,50 @@ function switchTab(mode) {
         "auth-message"
     ).innerText = "";
 }
+
+
+function updateRegistrationCodeVisibility() {
+
+    const roleSelect =
+        document.getElementById(
+            "role-select"
+        );
+
+    const registrationCodeContainer =
+        document.getElementById(
+            "registration-code-container"
+        );
+
+    const registrationCode =
+        document.getElementById(
+            "registration-code"
+        );
+
+    if (
+        !roleSelect ||
+        !registrationCodeContainer ||
+        !registrationCode
+    ) {
+        return;
+    }
+
+    const isAdmin =
+        roleSelect.value === "admin";
+
+    if (isAdmin) {
+        registrationCodeContainer.classList.remove(
+            "hidden"
+        );
+        registrationCode.required = true;
+    } else {
+        registrationCodeContainer.classList.add(
+            "hidden"
+        );
+        registrationCode.required = false;
+        registrationCode.value = "";
+    }
+}
+
 
 
 /* ============================================================
@@ -2080,35 +2581,48 @@ async function handleAuth(event) {
             "auth-message"
         );
 
-
     showLoader(
         currentMode === "login"
             ? "Authenticating..."
             : "Creating Secure Account..."
     );
 
-
     try {
 
         let url;
 
-
         if (currentMode === "login") {
 
+            // IMPORTANT: login is role-agnostic.
+            // The backend reads the user's stored role and routes accordingly.
             url =
                 `/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
 
         } else {
 
-            const role =
+            const roleSelect =
                 document.getElementById(
                     "role-select"
-                ).value;
+                );
+
+            const registrationCode =
+                document.getElementById(
+                    "registration-code"
+                );
+
+            const role =
+                roleSelect
+                    ? roleSelect.value
+                    : "contributor";
+
+            const code =
+                registrationCode
+                    ? registrationCode.value.trim()
+                    : "";
 
             url =
-                `/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`;
+                `/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}&registration_code=${encodeURIComponent(code)}`;
         }
-
 
         const response =
             await fetch(
@@ -2119,19 +2633,15 @@ async function handleAuth(event) {
                 }
             );
 
-
         const data =
             await response.json();
 
-
         if (!response.ok) {
-
             throw new Error(
                 data.detail ||
                 "Authentication failed."
             );
         }
-
 
         localStorage.setItem(
             "kelyvo_user_email",
@@ -2142,6 +2652,12 @@ async function handleAuth(event) {
             "kelyvo_user_role",
             data.role
         );
+
+        if (currentMode === "register" && data.role === "contributor") {
+            localStorage.setItem("kelyvo_show_preferences", "1");
+        } else {
+            localStorage.removeItem("kelyvo_show_preferences");
+        }
 
         localStorage.setItem(
             "kelyvo_today",
@@ -2163,14 +2679,11 @@ async function handleAuth(event) {
             data.earnings ?? 0
         );
 
-
         hideLoader();
-
 
         initializeAuthenticatedUI(
             data
         );
-
 
     } catch (error) {
 
@@ -2189,6 +2702,7 @@ async function handleAuth(event) {
             "mt-4 text-xs text-center font-mono text-red-400";
     }
 }
+
 
 
 /* ============================================================
@@ -2223,18 +2737,82 @@ function initializeAuthenticatedUI(user) {
     ).innerText =
         user.email;
 
+    // Reset workspace visibility so switching accounts in the same browser
+    // can never leave another role's controls visible.
+    [
+        "dashboard-section",
+        "admin-ops-section",
+        "admin-section"
+    ].forEach(function (id) {
+        const section = document.getElementById(id);
+        if (section) {
+            section.classList.add("hidden");
+        }
+    });
 
-    if (user.role === "admin" || user.role === "qa") {
+
+    if (user.role === "admin") {
 
         document.getElementById(
-            "admin-section"
+            "dashboard-section"
+        ).classList.add(
+            "hidden"
+        );
+
+        // Admin sees Admin Operations only.
+        document.getElementById(
+            "admin-ops-section"
         ).classList.remove(
             "hidden"
         );
 
         document.getElementById(
+            "admin-section"
+        ).classList.add(
+            "hidden"
+        );
+
+        loadAdminOperations();
+        loadAdminWorkforceUsers();
+        loadAdminInterestPools();
+
+        if (!window.kelyvoAdminOpsRefreshTimer) {
+            window.kelyvoAdminOpsRefreshTimer =
+                setInterval(
+                    function () {
+                        const adminOpsSection =
+                            document.getElementById(
+                                "admin-ops-section"
+                            );
+
+                        if (
+                            adminOpsSection &&
+                            !adminOpsSection.classList.contains("hidden")
+                        ) {
+                            loadAdminOperations();
+                        }
+                    },
+                    2500
+                );
+        }
+
+    } else if (user.role === "qa") {
+
+        document.getElementById(
             "dashboard-section"
         ).classList.add(
+            "hidden"
+        );
+
+        document.getElementById(
+            "admin-ops-section"
+        ).classList.add(
+            "hidden"
+        );
+
+        document.getElementById(
+            "admin-section"
+        ).classList.remove(
             "hidden"
         );
 
@@ -2274,6 +2852,12 @@ function initializeAuthenticatedUI(user) {
             "hidden"
         );
 
+        document.getElementById(
+            "admin-ops-section"
+        ).classList.add(
+            "hidden"
+        );
+
         updateStats(
             user
         );
@@ -2300,10 +2884,280 @@ function initializeAuthenticatedUI(user) {
                 );
         }
 
+        loadContributorPreferences(Boolean(localStorage.getItem("kelyvo_show_preferences")));
+        loadContributorOwnProfile();
         loadPipelineProjects();
 
         restoreActiveTaskSession();
     }
+}
+
+
+let contributorPreferencesState = null;
+let contributorPreferencesModalForced = false;
+let contributorPreferencesDebounceTimer = null;
+
+function renderContributorPreferenceOptions(data) {
+    const selectedInterests = new Set((data?.selected?.interests || []).map(item => String(item.slug || "")));
+    const selectedLanguages = new Set((data?.selected?.languages || []).map(item => String(item.code || "")));
+    const interestContainer = document.getElementById("contributor-preferences-interest-options");
+    const languageContainer = document.getElementById("contributor-preferences-language-options");
+    if (interestContainer) interestContainer.innerHTML = (data?.catalog?.interests || []).map(item => `<div class="kelyvo-preference-option"><input id="pref-interest-${escapeHtml(item.slug)}" type="checkbox" value="${escapeHtml(item.slug)}" ${selectedInterests.has(String(item.slug)) ? "checked" : ""} onchange="updateContributorPreferenceCounts()"><label for="pref-interest-${escapeHtml(item.slug)}"><div class="text-sm text-zinc-200">${escapeHtml(item.name || "")}</div><div class="text-[10px] text-zinc-600 mt-1 leading-relaxed">${escapeHtml(item.description || "")}</div></label></div>`).join("");
+    if (languageContainer) languageContainer.innerHTML = (data?.catalog?.languages || []).map(item => `<div class="kelyvo-preference-option"><input id="pref-language-${escapeHtml(item.code)}" type="checkbox" value="${escapeHtml(item.code)}" ${selectedLanguages.has(String(item.code)) ? "checked" : ""} onchange="updateContributorPreferenceCounts()"><label for="pref-language-${escapeHtml(item.code)}" class="!p-3"><div class="text-sm text-zinc-200">${escapeHtml(item.name || "")}</div></label></div>`).join("");
+    updateContributorPreferenceCounts();
+}
+
+function updateContributorPreferenceCounts() {
+    const i = document.getElementById("contributor-preferences-interest-count");
+    const l = document.getElementById("contributor-preferences-language-count");
+    if (i) i.innerText = `${document.querySelectorAll("#contributor-preferences-interest-options input:checked").length} selected`;
+    if (l) l.innerText = `${document.querySelectorAll("#contributor-preferences-language-options input:checked").length} selected`;
+}
+
+function renderContributorPreferenceSummary(data) {
+    const interests = Array.isArray(data?.selected?.interests) ? data.selected.interests : [];
+    const languages = Array.isArray(data?.selected?.languages) ? data.selected.languages : [];
+    const i = document.getElementById("contributor-preferences-interests");
+    const l = document.getElementById("contributor-preferences-languages");
+    if (i) i.innerHTML = interests.length ? interests.map(item => `<span class="kelyvo-pill">${escapeHtml(item.name || item.slug || "")}</span>`).join("") : `<span class="text-zinc-600">Not set</span>`;
+    if (l) l.innerHTML = languages.length ? languages.map(item => `<span class="kelyvo-pill">${escapeHtml(item.name || item.code || "")}</span>`).join("") : `<span class="text-zinc-600">Not set</span>`;
+}
+
+function openContributorPreferencesModal(force = false) {
+    const modal = document.getElementById("contributor-preferences-modal");
+    if (!modal) return;
+    contributorPreferencesModalForced = Boolean(force);
+    modal.classList.remove("hidden"); modal.classList.add("flex");
+    const close = document.getElementById("contributor-preferences-close");
+    if (close) close.classList.toggle("hidden", contributorPreferencesModalForced);
+}
+
+function closeContributorPreferencesModal() {
+    if (contributorPreferencesModalForced && !contributorPreferencesState?.complete) return;
+    const modal = document.getElementById("contributor-preferences-modal");
+    if (!modal) return;
+    modal.classList.add("hidden"); modal.classList.remove("flex"); contributorPreferencesModalForced = false;
+}
+
+async function loadContributorPreferences(forceOpen = false) {
+    try {
+        const response = await fetch("/api/contributor/preferences", { method: "GET", credentials: "same-origin", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load work preferences.");
+        contributorPreferencesState = data;
+        renderContributorPreferenceOptions(data); renderContributorPreferenceSummary(data);
+        if (forceOpen && !data.complete) openContributorPreferencesModal(true);
+        if (data.complete) localStorage.removeItem("kelyvo_show_preferences");
+        return data;
+    } catch (error) {
+        console.error("KELYVO contributor preferences error:", error);
+        const message = document.getElementById("contributor-preferences-message");
+        if (message) { message.innerText = error.message || "Could not load work preferences."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; }
+        return null;
+    }
+}
+
+async function saveContributorPreferences(event) {
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
+    const message = document.getElementById("contributor-preferences-message");
+    const save = document.getElementById("contributor-preferences-save");
+    const interests = Array.from(document.querySelectorAll("#contributor-preferences-interest-options input:checked")).map(input => input.value);
+    const languages = Array.from(document.querySelectorAll("#contributor-preferences-language-options input:checked")).map(input => input.value);
+    const otherLanguages = (document.getElementById("contributor-preferences-other-language")?.value || "").split(",").map(item => item.trim()).filter(Boolean);
+    if (!interests.length) { if (message) { message.innerText = "Select at least one work interest."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; } return; }
+    if (!languages.length && !otherLanguages.length) { if (message) { message.innerText = "Select at least one language."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; } return; }
+    if (message) { message.innerText = "Saving..."; message.className = "text-xs font-mono text-zinc-500 min-h-[18px]"; }
+    if (save) save.disabled = true;
+    try {
+        const response = await fetch("/api/contributor/preferences", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ interests, languages, other_languages: otherLanguages }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not save work preferences.");
+        contributorPreferencesState = data; renderContributorPreferenceOptions(data); renderContributorPreferenceSummary(data); localStorage.removeItem("kelyvo_show_preferences");
+        if (message) { message.innerText = "Saved."; message.className = "text-xs font-mono text-emerald-400 min-h-[18px]"; }
+        contributorPreferencesModalForced = false; setTimeout(() => closeContributorPreferencesModal(), 450);
+    } catch (error) {
+        if (message) { message.innerText = error.message || "Could not save work preferences."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; }
+    }
+    if (save) save.disabled = false;
+}
+
+let contributorProfileState = null;
+let contributorProfileModalForced = false;
+
+function updateContributorProfileProgress(completion) {
+    const complete = Boolean(completion?.complete);
+    const completed = Number(completion?.completed_fields || 0);
+    const required = Number(completion?.required_fields || 11);
+    const percent = required ? Math.round((completed / required) * 100) : 0;
+    const status = document.getElementById("contributor-profile-completion-status");
+    const label = document.getElementById("contributor-profile-progress-label");
+    const pct = document.getElementById("contributor-profile-progress-percent");
+    const bar = document.getElementById("contributor-profile-progress-bar");
+    const button = document.querySelector('#contributor-profile-card button[onclick="openContributorProfileModal()"]');
+    if (status) {
+        status.innerText = complete ? "Profile complete" : "Profile required";
+        status.className = complete
+            ? "text-[10px] uppercase text-emerald-400 font-mono"
+            : "text-[10px] uppercase text-amber-400 font-mono";
+    }
+    if (label) label.innerText = `${completed} / ${required} required fields`;
+    if (pct) pct.innerText = `${percent}%`;
+    if (bar) bar.style.width = `${percent}%`;
+    const fullyLocked = Boolean(contributorProfileState?.completion?.profile_locked && contributorProfileState?.completion?.payment_locked);
+    if (button) button.innerText = complete && fullyLocked ? "View Profile" : complete ? "Edit Profile" : "Complete Profile";
+}
+
+function setContributorPaymentMethod() {
+    const method = document.getElementById("cp-payment-method")?.value || "";
+    const upi = document.getElementById("cp-upi-fields");
+    const bank = document.getElementById("cp-bank-fields");
+    if (upi) upi.classList.toggle("hidden", method !== "upi");
+    if (bank) bank.classList.toggle("hidden", method !== "bank_account");
+}
+
+function setContributorSectionDisabled(prefix, disabled) {
+    const ids = prefix === "profile"
+        ? ["cp-display-name","cp-country","cp-region","cp-city","cp-timezone","cp-workforce-type","cp-languages","cp-skills","cp-dialects","cp-domain-expertise","cp-availability-status","cp-hours","cp-preferred-shift","cp-experience"]
+        : ["cp-payment-method","cp-upi-id","cp-bank-account-name","cp-bank-account-number","cp-bank-ifsc","cp-bank-name","cp-bank-branch","cp-bank-account-type"];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = disabled; });
+}
+
+function fillContributorProfileModal(data) {
+    const profile = data.profile || {};
+    const details = data.details || {};
+    const skills = Array.isArray(data.skills) ? data.skills.map(item => item.name || "").filter(Boolean).join(", ") : "";
+    const languages = Array.isArray(data.languages) ? data.languages.map(item => item.name || "").filter(Boolean).join(", ") : "";
+    const valueMap = {
+        "cp-display-name": profile.display_name || "", "cp-country": profile.country || "India", "cp-region": profile.region || "",
+        "cp-city": profile.city || "", "cp-timezone": profile.timezone || "Asia/Kolkata", "cp-workforce-type": details.workforce_type || "",
+        "cp-languages": languages, "cp-skills": skills, "cp-dialects": Array.isArray(details.dialects) ? details.dialects.join(", ") : "",
+        "cp-domain-expertise": details.domain_expertise || "", "cp-availability-status": details.availability_status || "",
+        "cp-hours": details.availability_hours_per_week ?? "", "cp-preferred-shift": details.preferred_shift || "",
+        "cp-experience": details.experience_summary || "", "cp-payment-method": details.payment_method || "", "cp-upi-id": details.upi_id || "",
+        "cp-bank-account-name": details.bank_account_name || "", "cp-bank-account-number": details.bank_account_number || "",
+        "cp-bank-ifsc": details.bank_ifsc || "", "cp-bank-name": details.bank_name || "", "cp-bank-branch": details.bank_branch || "",
+        "cp-bank-account-type": details.bank_account_type || ""
+    };
+    Object.entries(valueMap).forEach(([id, value]) => { const field = document.getElementById(id); if (field) field.value = value; });
+    const profileLocked = Boolean(data.completion?.profile_locked ?? details.profile_locked);
+    const paymentLocked = Boolean(data.completion?.payment_locked ?? details.payment_locked);
+    const banner = document.getElementById("cp-profile-lock-banner");
+    if (banner) { banner.innerText = `PROFILE STATUS: ${profileLocked ? "LOCKED" : "UNLOCKED"}`; banner.className = `mt-3 text-[10px] font-mono uppercase tracking-widest ${profileLocked ? "text-emerald-400" : "text-amber-400"}`; }
+    const paymentStatus = document.getElementById("cp-payment-lock-status");
+    if (paymentStatus) { paymentStatus.innerText = paymentLocked ? "LOCKED" : "UNLOCKED"; paymentStatus.className = `text-[10px] uppercase tracking-widest font-mono ${paymentLocked ? "text-emerald-400" : "text-amber-400"}`; }
+    const paymentNote = document.getElementById("cp-payment-locked-note"); if (paymentNote) paymentNote.classList.toggle("hidden", !paymentLocked);
+    setContributorSectionDisabled("profile", profileLocked);
+    setContributorSectionDisabled("payment", paymentLocked);
+    setContributorPaymentMethod();
+    const save = document.getElementById("contributor-profile-save");
+    const form = document.getElementById("contributor-profile-form");
+    if (form) form.setAttribute("aria-readonly", (profileLocked && paymentLocked) ? "true" : "false");
+    if (save) {
+        save.disabled = profileLocked && paymentLocked;
+        save.innerText = profileLocked && !paymentLocked ? "Update & Lock Payment" : profileLocked ? "Profile Locked" : "Submit & Lock Profile";
+        save.classList.toggle("opacity-40", save.disabled);
+        save.classList.toggle("cursor-not-allowed", save.disabled);
+    }
+    const close = document.getElementById("contributor-profile-close");
+    if (close) close.classList.toggle("hidden", Boolean(contributorProfileModalForced));
+    updateContributorProfileProgress(data.completion);
+}
+
+function openContributorProfileModal(force = false) {
+    const modal = document.getElementById("contributor-profile-modal");
+    if (!modal) return;
+    contributorProfileModalForced = Boolean(force);
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    const close = document.getElementById("contributor-profile-close");
+    if (close) close.classList.toggle("hidden", contributorProfileModalForced);
+}
+
+function closeContributorProfileModal() {
+    if (contributorProfileModalForced && !contributorProfileState?.completion?.complete) return;
+    const modal = document.getElementById("contributor-profile-modal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    contributorProfileModalForced = false;
+}
+
+async function loadContributorOwnProfile(forceOpen = false) {
+    try {
+        const response = await fetch("/api/contributor/profile", { method: "GET", credentials: "same-origin", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load your workforce profile.");
+        contributorProfileState = data;
+        updateContributorProfileProgress(data.completion);
+        fillContributorProfileModal(data);
+        if (forceOpen || !data.completion?.complete) {
+            openContributorProfileModal(!data.completion?.complete);
+        }
+        return data;
+    } catch (error) {
+        console.error("KELYVO contributor profile error:", error);
+        const message = document.getElementById("contributor-profile-message");
+        if (message) {
+            message.innerText = error.message || "Could not load your workforce profile.";
+            message.className = "text-xs font-mono text-red-400 min-h-[18px]";
+        }
+        return null;
+    }
+}
+
+async function saveContributorProfile(event) {
+    if (event && typeof event.preventDefault === "function") {
+        event.preventDefault();
+    }
+    const message = document.getElementById("contributor-profile-message");
+    const saveButton = document.getElementById("contributor-profile-save");
+    const current = contributorProfileState || {};
+    const profileLocked = Boolean(current.completion?.profile_locked ?? current.details?.profile_locked);
+    const paymentLocked = Boolean(current.completion?.payment_locked ?? current.details?.payment_locked);
+    if (profileLocked && paymentLocked) return;
+    if (message) { message.innerText = "Submitting..."; message.className = "text-xs font-mono text-zinc-500 min-h-[18px]"; }
+    if (saveButton) saveButton.disabled = true;
+    const value = id => document.getElementById(id)?.value ?? "";
+    const profilePayload = profileLocked ? {} : { display_name: value("cp-display-name"), country: value("cp-country"), region: value("cp-region"), city: value("cp-city"), timezone: value("cp-timezone") };
+    const detailPayload = {};
+    if (!profileLocked) {
+        Object.assign(detailPayload, { workforce_type: value("cp-workforce-type"), dialects: value("cp-dialects"), domain_expertise: value("cp-domain-expertise"), experience_summary: value("cp-experience"), availability_hours_per_week: value("cp-hours") === "" ? null : Number(value("cp-hours")), availability_status: value("cp-availability-status"), preferred_shift: value("cp-preferred-shift") });
+    }
+    if (!paymentLocked) {
+        Object.assign(detailPayload, { payment_method: value("cp-payment-method"), upi_id: value("cp-upi-id"), bank_account_name: value("cp-bank-account-name"), bank_account_number: value("cp-bank-account-number"), bank_ifsc: value("cp-bank-ifsc").toUpperCase(), bank_name: value("cp-bank-name"), bank_branch: value("cp-bank-branch"), bank_account_type: value("cp-bank-account-type") });
+    }
+    const payload = { profile: profilePayload, details: detailPayload };
+    if (!profileLocked) {
+        payload.skills = value("cp-skills");
+        payload.languages = value("cp-languages");
+        if (!payload.skills.trim()) {
+            if (message) { message.innerText = "At least one skill / capability is required."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; }
+            if (saveButton) saveButton.disabled = false;
+            return;
+        }
+        if (!payload.languages.trim()) {
+            if (message) { message.innerText = "At least one language is required."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; }
+            if (saveButton) saveButton.disabled = false;
+            return;
+        }
+    }
+    try {
+        const response = await fetch("/api/contributor/profile", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not save your profile.");
+        contributorProfileState = data;
+        updateContributorProfileProgress(data.completion);
+        fillContributorProfileModal(data);
+        if (message) { message.innerText = data.completion?.profile_locked && data.completion?.payment_locked ? "Profile and payment details are locked." : "Saved."; message.className = "text-xs font-mono text-emerald-400 min-h-[18px]"; }
+        contributorProfileModalForced = false;
+        if (data.completion?.complete && data.completion?.profile_locked && data.completion?.payment_locked) setTimeout(() => closeContributorProfileModal(), 650);
+    } catch (error) {
+        if (message) { message.innerText = error.message || "Could not save your profile."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; }
+        // Never repopulate the form from stale server state after a failed
+        // save. Keep the contributor's typed values visible so a validation
+        // problem can be corrected without re-entering payment information.
+    }
+    if (saveButton) saveButton.disabled = Boolean(contributorProfileState?.completion?.profile_locked && contributorProfileState?.completion?.payment_locked);
 }
 
 
@@ -2590,6 +3444,13 @@ function renderPipelineProjects(
 async function startAnnotationTask(
     modality
 ) {
+
+    if (!contributorProfileState?.completion?.complete) {
+        const profileData = await loadContributorOwnProfile(true);
+        if (!profileData?.completion?.complete) {
+            return;
+        }
+    }
 
     showLoader(
         `Loading ${String(modality).toUpperCase()} Task...`
@@ -2988,12 +3849,6 @@ async function openLabelStudioWorkspace(
     }
 
 
-    startNativeSubmitWatcher(
-        Number(projectId),
-        Number(taskId)
-    );
-
-
     iframe.addEventListener(
         "load",
         function() {
@@ -3309,6 +4164,20 @@ function handleLabelStudioEmbedMessage(
 
 window.addEventListener(
     "message",
+    function (event) {
+        if (
+            event &&
+            event.data &&
+            event.data.type === "kelyvo:labelstudio-submit"
+        ) {
+            submitFromWorkspace();
+        }
+    }
+);
+
+
+window.addEventListener(
+    "message",
     handleLabelStudioEmbedMessage
 );
 
@@ -3390,7 +4259,6 @@ async function skipFromWorkspace() {
             );
         }
 
-        stopNativeSubmitWatcher();
         clearActiveTaskSession();
         activeTaskSubmitted = true;
         hideLoader();
@@ -3524,6 +4392,111 @@ function retryLabelStudioEmbed() {
 
 
 /* ============================================================
+   EXIT WORKSPACE
+============================================================ */
+
+async function exitTaskWorkspace() {
+
+    if (!activeTaskData) {
+        clearActiveTaskSession();
+        closeTaskWorkspace();
+        return;
+    }
+
+    const taskId =
+        Number(activeTaskData.id);
+
+    const projectId =
+        Number(
+            activeTaskData.project ||
+            activeTaskData.project_id ||
+            0
+        );
+
+    const button =
+        document.querySelector(
+            '#task-workspace-modal button[onclick="exitTaskWorkspace()"]'
+        );
+
+    if (button) {
+        button.disabled = true;
+        button.innerText = 'Exiting...';
+        button.classList.add('opacity-50');
+    }
+
+    showLoader(
+        'Exiting Workspace...'
+    );
+
+    try {
+        if (taskId && projectId) {
+            const response = await fetch(
+                `/api/contributor/exit-task?project_id=${encodeURIComponent(projectId)}&task_id=${encodeURIComponent(taskId)}`,
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                }
+            );
+
+            let data = null;
+
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                data = null;
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    data?.detail ||
+                    'Could not exit the annotation workspace.'
+                );
+            }
+        }
+
+        clearActiveTaskSession();
+        activeTaskSubmitted = true;
+
+        hideLoader();
+        closeTaskWorkspace();
+
+        try {
+            await loadPipelineProjects();
+        } catch (pipelineError) {
+            console.debug(
+                'KELYVO: pipeline refresh after workspace exit failed:',
+                pipelineError
+            );
+        }
+
+        try {
+            await loadContributorSubmissions();
+        } catch (submissionError) {
+            console.debug(
+                'KELYVO: submission refresh after workspace exit failed:',
+                submissionError
+            );
+        }
+
+    } catch (error) {
+        hideLoader();
+
+        if (button) {
+            button.disabled = false;
+            button.innerText = 'Exit Workspace';
+            button.classList.remove('opacity-50');
+        }
+
+        alert(
+            error.message ||
+            'Could not exit the annotation workspace.'
+        );
+    }
+}
+
+
+/* ============================================================
    SUBMIT FROM WORKSPACE
 ============================================================ */
 
@@ -3555,7 +4528,7 @@ function submitFromWorkspace() {
 
     const confirmation =
         confirm(
-            "Have you completed the annotation in Label Studio?\n\nClick OK to send this task to the KELYVO QA queue."
+            "Have you completed the annotation in Label Studio?\n\nClick OK. KELYVO will wait for Label Studio to finish saving your annotation and then send the task to QA."
         );
 
 
@@ -3566,40 +4539,6 @@ function submitFromWorkspace() {
 
     handleAnnotationSubmission();
 }
-
-
-/* ============================================================
-   AUTOMATIC QA SUBMISSION FROM LABEL STUDIO
-============================================================ */
-
-window.addEventListener(
-    "message",
-    function (event) {
-
-        if (
-            event.origin !== window.location.origin
-        ) {
-            return;
-        }
-
-        if (
-            !event.data ||
-            event.data.type !==
-                "KELYVO_LABEL_STUDIO_SUBMIT_SUCCESS"
-        ) {
-            return;
-        }
-
-        if (
-            activeTaskSubmitted ||
-            !activeTaskData
-        ) {
-            return;
-        }
-
-        handleAnnotationSubmission();
-    }
-);
 
 
 /* ============================================================
@@ -3667,32 +4606,37 @@ async function handleAnnotationSubmission() {
 
     if (
         activeTaskSubmitted ||
+        submissionRequestInFlight ||
         !activeTaskData
     ) {
         return;
     }
 
+    submissionRequestInFlight = true;
 
     const email =
         localStorage.getItem(
             "kelyvo_user_email"
         );
 
-
     if (!email) {
-
         alert(
             "Your session has expired. Please sign in again."
         );
-
+        submissionRequestInFlight = false;
         logout();
-
         return;
     }
 
-
+    /*
+     * KELYVO is now the single submission authority.
+     * The backend performs the Label Studio save/annotation check and waits
+     * for Label Studio to finish its asynchronous save before creating the
+     * KELYVO QA submission. The contributor therefore never has to click
+     * Submit a second time.
+     */
     showLoader(
-        "Verifying annotation..."
+        "Saving annotation and submitting to QA..."
     );
 
     try {
@@ -3701,335 +4645,17 @@ async function handleAnnotationSubmission() {
             activeTaskData.project_id ||
             0
         );
-        const taskId = Number(activeTaskData.id || 0);
-
-        const readinessResponse = await fetch(
-            `/api/task-submission-ready?project_id=${encodeURIComponent(projectId)}&task_id=${encodeURIComponent(taskId)}`,
-            {
-                method: "GET",
-                credentials: "same-origin",
-                cache: "no-store"
-            }
-        );
-
-        let readinessData = null;
-        try {
-            readinessData = await readinessResponse.json();
-        } catch (parseError) {
-            readinessData = null;
-        }
-
-        if (!readinessResponse.ok) {
-            throw new Error(
-                readinessData?.detail ||
-                "KELYVO could not verify the saved annotation."
-            );
-        }
-
-        if (!readinessData || readinessData.ready !== true) {
-            throw new Error(
-                "Your annotation has not been saved by Label Studio yet. Please finish the annotation and save it in Label Studio, then click Submit to QA again."
-            );
-        }
-
-        activeTaskSubmitted = true;
-
-        showLoader(
-            "Submitting Task for QA..."
-        );
-
-        const taskTitle =
-            `${String(activeModalityType).toUpperCase()} Task #${activeTaskData.id}`;
-
-
-        const response =
-            await fetch(
-                `/submit-task?email=${encodeURIComponent(email)}&task_type=${encodeURIComponent(activeModalityType)}&task_title=${encodeURIComponent(taskTitle)}&task_id=${encodeURIComponent(activeTaskData.id)}&project_id=${encodeURIComponent(activeTaskData.project || activeTaskData.project_id || 0)}`,
-                {
-                    method:
-                        "POST"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.detail ||
-                "Task submission failed."
-            );
-        }
-
-        if (
-            data.already_submitted === true
-            && data.created !== true
-            && data.revision !== true
-        ) {
-            throw new Error(
-                data.message ||
-                "This task has already been submitted."
-            );
-        }
-
-
-        localStorage.setItem(
-            "kelyvo_today",
-            data.tasks_today ?? 0
-        );
-
-
-        localStorage.setItem(
-            "kelyvo_week",
-            data.tasks_week ?? 0
-        );
-
-        saveLocalContributorSubmission(
-            {
-                task_id:
-                    activeTaskData.id,
-
-                project_id:
-                    activeTaskData.project ||
-                    activeTaskData.project_id ||
-                    0,
-
-                task_type:
-                    activeModalityType,
-
-                task_title:
-                    taskTitle,
-
-                status:
-                    "PENDING_QA",
-
-                submitted_at:
-                    new Date().toISOString()
-            }
-        );
-
-
-        updateStats(
-            {
-                tasks_today:
-                    data.tasks_today,
-
-                tasks_week:
-                    data.tasks_week,
-
-                tasks_passed_qa:
-                    Number(
-                        localStorage.getItem(
-                            "kelyvo_qa"
-                        ) || 0
-                    ),
-
-                earnings:
-                    Number(
-                        localStorage.getItem(
-                            "kelyvo_earnings"
-                        ) || 0
-                    )
-            }
-        );
-
-
-        hideLoader();
-
-        clearActiveTaskSession();
-
-        closeTaskWorkspace();
-
-        updateStats({
-            tasks_today: data.tasks_today,
-            tasks_week: data.tasks_week,
-            tasks_passed_qa: Number(localStorage.getItem("kelyvo_qa") || 0),
-            earnings: Number(localStorage.getItem("kelyvo_earnings") || 0)
-        });
-
-        await loadContributorSubmissions();
-
-        const contributorQueueCounter =
-            document.getElementById(
-                "contributor-queue-count"
-            );
-
-        if (
-            Number.isFinite(Number(data.queue_count))
-        ) {
-            window.kelyvoContributorQueueCount =
-                Number(data.queue_count);
-        }
-
-        if (
-            contributorQueueCounter &&
-            Number.isFinite(Number(data.queue_count))
-        ) {
-            contributorQueueCounter.innerText =
-                String(Number(data.queue_count));
-        }
-
-        // Re-read the server session immediately after submission so the
-        // dashboard counters are sourced from the authoritative database,
-        // not from stale browser state.
-        try {
-            const sessionResponse = await fetch(
-                "/api/session",
-                {
-                    method: "GET",
-                    credentials: "same-origin",
-                    cache: "no-store"
-                }
-            );
-
-            if (sessionResponse.ok) {
-                const sessionData = await sessionResponse.json();
-                if (sessionData && sessionData.role === "contributor") {
-                    updateStats(sessionData);
-                }
-            }
-        } catch (sessionError) {
-            console.debug(
-                "KELYVO: post-submit session refresh unavailable:",
-                sessionError
-            );
-        }
-
-        // One immediate second queue read closes any tiny database/render
-        // timing gap while keeping the server as the source of truth.
-        await loadContributorSubmissions();
-        loadPipelineProjects();
-        showTaskSubmittedAnimation();
-
-
-    } catch (error) {
-
-        activeTaskSubmitted =
-            false;
-
-        hideLoader();
-
-
-        alert(
-            error.message ||
-            "Could not submit task."
-        );
-    }
-}
-
-
-/* ============================================================
-   NATIVE LABEL STUDIO SUBMIT WATCHER
-============================================================ */
-
-function stopNativeSubmitWatcher() {
-    if (nativeSubmitPollTimer) {
-        clearInterval(nativeSubmitPollTimer);
-        nativeSubmitPollTimer = null;
-    }
-}
-
-
-function startNativeSubmitWatcher(
-    projectId,
-    taskId
-) {
-    stopNativeSubmitWatcher();
-
-    const checkNativeSubmitStatus = async function() {
-            if (
-                activeTaskSubmitted ||
-                !activeTaskData
-            ) {
-                return;
-            }
-
-            try {
-                const response =
-                    await fetch(
-                        `/api/native-submit-status?project_id=${encodeURIComponent(projectId)}&task_id=${encodeURIComponent(taskId)}&email=${encodeURIComponent(localStorage.getItem("kelyvo_user_email") || "")}`,
-                        { cache: "no-store" }
-                    );
-
-                if (!response.ok) {
-                    return;
-                }
-
-                const data =
-                    await response.json();
-
-                if (
-                    data &&
-                    Number(data.task_id) === Number(taskId) &&
-                    (
-                        data.submitted === true ||
-                        data.revision_updated === true
-                    )
-                ) {
-                    stopNativeSubmitWatcher();
-                    handleAnnotationSubmission();
-                }
-            } catch (error) {
-                console.debug(
-                    "KELYVO native submit status check failed:",
-                    error
-                );
-            }
-    };
-
-    checkNativeSubmitStatus();
-    nativeSubmitPollTimer = setInterval(checkNativeSubmitStatus, 1000);
-}
-
-
-/* ============================================================
-   EXIT WORKSPACE
-============================================================ */
-
-async function exitTaskWorkspace() {
-
-    if (!activeTaskData) {
-        closeTaskWorkspace();
-        clearActiveTaskSession();
-        return;
-    }
-
-    const taskId =
-        Number(activeTaskData.id);
-
-    const projectId =
-        Number(
-            activeTaskData.project ||
-            activeTaskData.project_id ||
+        const taskId = Number(
+            activeTaskData.id ||
             0
         );
 
-    if (!taskId || !projectId) {
-        clearActiveTaskSession();
-        closeTaskWorkspace();
-        return;
-    }
+        const taskTitle =
+            `${String(activeModalityType).toUpperCase()} Task #${taskId}`;
 
-    const confirmation =
-        confirm(
-            "Exit this annotation workspace?\n\nYour saved Label Studio draft will remain, but this task reservation will be released so you can start another task or open a QA revision."
-        );
-
-    if (!confirmation) {
-        return;
-    }
-
-    showLoader(
-        "Exiting Workspace..."
-    );
-
-    try {
         const response =
             await fetch(
-                `/api/contributor/exit-task?project_id=${encodeURIComponent(projectId)}&task_id=${encodeURIComponent(taskId)}`,
+                `/submit-task?email=${encodeURIComponent(email)}&task_type=${encodeURIComponent(activeModalityType)}&task_title=${encodeURIComponent(taskTitle)}&task_id=${encodeURIComponent(taskId)}&project_id=${encodeURIComponent(projectId)}`,
                 {
                     method: "POST",
                     credentials: "same-origin",
@@ -4047,34 +4673,166 @@ async function exitTaskWorkspace() {
         if (!response.ok) {
             throw new Error(
                 data?.detail ||
-                "Could not exit the annotation workspace."
+                "Task submission failed."
             );
         }
 
-        clearActiveTaskSession();
+        if (
+            data?.already_submitted === true &&
+            data?.created !== true &&
+            data?.revision !== true
+        ) {
+            throw new Error(
+                data.message ||
+                "This task has already been submitted."
+            );
+        }
+
         activeTaskSubmitted = true;
+
+        localStorage.setItem(
+            "kelyvo_today",
+            data?.tasks_today ?? 0
+        );
+
+        localStorage.setItem(
+            "kelyvo_week",
+            data?.tasks_week ?? 0
+        );
+
+        saveLocalContributorSubmission(
+            {
+                task_id: taskId,
+                project_id: projectId,
+                task_type: activeModalityType,
+                task_title: taskTitle,
+                status: "PENDING_QA",
+                submitted_at: new Date().toISOString()
+            }
+        );
+
+        updateStats({
+            tasks_today: data?.tasks_today,
+            tasks_week: data?.tasks_week,
+            tasks_passed_qa: Number(
+                localStorage.getItem("kelyvo_qa") || 0
+            ),
+            earnings: Number(
+                localStorage.getItem("kelyvo_earnings") || 0
+            )
+        });
+
+        /*
+         * The authoritative POST succeeded. Finish the contributor UI first
+         * so the success animation can never be blocked by a dashboard refresh.
+         */
         hideLoader();
+
+        clearActiveTaskSession();
+
         closeTaskWorkspace();
-        loadPipelineProjects();
-        loadContributorSubmissions();
+
+        updateStats({
+            tasks_today: data?.tasks_today,
+            tasks_week: data?.tasks_week,
+            tasks_passed_qa: Number(
+                localStorage.getItem("kelyvo_qa") || 0
+            ),
+            earnings: Number(
+                localStorage.getItem("kelyvo_earnings") || 0
+            )
+        });
+
+        if (Number.isFinite(Number(data?.queue_count))) {
+            window.kelyvoContributorQueueCount = Number(
+                data.queue_count
+            );
+
+            const contributorQueueCounter =
+                document.getElementById(
+                    "contributor-queue-count"
+                );
+
+            if (contributorQueueCounter) {
+                contributorQueueCounter.innerText =
+                    String(Number(data.queue_count));
+            }
+        }
+
+        showTaskSubmittedAnimation();
+
+        submissionRequestInFlight = false;
+
+        void (async function refreshContributorDashboardAfterSubmit() {
+            try {
+                await loadContributorSubmissions();
+            } catch (refreshError) {
+                console.debug(
+                    "KELYVO: post-submit contributor queue refresh unavailable:",
+                    refreshError
+                );
+            }
+
+            try {
+                const sessionResponse = await fetch(
+                    "/api/session",
+                    {
+                        method: "GET",
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    }
+                );
+
+                if (sessionResponse.ok) {
+                    const sessionData = await sessionResponse.json();
+
+                    if (
+                        sessionData &&
+                        sessionData.role === "contributor"
+                    ) {
+                        updateStats(sessionData);
+                    }
+                }
+            } catch (sessionError) {
+                console.debug(
+                    "KELYVO: post-submit session refresh unavailable:",
+                    sessionError
+                );
+            }
+
+            try {
+                await loadContributorSubmissions();
+            } catch (refreshError) {
+                console.debug(
+                    "KELYVO: second post-submit queue refresh unavailable:",
+                    refreshError
+                );
+            }
+
+            try {
+                await loadPipelineProjects();
+            } catch (pipelineError) {
+                console.debug(
+                    "KELYVO: post-submit pipeline refresh unavailable:",
+                    pipelineError
+                );
+            }
+        })();
 
     } catch (error) {
+        activeTaskSubmitted = false;
+        submissionRequestInFlight = false;
         hideLoader();
+
         alert(
             error.message ||
-            "Could not exit the annotation workspace."
+            "Could not submit task."
         );
     }
 }
 
 
-/* ============================================================
-   CLOSE WORKSPACE
-============================================================ */
-
 function closeTaskWorkspace() {
-
-    stopNativeSubmitWatcher();
 
     destroyLabelStudio();
 
@@ -4116,136 +4874,576 @@ function closeTaskWorkspace() {
 
 
 /* ============================================================
-   PAYOUT
+   CONTRIBUTOR SUBMISSIONS
 ============================================================ */
 
-async function updatePayout(
-    event
-) {
-
-    event.preventDefault();
 
 
-    const email =
-        localStorage.getItem(
-            "kelyvo_user_email"
-        );
 
+/* ============================================================
+   ADMIN WORKFORCE PROFILES
+============================================================ */
 
-    const method =
-        document.getElementById(
-            "payout-method"
-        ).value;
+let activeAdminWorkforceProfile = null;
 
+function closeAdminWorkforceProfile() {
+    const modal = document.getElementById("admin-workforce-profile-modal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    activeAdminWorkforceProfile = null;
+}
 
-    const details =
-        document.getElementById(
-            "payout-details"
-        ).value.trim();
+function openAdminWorkforceProfile(userId) {
+    loadAdminWorkforceProfile(Number(userId));
+}
 
+function profileField(label, id, value, type = "text", extra = "") {
+    return `<div>
+        <label class="block text-[10px] uppercase text-zinc-500 mb-2">${escapeHtml(label)}</label>
+        <input id="${id}" type="${type}" value="${escapeHtml(value ?? "")}" ${extra} class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs">
+    </div>`;
+}
 
-    const message =
-        document.getElementById(
-            "payout-status-msg"
-        );
+function renderAdminWorkforceProfile(data) {
+    activeAdminWorkforceProfile = data;
+    const modal = document.getElementById("admin-workforce-profile-modal");
+    const body = document.getElementById("admin-workforce-profile-body");
+    const title = document.getElementById("admin-workforce-profile-title");
+    const email = document.getElementById("admin-workforce-profile-email");
+    if (!modal || !body) return;
 
+    const user = data.user || {};
+    const profile = data.profile || {};
+    const details = data.details || {};
+    const performance = data.performance || {};
+    const skills = (data.skills || []).map(x => x.name).filter(Boolean).join(", ");
+    const languages = (data.languages || []).map(x => x.name).filter(Boolean).join(", ");
+    const dialects = (details.dialects || []).join(", ");
+    const projects = (details.project_eligibility || []).join(", ");
 
-    if (
-        !email ||
-        !details
-    ) {
+    if (title) title.innerText = profile.display_name || "Workforce Profile";
+    if (email) email.innerText = `${user.email || ""} · ${String(user.role || "").toUpperCase()}`;
+    body.innerHTML = `
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-[#050505] border border-zinc-800 rounded-xl p-4"><div class="text-[10px] uppercase text-zinc-600">Tasks</div><div class="text-xl mt-2">${escapeHtml(performance.tasks_completed ?? 0)}</div></div>
+            <div class="bg-[#050505] border border-zinc-800 rounded-xl p-4"><div class="text-[10px] uppercase text-zinc-600">QA Pass Rate</div><div class="text-xl mt-2">${escapeHtml(performance.qa_pass_rate ?? 0)}%</div></div>
+            <div class="bg-[#050505] border border-zinc-800 rounded-xl p-4"><div class="text-[10px] uppercase text-zinc-600">Revision Rate</div><div class="text-xl mt-2">${escapeHtml(performance.revision_rate ?? 0)}%</div></div>
+            <div class="bg-[#050505] border border-zinc-800 rounded-xl p-4"><div class="text-[10px] uppercase text-zinc-600">Reliability</div><div class="text-xl mt-2">${escapeHtml(performance.reliability_score ?? 0)}%</div></div>
+        </div>
 
-        message.innerText =
-            "Payout details are required.";
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+            <section class="xl:col-span-2 bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="text-sm text-white mb-4">Identity & Location</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    ${profileField("Display Name", "wp-display-name", profile.display_name)}
+                    ${profileField("Country", "wp-country", profile.country)}
+                    ${profileField("Region / State", "wp-region", profile.region)}
+                    ${profileField("City", "wp-city", profile.city)}
+                    ${profileField("Timezone", "wp-timezone", profile.timezone)}
+                    <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Onboarding</label><select id="wp-onboarding-status" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs"><option value="pending">Pending</option><option value="in_review">In Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>
+                </div>
+            </section>
 
-        message.className =
-            "text-xs font-mono mt-4 text-red-400";
+            <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="text-sm text-white mb-4">Workforce Tier</div>
+                <select id="wp-worker-tier" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs mb-3"><option value="general">General</option><option value="qualified">Qualified</option><option value="specialist">Specialist</option></select>
+                <label class="block text-[10px] uppercase text-zinc-500 mb-2">Qualification Status</label>
+                <select id="wp-qualification-status" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs mb-3"><option value="pending">Pending</option><option value="in_review">In Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+                ${profileField("Qualification Score", "wp-qualification-score", details.qualification_score ?? "", "number", 'step="0.01" min="0" max="100"')}
+            </section>
+        </div>
 
-        return;
-    }
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="text-sm text-white mb-4">Capabilities</div>
+                ${profileField("Languages (comma separated)", "wp-languages", languages)}
+                ${profileField("Workforce Type", "wp-workforce-type", details.workforce_type)}
+                <div class="mt-3">${profileField("Dialects / Regional Variants", "wp-dialects", dialects)}</div>
+                <div class="mt-3">${profileField("Skills (comma separated)", "wp-skills", skills)}</div>
+                <div class="mt-3">${profileField("Project Eligibility", "wp-project-eligibility", projects)}</div>
+            </section>
 
+            <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+                <div class="text-sm text-white mb-4">Availability & Experience</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    ${profileField("Hours / Week", "wp-hours", details.availability_hours_per_week ?? "", "number", 'step="0.5" min="0" max="168"')}
+                    <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Availability</label><select id="wp-availability-status" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs"><option value="unspecified">Unspecified</option><option value="available">Available</option><option value="limited">Limited</option><option value="unavailable">Unavailable</option></select></div>
+                    ${profileField("Preferred Shift", "wp-preferred-shift", details.preferred_shift)}
+                    ${profileField("Domain Expertise", "wp-domain-expertise", details.domain_expertise)}
+                </div>
+                <div class="mt-3">${profileField("Experience Summary", "wp-experience", details.experience_summary)}</div>
+            </section>
+        </div>
 
-    showLoader(
-        "Securing Payout Destination..."
-    );
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/update-payout?email=${encodeURIComponent(email)}&payout_method=${encodeURIComponent(method)}&payout_details=${encodeURIComponent(details)}`,
-                {
-                    method:
-                        "POST"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        hideLoader();
-
-
-        if (!response.ok) {
-
-            message.innerText =
-                data.detail ||
-                "Failed to save payout destination.";
-
-            message.className =
-                "text-xs font-mono mt-4 text-red-400";
-
-            return;
-        }
-
-
-        document.getElementById(
-            "payout-container"
-        ).innerHTML = `
-
-            <div
-                class="bg-[#030303] border border-zinc-800 p-4 rounded-xl font-mono text-xs"
-            >
-
-                <span
-                    class="text-emerald-400 font-bold"
-                >
-                    ✓ VERIFIED & LOCKED
-                </span>
-
-                <span
-                    class="text-zinc-400 ml-3"
-                >
-                    Payout destination saved.
-                </span>
-
+        <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div><div class="text-sm text-white">Access & Payment Controls</div><p class="text-[10px] text-zinc-600 mt-1">Admin can unlock profile and payment editing independently. Unlocks require a reason and are audited.</p></div>
+                <div class="text-[10px] uppercase font-mono text-zinc-500">${details.profile_locked ? "PROFILE LOCKED" : "PROFILE UNLOCKED"} · ${details.payment_locked ? "PAYMENT LOCKED" : "PAYMENT UNLOCKED"}</div>
             </div>
-        `;
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button type="button" onclick="unlockAdminWorkforceSection('profile')" class="border border-zinc-700 rounded-lg px-4 py-2 text-[10px] uppercase">${details.profile_locked ? "Unlock Profile" : "Profile Already Unlocked"}</button>
+                <button type="button" onclick="unlockAdminWorkforceSection('payment')" class="border border-zinc-700 rounded-lg px-4 py-2 text-[10px] uppercase">${details.payment_locked ? "Unlock Payment" : "Payment Already Unlocked"}</button>
+                <button type="button" onclick="loadAdminWorkforceHistory(${Number(user.id)})" class="border border-zinc-700 rounded-lg px-4 py-2 text-[10px] uppercase">View Version History</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${profileField("Payment Method", "wp-payment-method", details.payment_method || "", "text", "disabled")}
+                ${profileField("UPI ID", "wp-upi-id", details.upi_id || "")}
+                ${profileField("Bank Account Holder", "wp-bank-account-name", details.bank_account_name || "")}
+                ${profileField("Bank Account Number", "wp-bank-account-number", details.bank_account_number || "")}
+                ${profileField("IFSC", "wp-bank-ifsc", details.bank_ifsc || "")}
+                ${profileField("Bank Name", "wp-bank-name", details.bank_name || "")}
+                ${profileField("Branch", "wp-bank-branch", details.bank_branch || "")}
+                ${profileField("Account Type", "wp-bank-account-type", details.bank_account_type || "")}
+            </div>
+            <div id="admin-workforce-history" class="hidden mt-5 border-t border-zinc-800 pt-5"></div>
+        </section>
 
+        <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
+            <div class="text-sm text-white mb-4">Qualification & Notes</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Test Scores</label><textarea id="wp-test-scores" rows="4" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs">${escapeHtml(details.test_scores || "")}</textarea></div>
+                <div><label class="block text-[10px] uppercase text-zinc-500 mb-2">Qualification Notes</label><textarea id="wp-qualification-notes" rows="4" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs">${escapeHtml(details.qualification_notes || "")}</textarea></div>
+            </div>
+        </section>
+    `;
 
-        message.innerText = "";
+    const workforceType = document.getElementById("wp-workforce-type"); if (workforceType) workforceType.value = details.workforce_type || "";
+    const onboarding = document.getElementById("wp-onboarding-status"); if (onboarding) onboarding.value = profile.onboarding_status || "pending";
+    const tier = document.getElementById("wp-worker-tier"); if (tier) tier.value = details.worker_tier || "general";
+    const qs = document.getElementById("wp-qualification-status"); if (qs) qs.value = details.qualification_status || "pending";
+    const av = document.getElementById("wp-availability-status"); if (av) av.value = details.availability_status || "unspecified";
+    [
+        ["wp-payment-method", details.payment_method || ""], ["wp-upi-id", details.upi_id || ""], ["wp-bank-account-name", details.bank_account_name || ""],
+        ["wp-bank-account-number", details.bank_account_number || ""], ["wp-bank-ifsc", details.bank_ifsc || ""], ["wp-bank-name", details.bank_name || ""],
+        ["wp-bank-branch", details.bank_branch || ""], ["wp-bank-account-type", details.bank_account_type || ""],
+    ].forEach(([id, value]) => { const el = document.getElementById(id); if (el) { el.value = value; if (id === "wp-bank-ifsc") el.value = String(value || "").toUpperCase(); } });
 
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+}
+
+async function unlockAdminWorkforceSection(section) {
+    if (!activeAdminWorkforceProfile?.user?.id) return;
+    const locked = section === "payment" ? activeAdminWorkforceProfile.details?.payment_locked : activeAdminWorkforceProfile.details?.profile_locked;
+    if (!locked) { alert(`${section === "payment" ? "Payment" : "Profile"} is already unlocked.`); return; }
+    const reason = window.prompt(`Reason for unlocking ${section === "payment" ? "payment details" : "the workforce profile"}:`);
+    if (!reason || !reason.trim()) return;
+    try {
+        const response = await fetch(`/api/admin/workforce/${Number(activeAdminWorkforceProfile.user.id)}/unlock-${section === "payment" ? "payment" : "profile"}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: reason.trim() }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not unlock section.");
+        renderAdminWorkforceProfile(data);
+        const message = document.getElementById("admin-workforce-profile-message"); if (message) { message.innerText = data.message || "Unlocked."; message.className = "text-xs font-mono text-emerald-400 min-h-[18px]"; }
+    } catch (error) { alert(error.message || "Could not unlock section."); }
+}
+
+async function loadAdminWorkforceHistory(userId) {
+    const container = document.getElementById("admin-workforce-history");
+    if (!container) return;
+    container.classList.remove("hidden"); container.innerHTML = `<div class="text-xs text-zinc-500">Loading version history...</div>`;
+    try {
+        const response = await fetch(`/api/admin/workforce/${Number(userId)}/history`, { method: "GET", credentials: "same-origin", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load history.");
+        const versions = Array.isArray(data.versions) ? data.versions : [];
+        if (!versions.length) { container.innerHTML = `<div class="text-xs text-zinc-600">No submitted versions yet.</div>`; return; }
+        container.innerHTML = versions.map(item => `
+            <div class="border-b border-zinc-800 py-3 last:border-0">
+                <div class="flex justify-between gap-3">
+                    <div class="text-xs text-white">${escapeHtml(String(item.version_type).toUpperCase())} v${escapeHtml(item.version_number)}</div>
+                    <div class="text-[10px] text-zinc-600">${escapeHtml(formatAdminDate(item.created_at))}</div>
+                </div>
+                <div class="mt-2 text-[9px] uppercase tracking-widest text-zinc-600">Reason</div>
+                <div class="text-[10px] text-zinc-400 mt-1">${escapeHtml(item.reason || "No reason recorded")}</div>
+            </div>
+        `).join("");
+    } catch (error) { container.innerHTML = `<div class="text-xs text-red-400">${escapeHtml(error.message || "Could not load history.")}</div>`; }
+}
+
+async function loadAdminWorkforceProfile(userId) {
+    const modal = document.getElementById("admin-workforce-profile-modal");
+    const body = document.getElementById("admin-workforce-profile-body");
+    const saveButton = document.getElementById("admin-workforce-profile-save");
+    if (!modal || !body) return;
+    modal.classList.remove("hidden"); modal.classList.add("flex");
+    body.innerHTML = `<div class="text-sm text-zinc-500">Loading workforce profile...</div>`;
+    if (saveButton) saveButton.disabled = true;
+    try {
+        const response = await fetch(`/api/admin/workforce/${Number(userId)}`, { method: "GET", credentials: "same-origin", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load workforce profile.");
+        renderAdminWorkforceProfile(data);
+        if (saveButton) saveButton.disabled = false;
     } catch (error) {
+        body.innerHTML = `<div class="text-sm text-red-400">${escapeHtml(error.message || "Could not load workforce profile.")}</div>`;
+    }
+}
 
-        hideLoader();
-
-        message.innerText =
-            "Connection error with server.";
-
-        message.className =
-            "text-xs font-mono mt-4 text-red-400";
+async function saveAdminWorkforceProfile() {
+    if (!activeAdminWorkforceProfile?.user?.id) return;
+    const message = document.getElementById("admin-workforce-profile-message");
+    if (message) { message.innerText = "Saving profile..."; message.className = "text-xs font-mono text-zinc-500 min-h-[18px]"; }
+    const value = id => document.getElementById(id)?.value ?? "";
+    const numeric = id => value(id) === "" ? null : Number(value(id));
+    const payload = {
+        profile: {
+            display_name: value("wp-display-name"), country: value("wp-country"), region: value("wp-region"), city: value("wp-city"),
+            timezone: value("wp-timezone"), onboarding_status: value("wp-onboarding-status")
+        },
+        details: {
+            workforce_type: value("wp-workforce-type"),
+            dialects: value("wp-dialects"), domain_expertise: value("wp-domain-expertise"), experience_summary: value("wp-experience"),
+            availability_hours_per_week: numeric("wp-hours"), availability_status: value("wp-availability-status"), preferred_shift: value("wp-preferred-shift"),
+            worker_tier: value("wp-worker-tier"), qualification_status: value("wp-qualification-status"), qualification_score: numeric("wp-qualification-score"),
+            qualification_notes: value("wp-qualification-notes"), project_eligibility: value("wp-project-eligibility"), test_scores: value("wp-test-scores")
+        },
+        skills: value("wp-skills"),
+        languages: value("wp-languages")
+    };
+    const paymentValues = {
+        payment_method: value("wp-payment-method"), upi_id: value("wp-upi-id"), bank_account_name: value("wp-bank-account-name"), bank_account_number: value("wp-bank-account-number"),
+        bank_ifsc: value("wp-bank-ifsc").toUpperCase(), bank_name: value("wp-bank-name"), bank_branch: value("wp-bank-branch"), bank_account_type: value("wp-bank-account-type")
+    };
+    if (Object.values(paymentValues).some(item => String(item || "").trim())) Object.assign(payload.details, paymentValues);
+    try {
+        const response = await fetch(`/api/admin/workforce/${Number(activeAdminWorkforceProfile.user.id)}`, { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not save workforce profile.");
+        activeAdminWorkforceProfile = data;
+        renderAdminWorkforceProfile(data);
+        if (message) { message.innerText = "Profile saved."; message.className = "text-xs font-mono text-emerald-400 min-h-[18px]"; }
+        await loadAdminWorkforceUsers();
+    } catch (error) {
+        if (message) { message.innerText = error.message || "Could not save workforce profile."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; }
     }
 }
 
 
 /* ============================================================
-   CONTRIBUTOR SUBMISSIONS
+   ADMIN OPERATIONS CONTROL CENTER
 ============================================================ */
 
+let adminOperationsSnapshot = null;
+let adminWorkforceUsers = [];
 
+function formatAdminDate(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString([], {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
+function formatReservationRemaining(seconds) {
+    if (seconds === null || seconds === undefined) return "—";
+    const total = Math.max(0, Number(seconds) || 0);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+}
+
+async function loadAdminWorkforceUsers() {
+    const tbody = document.getElementById("admin-workforce-users-body");
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-zinc-600">Loading workforce...</td></tr>`;
+    try {
+        const response = await fetch("/api/admin/users", { method: "GET", credentials: "same-origin", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load workforce.");
+        adminWorkforceUsers = Array.isArray(data.users) ? data.users : [];
+        filterAdminWorkforceUsers();
+    } catch (error) {
+        console.error("Admin workforce error:", error);
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-400">${escapeHtml(error.message || "Could not load workforce.")}</td></tr>`;
+    }
+}
+
+function filterAdminWorkforceUsers() {
+    const search = (document.getElementById("admin-workforce-search")?.value || "").trim().toLowerCase();
+    const role = document.getElementById("admin-workforce-role-filter")?.value || "all";
+    const filtered = adminWorkforceUsers.filter(user => {
+        const matchesSearch = !search || String(user.email || "").toLowerCase().includes(search);
+        const matchesRole = role === "all" || String(user.role || "").toLowerCase() === role;
+        return matchesSearch && matchesRole;
+    });
+    renderAdminWorkforceUsers(filtered);
+}
+
+function renderAdminWorkforceUsers(users) {
+    const tbody = document.getElementById("admin-workforce-users-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    if (!users.length) { tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-zinc-600">No matching users.</td></tr>`; return; }
+    const currentEmail = (localStorage.getItem("kelyvo_user_email") || "").toLowerCase();
+    users.forEach(user => {
+        const role = String(user.role || "contributor").toLowerCase();
+        const status = String(user.status || "active").toLowerCase();
+        const isSelf = String(user.email || "").toLowerCase() === currentEmail;
+        const statusClass = status === "active" ? "text-emerald-400" : "text-red-400";
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td class="p-4"><div class="text-white">${escapeHtml(user.email || "Unknown")}</div><div class="text-[10px] text-zinc-600 mt-1">ID #${escapeHtml(user.id ?? "—")}</div></td>
+            <td class="p-4"><select onchange="changeAdminUserRole(${Number(user.id)}, this.value)" class="bg-[#030303] border border-zinc-800 rounded-md px-2 py-1.5 text-[10px] uppercase" ${isSelf ? "disabled" : ""}>
+                <option value="contributor" ${role === "contributor" ? "selected" : ""}>Contributor</option>
+                <option value="qa" ${role === "qa" ? "selected" : ""}>QA</option>
+                <option value="admin" ${role === "admin" ? "selected" : ""}>Admin</option>
+            </select></td>
+            <td class="p-4 ${statusClass} uppercase">${escapeHtml(status)}</td>
+            <td class="p-4 text-zinc-300">${escapeHtml(user.tasks_today ?? 0)}</td>
+            <td class="p-4 text-zinc-300">${escapeHtml(user.tasks_passed_qa ?? 0)}</td>
+            <td class="p-4 text-zinc-300">₹${Number(user.earnings ?? 0).toFixed(2)}</td>
+            <td class="p-4 text-right">
+                <div class="flex justify-end items-center gap-2">
+                    <button type="button" onclick="openAdminWorkforceProfile(${Number(user.id)})" class="border border-zinc-700 rounded-md px-3 py-1.5 text-[10px] uppercase hover:border-zinc-500 transition">Profile</button>
+                    <button type="button" onclick="toggleAdminUserStatus(${Number(user.id)}, '${status}')" class="border border-zinc-800 rounded-md px-3 py-1.5 text-[10px] uppercase ${isSelf ? "opacity-30 cursor-not-allowed" : ""}" ${isSelf ? "disabled" : ""}>${status === "active" ? "Suspend" : "Activate"}</button>
+                </div>
+            </td>`;
+        tbody.appendChild(row);
+    });
+}
+
+function toggleAdminCreateUser(force) {
+    const panel = document.getElementById("admin-create-user-panel");
+    if (!panel) return;
+    const show = typeof force === "boolean" ? force : panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", !show);
+    if (!show) { const m = document.getElementById("admin-create-user-message"); if (m) m.innerText = ""; }
+}
+
+async function createAdminManagedUser(event) {
+    event.preventDefault();
+    const message = document.getElementById("admin-create-user-message");
+    if (message) { message.innerText = "Creating user..."; message.className = "mt-3 text-xs font-mono min-h-[18px] text-zinc-400"; }
+    const email = document.getElementById("admin-create-user-email")?.value.trim();
+    const password = document.getElementById("admin-create-user-password")?.value || "";
+    const role = document.getElementById("admin-create-user-role")?.value || "contributor";
+    try {
+        const response = await fetch("/api/admin/users", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, role }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not create user.");
+        if (message) { message.innerText = `Created ${data.email} as ${String(data.role || role).toUpperCase()}.`; message.className = "mt-3 text-xs font-mono min-h-[18px] text-emerald-400"; }
+        document.getElementById("admin-create-user-email").value = "";
+        document.getElementById("admin-create-user-password").value = "";
+        await loadAdminWorkforceUsers(); await loadAdminOperations();
+    } catch (error) {
+        if (message) { message.innerText = error.message || "Could not create user."; message.className = "mt-3 text-xs font-mono min-h-[18px] text-red-400"; }
+    }
+}
+
+async function changeAdminUserRole(userId, role) {
+    try {
+        const response = await fetch(`/api/admin/users/${Number(userId)}`, { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not update user role.");
+        await loadAdminWorkforceUsers(); await loadAdminOperations();
+    } catch (error) { alert(error.message || "Could not update user role."); await loadAdminWorkforceUsers(); }
+}
+
+async function toggleAdminUserStatus(userId, currentStatus) {
+    const nextStatus = String(currentStatus || "active").toLowerCase() === "active" ? "suspended" : "active";
+    try {
+        const response = await fetch(`/api/admin/users/${Number(userId)}`, { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: nextStatus }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not update user status.");
+        await loadAdminWorkforceUsers(); await loadAdminOperations();
+    } catch (error) { alert(error.message || "Could not update user status."); await loadAdminWorkforceUsers(); }
+}
+
+async function loadAdminInterestPools() {
+    const body = document.getElementById("admin-interest-pool-body");
+    if (!body) return;
+    body.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-zinc-600">Loading contributor preferences...</td></tr>`;
+    try {
+        const interest = document.getElementById("admin-interest-pool-interest")?.value || "all";
+        const language = document.getElementById("admin-interest-pool-language")?.value || "all";
+        const q = document.getElementById("admin-interest-pool-search")?.value?.trim() || "";
+        const params = new URLSearchParams({ interest, language, q });
+        const response = await fetch(`/api/admin/workforce/interest-pools?${params.toString()}`, { method: "GET", credentials: "same-origin", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load contributor interest pools.");
+        const interestSelect = document.getElementById("admin-interest-pool-interest");
+        const languageSelect = document.getElementById("admin-interest-pool-language");
+        if (interestSelect && interestSelect.options.length <= 1) { interestSelect.innerHTML = `<option value="all">All work interests</option>` + (data.catalog?.interests || []).map(item => `<option value="${escapeHtml(item.slug)}">${escapeHtml(item.name)}</option>`).join(""); interestSelect.value = interest; }
+        if (languageSelect && languageSelect.options.length <= 1) { languageSelect.innerHTML = `<option value="all">All languages</option>` + (data.catalog?.languages || []).map(item => `<option value="${escapeHtml(item.code)}">${escapeHtml(item.name)}</option>`).join(""); languageSelect.value = language; }
+        const matching = document.getElementById("admin-interest-pool-matching-count"); const preferences = document.getElementById("admin-interest-pool-preferences-count");
+        if (matching) matching.innerText = String(data.summary?.matching_contributors ?? 0); if (preferences) preferences.innerText = String(data.summary?.contributors_with_preferences ?? 0);
+        const rows = Array.isArray(data.contributors) ? data.contributors : [];
+        body.innerHTML = rows.length ? "" : `<tr><td colspan="3" class="p-6 text-center text-zinc-600">No matching contributors.</td></tr>`;
+        rows.forEach(item => { const interests = (item.interests || []).map(x => x.name || x.slug || "").filter(Boolean).join(", "); const languages = (item.languages || []).map(x => x.name || x.code || "").filter(Boolean).join(", "); const row = document.createElement("tr"); row.innerHTML = `<td class="p-4 text-white">${escapeHtml(item.email || "Unknown")}</td><td class="p-4 text-zinc-400">${escapeHtml(interests || "—")}</td><td class="p-4 text-zinc-400">${escapeHtml(languages || "—")}</td>`; body.appendChild(row); });
+    } catch (error) { body.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-red-400">${escapeHtml(error.message || "Could not load contributor interest pools.")}</td></tr>`; }
+}
+
+function loadAdminInterestPoolsDebounced() { window.clearTimeout(contributorPreferencesDebounceTimer); contributorPreferencesDebounceTimer = window.setTimeout(() => loadAdminInterestPools(), 220); }
+
+async function loadAdminOperations() {
+    const errorBox = document.getElementById("admin-ops-error");
+    if (errorBox) {
+        errorBox.classList.add("hidden");
+        errorBox.innerText = "";
+    }
+
+    try {
+        const response = await fetch("/api/admin/operations", {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data?.detail || "Could not load Admin Operations.");
+        }
+
+        adminOperationsSnapshot = data;
+        renderAdminOperations(data);
+    } catch (error) {
+        console.error("Admin operations error:", error);
+        if (errorBox) {
+            errorBox.innerText = error.message || "Could not load Admin Operations.";
+            errorBox.classList.remove("hidden");
+        }
+    }
+}
+
+function renderAdminOperations(data) {
+    const roles = data.role_counts || {};
+    const tasks = data.task_counts || {};
+    const submissions = data.submission_counts || {};
+
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = String(value ?? 0);
+    };
+
+    setText("admin-stat-contributors", roles.contributors || 0);
+    setText("admin-stat-qa", roles.qa || 0);
+    setText("admin-stat-reserved", tasks.reserved || 0);
+    setText("admin-stat-pending", submissions.pending_qa || 0);
+    setText("admin-stat-total-tasks", tasks.total || 0);
+    setText("admin-stat-available", tasks.available || 0);
+    setText("admin-stat-returned", submissions.returned || 0);
+    setText("admin-stat-passed", submissions.passed || 0);
+
+    renderAdminReservations(data.active_reservations || []);
+    renderAdminUsers(data.users || []);
+    renderAdminProjects(data.projects || []);
+    renderAdminRecent(data.recent_submissions || []);
+}
+
+function renderAdminReservations(items) {
+    const tbody = document.getElementById("admin-reservations-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!items.length) {
+        tbody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-zinc-600">No active reservations.</td></tr>`;
+        return;
+    }
+
+    items.forEach(item => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td class="p-4">${escapeHtml(item.contributor_email || "Unknown")}</td>
+            <td class="p-4">
+                <div class="text-white">${escapeHtml(item.task_title || `Task #${item.task_id ?? ""}`)}</div>
+                <div class="text-[10px] text-zinc-600 mt-1">${escapeHtml(String(item.task_type || "").toUpperCase())}</div>
+            </td>
+            <td class="p-4">
+                <div class="text-amber-400">${escapeHtml(formatReservationRemaining(item.seconds_remaining))}</div>
+                <div class="text-[10px] text-zinc-600 mt-1">${escapeHtml(formatAdminDate(item.expires_at))}</div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function renderAdminUsers(users) {
+    const tbody = document.getElementById("admin-users-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!users.length) {
+        tbody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-zinc-600">No users found.</td></tr>`;
+        return;
+    }
+
+    users.forEach(user => {
+        const active = user.active_task;
+        const activity = active
+            ? `Active: #${escapeHtml(active.task_id ?? "?")}`
+            : `Today: ${escapeHtml(user.tasks_today ?? 0)}`;
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td class="p-4 text-white">${escapeHtml(user.email || "Unknown")}</td>
+            <td class="p-4 text-zinc-300">${escapeHtml(String(user.role || "").toUpperCase())}</td>
+            <td class="p-4 text-right text-zinc-500">${activity}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function renderAdminProjects(projects) {
+    const tbody = document.getElementById("admin-projects-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!projects.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-zinc-600">No projects found.</td></tr>`;
+        return;
+    }
+
+    projects.forEach(project => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td class="p-4">
+                <div class="text-white">${escapeHtml(project.name || "Unnamed Project")}</div>
+                <div class="text-[10px] text-zinc-600 mt-1">${escapeHtml(project.code || "")}</div>
+            </td>
+            <td class="p-4 text-zinc-400">${escapeHtml(String(project.modality || "").toUpperCase())}</td>
+            <td class="p-4 text-zinc-400">${escapeHtml(project.status || "")}</td>
+            <td class="p-4 text-right text-white">${escapeHtml(project.task_count ?? 0)}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function renderAdminRecent(items) {
+    const tbody = document.getElementById("admin-recent-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!items.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-zinc-600">No recent workflow activity.</td></tr>`;
+        return;
+    }
+
+    items.forEach(item => {
+        const status = String(item.status || "").toUpperCase();
+        const statusClass = status === "PASSED"
+            ? "text-emerald-400"
+            : status === "FAILED"
+                ? "text-red-400"
+                : "text-amber-400";
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td class="p-4">#${escapeHtml(item.id)}</td>
+            <td class="p-4">${escapeHtml(item.contributor_email || "Unassigned")}</td>
+            <td class="p-4">
+                <div class="text-white">${escapeHtml(item.task_title || "")}</div>
+                <div class="text-[10px] text-zinc-600 mt-1">${escapeHtml(String(item.task_type || "").toUpperCase())}</div>
+            </td>
+            <td class="p-4 ${statusClass}">${escapeHtml(status)}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
 
 
 /* ============================================================
@@ -5635,34 +6833,31 @@ function renderQAImageAnnotations(
             "qa-box-overlay"
         );
 
-    if (
-        !image ||
-        !canvas ||
-        !boxOverlay
-    ) {
+    if (!image || !canvas || !boxOverlay) {
         return;
     }
 
-    const displayWidth =
-        Math.max(
-            1,
-            image.clientWidth
-        );
+    const displayWidth = Math.max(
+        1,
+        image.clientWidth
+    );
 
-    const displayHeight =
-        Math.max(
-            1,
-            image.clientHeight
-        );
+    const displayHeight = Math.max(
+        1,
+        image.clientHeight
+    );
 
-    canvas.width =
-        displayWidth;
+    /*
+     * Keep the canvas in CSS/display pixels. The overlay is positioned over
+     * the displayed image, so the annotation coordinates are mapped directly
+     * into this coordinate system. This avoids double-scaling on Retina Macs.
+     */
+    canvas.width = displayWidth;
+    canvas.height = displayHeight;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
 
-    canvas.height =
-        displayHeight;
-
-    const context =
-        canvas.getContext("2d");
+    const context = canvas.getContext("2d");
 
     if (!context) {
         return;
@@ -5686,33 +6881,215 @@ function renderQAImageAnnotations(
 
     rows.forEach(
         entry => {
-            const item =
-                entry.item || {};
+            const item = entry.item || {};
+            const value = item.value || {};
+            const type = String(
+                item.type || ""
+            ).toLowerCase();
 
-            const value =
-                item.value || {};
+            /*
+             * IMPORTANT: The real KELYVO submissions shown in QA store the
+             * brush path inside value.touches[].relativePoints. The parent
+             * value contains format/stroke metadata, while each touch holds
+             * the actual stroke. Some Label Studio payloads can expose a
+             * direct value.relativePoints array too, so support both shapes.
+             */
+            const strokeArrays = [];
 
-            const type =
-                String(
-                    item.type || ""
-                ).toLowerCase();
+            if (
+                Array.isArray(value.relativePoints) &&
+                value.relativePoints.length >= 4
+            ) {
+                strokeArrays.push(
+                    value.relativePoints
+                );
+            }
 
+            if (
+                Array.isArray(value.touches)
+            ) {
+                value.touches.forEach(
+                    touch => {
+                        if (
+                            touch &&
+                            Array.isArray(
+                                touch.relativePoints
+                            ) &&
+                            touch.relativePoints.length >= 4
+                        ) {
+                            strokeArrays.push(
+                                touch.relativePoints
+                            );
+                        }
+                    }
+                );
+            }
+
+            if (strokeArrays.length) {
+                const rawStrokeWidth = Number(
+                    value.strokeWidth
+                );
+
+                const rawRelativeStrokeWidth = Number(
+                    value.relativeStrokeWidth
+                );
+
+                /*
+                 * Prefer Label Studio's relative stroke width when present.
+                 * Otherwise derive the displayed width from source pixels.
+                 */
+                let lineWidth = 4;
+
+                if (
+                    Number.isFinite(rawRelativeStrokeWidth) &&
+                    rawRelativeStrokeWidth > 0
+                ) {
+                    lineWidth = Math.max(
+                        2,
+                        (rawRelativeStrokeWidth / 100) * displayWidth
+                    );
+                } else if (
+                    Number.isFinite(rawStrokeWidth) &&
+                    rawStrokeWidth > 0
+                ) {
+                    const sourceWidth = Number(
+                        item.original_width ||
+                        value.original_width ||
+                        image.naturalWidth ||
+                        displayWidth
+                    );
+
+                    lineWidth = Math.max(
+                        2,
+                        (rawStrokeWidth /
+                            Math.max(1, sourceWidth)) *
+                            displayWidth
+                    );
+                }
+
+                context.save();
+                context.strokeStyle =
+                    "rgba(251, 191, 36, 0.92)";
+                context.fillStyle =
+                    "rgba(251, 191, 36, 0.92)";
+                context.lineWidth = lineWidth;
+                context.lineCap = "round";
+                context.lineJoin = "round";
+
+                let renderedStroke = false;
+
+                strokeArrays.forEach(
+                    relativePoints => {
+                        const pointCount = Math.floor(
+                            relativePoints.length / 2
+                        );
+
+                        context.beginPath();
+
+                        let firstPoint = null;
+                        let lastPoint = null;
+
+                        for (
+                            let pointIndex = 0;
+                            pointIndex < pointCount;
+                            pointIndex += 1
+                        ) {
+                            const xPercent = Number(
+                                relativePoints[
+                                    pointIndex * 2
+                                ]
+                            );
+                            const yPercent = Number(
+                                relativePoints[
+                                    pointIndex * 2 + 1
+                                ]
+                            );
+
+                            if (
+                                !Number.isFinite(xPercent) ||
+                                !Number.isFinite(yPercent)
+                            ) {
+                                continue;
+                            }
+
+                            const x =
+                                (xPercent / 100) *
+                                displayWidth;
+                            const y =
+                                (yPercent / 100) *
+                                displayHeight;
+
+                            if (!firstPoint) {
+                                firstPoint = { x, y };
+                                context.moveTo(x, y);
+                            } else {
+                                context.lineTo(x, y);
+                            }
+
+                            lastPoint = { x, y };
+                        }
+
+                        if (
+                            firstPoint &&
+                            lastPoint
+                        ) {
+                            context.stroke();
+
+                            /* Ensure even a very short stroke is visible. */
+                            const radius = Math.max(
+                                1,
+                                lineWidth / 2
+                            );
+
+                            context.beginPath();
+                            context.arc(
+                                firstPoint.x,
+                                firstPoint.y,
+                                radius,
+                                0,
+                                Math.PI * 2
+                            );
+                            context.fill();
+
+                            context.beginPath();
+                            context.arc(
+                                lastPoint.x,
+                                lastPoint.y,
+                                radius,
+                                0,
+                                Math.PI * 2
+                            );
+                            context.fill();
+
+                            renderedStroke = true;
+                        }
+                    }
+                );
+
+                context.restore();
+
+                if (renderedStroke) {
+                    brushCount += 1;
+                }
+
+                return;
+            }
+
+            /* Packed Label Studio RLE brush mask. */
             if (
                 type === "brushlabels" ||
                 value.format === "rle" ||
                 Array.isArray(value.rle)
             ) {
-                const width =
-                    Number(
-                        item.original_width ||
-                        value.original_width
-                    );
+                const width = Number(
+                    item.original_width ||
+                    value.original_width
+                );
 
-                const height =
-                    Number(
-                        item.original_height ||
-                        value.original_height
-                    );
+                const height = Number(
+                    item.original_height ||
+                    value.original_height
+                );
 
                 if (
                     Number.isFinite(width) &&
@@ -5748,17 +7125,11 @@ function renderQAImageAnnotations(
                 return;
             }
 
-            const x =
-                Number(value.x);
-
-            const y =
-                Number(value.y);
-
-            const boxWidth =
-                Number(value.width);
-
-            const boxHeight =
-                Number(value.height);
+            /* Existing rectangle/box renderer. */
+            const x = Number(value.x);
+            const y = Number(value.y);
+            const boxWidth = Number(value.width);
+            const boxHeight = Number(value.height);
 
             if (
                 !Number.isFinite(x) ||
@@ -5769,48 +7140,31 @@ function renderQAImageAnnotations(
                 return;
             }
 
-            const box =
-                document.createElement("div");
+            const box = document.createElement("div");
+            box.className = "qa-box";
+            box.style.left = `${x}%`;
+            box.style.top = `${y}%`;
+            box.style.width = `${boxWidth}%`;
+            box.style.height = `${boxHeight}%`;
 
-            box.className =
-                "qa-box";
-
-            box.style.left =
-                `${x}%`;
-
-            box.style.top =
-                `${y}%`;
-
-            box.style.width =
-                `${boxWidth}%`;
-
-            box.style.height =
-                `${boxHeight}%`;
-
-            const labels =
-                getAnnotationLabels(
-                    value
-                );
+            const labels = getAnnotationLabels(value);
 
             if (labels.length) {
-                const label =
-                    document.createElement("div");
-
-                label.className =
-                    "qa-box-label";
-
-                label.innerText =
-                    labels.join(", ");
-
+                const label = document.createElement("div");
+                label.className = "qa-box-label";
+                label.innerText = labels.join(", ");
                 box.appendChild(label);
             }
 
-            boxOverlay.appendChild(
-                box
-            );
+            boxOverlay.appendChild(box);
         }
     );
 
+    /*
+     * The previous renderer hid the canvas unless brushCount > 0, but the
+     * relativePoints branch never incremented brushCount. Keep this explicit
+     * so both RLE and raw-stroke brushes are visible.
+     */
     canvas.style.display =
         brushCount > 0
             ? "block"
