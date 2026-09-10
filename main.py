@@ -4667,8 +4667,7 @@ def _snapshot_workforce_record(db, user_id, version_type, changed_by_user_id=Non
 
 REQUIRED_CONTRIBUTOR_PROFILE_FIELDS = {
     "display_name": "Full name", "country": "Country", "region": "State / region",
-    "city": "City", "timezone": "Timezone", "workforce_type": "Workforce type",
-    "languages": "At least one language", "skills": "At least one skill / capability",
+    "city": "City", "timezone": "Timezone",
     "availability_status": "Availability status", "availability_hours_per_week": "Hours per week",
     "experience_summary": "Experience summary", "payment_method": "Payment method",
     "payment_details": "Payment details",
@@ -4714,8 +4713,6 @@ def _get_contributor_profile_completion(db, user, skills_override=None, language
         "region": bool(str(getattr(profile, "region", "") or "").strip()),
         "city": bool(str(getattr(profile, "city", "") or "").strip()),
         "timezone": bool(str(getattr(profile, "timezone", "") or "").strip()),
-        "workforce_type": bool(str(detail_map.get("workforce_type") or "").strip()),
-        "languages": bool(languages), "skills": bool(skills),
         "availability_status": str(detail_map.get("availability_status") or "").strip().lower() in {"available", "part-time", "full-time", "on-demand", "weekends", "evenings", "flexible"},
         "availability_hours_per_week": hours_valid,
         "experience_summary": bool(str(detail_map.get("experience_summary") or "").strip()),
@@ -4880,12 +4877,11 @@ async def update_contributor_own_profile(request: Request, db: Session = Depends
     profile_locked = bool(detail_map.get("profile_locked"))
     payment_locked = bool(detail_map.get("payment_locked"))
 
+    # Skills and languages are now collected through Contributor Work Preferences.
+    # Keep accepting these legacy fields from older/admin clients for backwards
+    # compatibility, but they are no longer required for workforce-profile completion.
     submitted_skills = _split_csv(skills) if skills is not None else None
     submitted_languages = _split_csv(languages) if languages is not None else None
-    if not profile_locked and submitted_skills is not None and not submitted_skills:
-        raise HTTPException(status_code=400, detail="At least one skill / capability is required.")
-    if not profile_locked and submitted_languages is not None and not submitted_languages:
-        raise HTTPException(status_code=400, detail="At least one language is required.")
 
     profile_fields = ("display_name", "country", "region", "city", "timezone")
     profile_detail_fields = ("workforce_type", "dialects", "domain_expertise", "experience_summary", "availability_hours_per_week", "availability_status", "preferred_shift")

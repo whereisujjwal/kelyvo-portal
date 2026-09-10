@@ -1681,34 +1681,8 @@ button {
             </section>
 
             <section class="bg-[#050505] border border-zinc-800 rounded-xl p-5">
-                <div class="text-sm text-white mb-4">Capabilities</div>
+                <div class="text-sm text-white mb-4">Professional Details</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Workforce Type *</label>
-                        <select id="cp-workforce-type" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
-                            <option value="">Select workforce type</option>
-                            <option>Annotation / Labeling</option>
-                            <option>AI / LLM Evaluation</option>
-                            <option>Audio / Speech</option>
-                            <option>Image / Video</option>
-                            <option>Data Collection</option>
-                            <option>Translation / Localization</option>
-                            <option>Mixed / Multi-service</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Languages *</label>
-                        <input id="cp-languages" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Hindi, English, Gujarati">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Skills / Capabilities *</label>
-                        <input id="cp-skills" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Image annotation, transcription, LLM evaluation">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Dialects / Regional Variants</label>
-                        <input id="cp-dialects" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Awadhi, Bhojpuri">
-                    </div>
                     <div class="md:col-span-2">
                         <label class="block text-[10px] uppercase text-zinc-500 mb-2">Domain Expertise</label>
                         <input id="cp-domain-expertise" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Retail, healthcare, finance, education...">
@@ -2987,7 +2961,7 @@ let contributorProfileModalForced = false;
 function updateContributorProfileProgress(completion) {
     const complete = Boolean(completion?.complete);
     const completed = Number(completion?.completed_fields || 0);
-    const required = Number(completion?.required_fields || 11);
+    const required = Number(completion?.required_fields || 10);
     const percent = required ? Math.round((completed / required) * 100) : 0;
     const status = document.getElementById("contributor-profile-completion-status");
     const label = document.getElementById("contributor-profile-progress-label");
@@ -3017,7 +2991,7 @@ function setContributorPaymentMethod() {
 
 function setContributorSectionDisabled(prefix, disabled) {
     const ids = prefix === "profile"
-        ? ["cp-display-name","cp-country","cp-region","cp-city","cp-timezone","cp-workforce-type","cp-languages","cp-skills","cp-dialects","cp-domain-expertise","cp-availability-status","cp-hours","cp-preferred-shift","cp-experience"]
+        ? ["cp-display-name","cp-country","cp-region","cp-city","cp-timezone","cp-domain-expertise","cp-availability-status","cp-hours","cp-preferred-shift","cp-experience"]
         : ["cp-payment-method","cp-upi-id","cp-bank-account-name","cp-bank-account-number","cp-bank-ifsc","cp-bank-name","cp-bank-branch","cp-bank-account-type"];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = disabled; });
 }
@@ -3025,12 +2999,9 @@ function setContributorSectionDisabled(prefix, disabled) {
 function fillContributorProfileModal(data) {
     const profile = data.profile || {};
     const details = data.details || {};
-    const skills = Array.isArray(data.skills) ? data.skills.map(item => item.name || "").filter(Boolean).join(", ") : "";
-    const languages = Array.isArray(data.languages) ? data.languages.map(item => item.name || "").filter(Boolean).join(", ") : "";
     const valueMap = {
         "cp-display-name": profile.display_name || "", "cp-country": profile.country || "India", "cp-region": profile.region || "",
-        "cp-city": profile.city || "", "cp-timezone": profile.timezone || "Asia/Kolkata", "cp-workforce-type": details.workforce_type || "",
-        "cp-languages": languages, "cp-skills": skills, "cp-dialects": Array.isArray(details.dialects) ? details.dialects.join(", ") : "",
+        "cp-city": profile.city || "", "cp-timezone": profile.timezone || "Asia/Kolkata",
         "cp-domain-expertise": details.domain_expertise || "", "cp-availability-status": details.availability_status || "",
         "cp-hours": details.availability_hours_per_week ?? "", "cp-preferred-shift": details.preferred_shift || "",
         "cp-experience": details.experience_summary || "", "cp-payment-method": details.payment_method || "", "cp-upi-id": details.upi_id || "",
@@ -3121,26 +3092,12 @@ async function saveContributorProfile(event) {
     const profilePayload = profileLocked ? {} : { display_name: value("cp-display-name"), country: value("cp-country"), region: value("cp-region"), city: value("cp-city"), timezone: value("cp-timezone") };
     const detailPayload = {};
     if (!profileLocked) {
-        Object.assign(detailPayload, { workforce_type: value("cp-workforce-type"), dialects: value("cp-dialects"), domain_expertise: value("cp-domain-expertise"), experience_summary: value("cp-experience"), availability_hours_per_week: value("cp-hours") === "" ? null : Number(value("cp-hours")), availability_status: value("cp-availability-status"), preferred_shift: value("cp-preferred-shift") });
+        Object.assign(detailPayload, { domain_expertise: value("cp-domain-expertise"), experience_summary: value("cp-experience"), availability_hours_per_week: value("cp-hours") === "" ? null : Number(value("cp-hours")), availability_status: value("cp-availability-status"), preferred_shift: value("cp-preferred-shift") });
     }
     if (!paymentLocked) {
         Object.assign(detailPayload, { payment_method: value("cp-payment-method"), upi_id: value("cp-upi-id"), bank_account_name: value("cp-bank-account-name"), bank_account_number: value("cp-bank-account-number"), bank_ifsc: value("cp-bank-ifsc").toUpperCase(), bank_name: value("cp-bank-name"), bank_branch: value("cp-bank-branch"), bank_account_type: value("cp-bank-account-type") });
     }
     const payload = { profile: profilePayload, details: detailPayload };
-    if (!profileLocked) {
-        payload.skills = value("cp-skills");
-        payload.languages = value("cp-languages");
-        if (!payload.skills.trim()) {
-            if (message) { message.innerText = "At least one skill / capability is required."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; }
-            if (saveButton) saveButton.disabled = false;
-            return;
-        }
-        if (!payload.languages.trim()) {
-            if (message) { message.innerText = "At least one language is required."; message.className = "text-xs font-mono text-red-400 min-h-[18px]"; }
-            if (saveButton) saveButton.disabled = false;
-            return;
-        }
-    }
     try {
         const response = await fetch("/api/contributor/profile", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const data = await response.json();
