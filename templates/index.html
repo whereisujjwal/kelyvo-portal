@@ -671,6 +671,10 @@ button {
                     Contributor
                 </option>
 
+                <option value="data_collector">
+                    Data Collector
+                </option>
+
                 <option value="qa">
                     QA
                 </option>
@@ -1203,6 +1207,295 @@ button {
 </section>
 
 
+
+<!-- ============================================================
+     DATA COLLECTOR WORKSPACE
+============================================================ -->
+
+<section
+    id="data-collector-section"
+    class="hidden space-y-10"
+>
+
+    <div class="flex flex-col xl:flex-row justify-between gap-8 pb-8 border-b border-zinc-800">
+        <div>
+            <span class="inline-flex items-center gap-2 text-[11px] font-mono text-zinc-400 uppercase tracking-widest bg-zinc-900/50 border border-zinc-800 px-3 py-1 rounded-full">
+                KELYVO Data Collection
+            </span>
+            <h2 class="text-4xl font-light mt-4">
+                Data Collector Workspace
+            </h2>
+            <p class="text-sm text-zinc-400 mt-2">
+                A dedicated workspace for KELYVO's data-collection workforce. Collection opportunities will appear here when KELYVO assigns approved work.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-[#080808] border border-zinc-800 px-4 py-3 rounded-xl">
+                <span class="block text-[10px] uppercase text-zinc-500">Opportunities</span>
+                <span id="dc-stat-opportunities" class="text-xl">0</span>
+            </div>
+            <div class="bg-[#080808] border border-zinc-800 px-4 py-3 rounded-xl">
+                <span class="block text-[10px] uppercase text-zinc-500">Assignments</span>
+                <span id="dc-stat-assignments" class="text-xl">0</span>
+            </div>
+            <div class="bg-[#080808] border border-zinc-800 px-4 py-3 rounded-xl">
+                <span class="block text-[10px] uppercase text-zinc-500">Pending Review</span>
+                <span id="dc-stat-pending" class="text-xl text-amber-400">0</span>
+            </div>
+            <div class="bg-[#080808] border border-zinc-800 px-4 py-3 rounded-xl">
+                <span class="block text-[10px] uppercase text-zinc-500">Approved</span>
+                <span id="dc-stat-approved" class="text-xl text-emerald-400">0</span>
+            </div>
+        </div>
+    </div>
+
+    <section class="kelyvo-card p-7 border-amber-500/30">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+            <div>
+                <span class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">
+                    Data Collector Onboarding
+                </span>
+                <h3 class="text-2xl font-light mt-2">My Data Collection Profile</h3>
+                <p class="text-xs text-zinc-500 mt-2 max-w-2xl">
+                    This profile is separate from the Annotator workforce profile. Complete it once; after submission KELYVO locks it while the profile is reviewed.
+                </p>
+            </div>
+            <span id="data-collector-profile-status" class="text-[10px] uppercase text-amber-400 font-mono">
+                Profile required
+            </span>
+        </div>
+
+        <div id="data-collector-profile-locked-summary" class="hidden mt-6 border border-zinc-800 rounded-xl bg-[#050505] p-5">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <div id="data-collector-profile-locked-title" class="text-sm text-zinc-200">Profile submitted</div>
+                    <div id="data-collector-profile-locked-copy" class="text-xs text-zinc-500 mt-1">Your profile is locked while KELYVO reviews it.</div>
+                </div>
+                <span id="data-collector-profile-locked-badge" class="kelyvo-pill text-emerald-400 border-emerald-500/20">Profile locked</span>
+            </div>
+        </div>
+
+        <form id="data-collector-profile-form" class="mt-6 space-y-8" onsubmit="saveDataCollectorProfile(event)">
+            <section>
+                <div class="text-sm text-zinc-200 mb-4">Identity & Location</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Full name *</label>
+                        <input id="dc-display-name" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Your full name">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Country *</label>
+                        <input id="dc-country" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" value="India">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">State / region *</label>
+                        <input id="dc-region" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Madhya Pradesh">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">City *</label>
+                        <input id="dc-city" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Bhopal">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">PIN code *</label>
+                        <input id="dc-pin-code" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="462001">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Area type *</label>
+                        <select id="dc-area-type" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                            <option value="">Select area type</option>
+                            <option value="urban">Urban</option>
+                            <option value="semi-urban">Semi-Urban</option>
+                            <option value="rural">Rural</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Timezone *</label>
+                        <input id="dc-timezone" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" value="Asia/Kolkata">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Languages *</label>
+                        <input id="dc-languages" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="Hindi, English, Bhojpuri">
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <div class="text-sm text-zinc-200 mb-4">Collection Capabilities *</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3" id="dc-capability-options">
+                    <div class="kelyvo-preference-option"><input id="dc-cap-voice" type="checkbox" value="voice_recording"><label for="dc-cap-voice"><div class="text-sm text-zinc-200">Voice Recording</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-cap-image" type="checkbox" value="image_collection"><label for="dc-cap-image"><div class="text-sm text-zinc-200">Image Collection</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-cap-video" type="checkbox" value="video_collection"><label for="dc-cap-video"><div class="text-sm text-zinc-200">Video Collection</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-cap-speech" type="checkbox" value="speech_collection"><label for="dc-cap-speech"><div class="text-sm text-zinc-200">Speech Collection</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-cap-text" type="checkbox" value="text_collection"><label for="dc-cap-text"><div class="text-sm text-zinc-200">Text Collection</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-cap-face" type="checkbox" value="face_data_collection"><label for="dc-cap-face"><div class="text-sm text-zinc-200">Face Data Collection</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-cap-environment" type="checkbox" value="environment_data_collection"><label for="dc-cap-environment"><div class="text-sm text-zinc-200">Environment Data</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-cap-local-language" type="checkbox" value="local_language_recording"><label for="dc-cap-local-language"><div class="text-sm text-zinc-200">Local Language Recording</div></label></div>
+                </div>
+            </section>
+
+            <section>
+                <div class="text-sm text-zinc-200 mb-4">Device Availability *</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="dc-device-options">
+                    <div class="kelyvo-preference-option"><input id="dc-device-android" type="checkbox" value="android_smartphone"><label for="dc-device-android"><div class="text-sm text-zinc-200">Android Smartphone</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-device-iphone" type="checkbox" value="iphone"><label for="dc-device-iphone"><div class="text-sm text-zinc-200">iPhone</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-device-dslr" type="checkbox" value="dslr_camera"><label for="dc-device-dslr"><div class="text-sm text-zinc-200">DSLR Camera</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-device-mirrorless" type="checkbox" value="mirrorless_camera"><label for="dc-device-mirrorless"><div class="text-sm text-zinc-200">Mirrorless Camera</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-device-laptop" type="checkbox" value="laptop_desktop"><label for="dc-device-laptop"><div class="text-sm text-zinc-200">Laptop / Desktop</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-device-mic" type="checkbox" value="external_microphone"><label for="dc-device-mic"><div class="text-sm text-zinc-200">External Microphone</div></label></div>
+                </div>
+            </section>
+
+            <section>
+                <div class="text-sm text-zinc-200 mb-4">Collection Environment *</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3" id="dc-environment-options">
+                    <div class="kelyvo-preference-option"><input id="dc-env-home" type="checkbox" value="home"><label for="dc-env-home"><div class="text-sm text-zinc-200">Home</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-env-outdoor" type="checkbox" value="outdoor"><label for="dc-env-outdoor"><div class="text-sm text-zinc-200">Outdoor</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-env-studio" type="checkbox" value="studio_office"><label for="dc-env-studio"><div class="text-sm text-zinc-200">Studio / Office</div></label></div>
+                    <div class="kelyvo-preference-option"><input id="dc-env-field" type="checkbox" value="field_location"><label for="dc-env-field"><div class="text-sm text-zinc-200">Field Location</div></label></div>
+                </div>
+            </section>
+
+            <section>
+                <div class="text-sm text-zinc-200 mb-4">Availability & Experience</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Availability *</label>
+                        <select id="dc-availability-status" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                            <option value="">Select availability</option>
+                            <option value="available">Available</option>
+                            <option value="part-time">Part-time</option>
+                            <option value="full-time">Full-time</option>
+                            <option value="on-demand">On-demand</option>
+                            <option value="weekends">Weekends</option>
+                            <option value="evenings">Evenings</option>
+                            <option value="flexible">Flexible</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Hours per week *</label>
+                        <input id="dc-hours" type="number" min="1" max="168" step="0.5" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="20">
+                    </div>
+                </div>
+                <div class="mt-5">
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">Collection experience *</label>
+                    <textarea id="dc-experience" rows="4" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-3 text-sm" placeholder="Tell KELYVO about relevant data collection or field experience."></textarea>
+                </div>
+            </section>
+
+            <section>
+                <div class="text-sm text-zinc-200 mb-4">Payment Information *</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Payment method *</label>
+                        <select id="dc-payment-method" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" onchange="toggleDataCollectorPaymentFields()">
+                            <option value="">Select payment method</option>
+                            <option value="upi">UPI</option>
+                            <option value="bank_account">Bank Account</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="dc-upi-fields" class="hidden mt-5">
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">UPI ID *</label>
+                    <input id="dc-upi-id" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm" placeholder="name@upi">
+                </div>
+                <div id="dc-bank-fields" class="hidden mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Account holder name *</label>
+                        <input id="dc-bank-account-name" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Account number *</label>
+                        <input id="dc-bank-account-number" type="password" autocomplete="off" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">IFSC *</label>
+                        <input id="dc-bank-ifsc" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm uppercase" maxlength="11">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Bank name *</label>
+                        <input id="dc-bank-name" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Branch *</label>
+                        <input id="dc-bank-branch" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Account type *</label>
+                        <select id="dc-bank-account-type" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                            <option value="">Select account type</option>
+                            <option value="savings">Savings</option>
+                            <option value="current">Current</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="border border-zinc-800 rounded-xl p-5 bg-[#050505]">
+                <div class="text-sm text-zinc-200 mb-3">Consent & Declaration *</div>
+                <label class="flex gap-3 items-start text-xs text-zinc-400">
+                    <input id="dc-consent" type="checkbox" class="mt-0.5" required>
+                    <span>I confirm that the information above is accurate and I agree to collect and submit data according to KELYVO instructions and quality requirements. I understand that submitted collection data may be reviewed and used for KELYVO client projects.</span>
+                </label>
+                <div class="text-[10px] text-zinc-600 mt-3">Consent version v1.0 will be recorded with your submission.</div>
+            </section>
+
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div id="data-collector-profile-message" class="text-xs font-mono min-h-[18px]"></div>
+                <button id="data-collector-profile-save" type="submit" class="bg-white text-black text-xs px-7 py-3 rounded-lg uppercase tracking-wider">
+                    Save & Submit Profile
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <section class="kelyvo-card p-7">
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Future Collection Work</div>
+                <h3 class="text-2xl font-light mt-2">Collection Opportunities</h3>
+                <p class="text-xs text-zinc-500 mt-2 max-w-2xl">
+                    KELYVO is keeping this layer flexible on purpose. No fixed audio, image or video workflow is being forced into the platform yet.
+                </p>
+            </div>
+            <span class="kelyvo-pill">Not assigned</span>
+        </div>
+
+        <div class="mt-6 border border-dashed border-zinc-800 rounded-xl p-10 text-center">
+            <div class="text-zinc-500 text-sm">No collection opportunities are assigned to this account yet.</div>
+            <div class="text-zinc-700 text-xs mt-2">When KELYVO starts a real collection workflow, approved opportunities will appear here.</div>
+        </div>
+    </section>
+
+    <section class="kelyvo-card p-7">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <div>
+                <div class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Collection History</div>
+                <h3 class="text-2xl font-light mt-2">My Submissions</h3>
+                <p class="text-xs text-zinc-500 mt-2 max-w-2xl">
+                    Collection submissions follow KELYVO's QA pipeline before they can move forward.
+                </p>
+            </div>
+            <button type="button" onclick="loadDataCollectorSubmissions()" class="text-[10px] uppercase border border-zinc-800 px-4 py-2 rounded-lg">
+                Refresh
+            </button>
+        </div>
+        <div class="mt-6 border border-zinc-800 rounded-xl overflow-hidden">
+            <div class="grid grid-cols-4 text-[10px] uppercase text-zinc-600 font-mono border-b border-zinc-800">
+                <div class="p-4">Status</div>
+                <div class="p-4">Type</div>
+                <div class="p-4">Project</div>
+                <div class="p-4">Updated</div>
+            </div>
+            <div id="data-collector-submissions-body" class="text-xs divide-y divide-zinc-800">
+                <div class="p-8 text-center text-zinc-600">Loading submissions...</div>
+            </div>
+        </div>
+    </section>
+
+</section>
+
+
 <!-- ============================================================
      ADMIN OPERATIONS CONTROL CENTER
 ============================================================ -->
@@ -1281,7 +1574,7 @@ button {
         <div class="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div>
                 <div class="text-sm font-medium text-white">Workforce Management</div>
-                <div class="text-[10px] text-zinc-600 mt-1">Manage KELYVO contributor, QA and admin accounts from one controlled workspace.</div>
+                <div class="text-[10px] text-zinc-600 mt-1">Manage KELYVO contributor, data collector, QA and admin accounts from one controlled workspace.</div>
             </div>
             <button type="button" onclick="toggleAdminCreateUser()" class="text-xs uppercase border border-zinc-700 px-4 py-2.5 rounded-lg hover:border-zinc-500 transition">Add User</button>
         </div>
@@ -1300,6 +1593,7 @@ button {
                     <label class="block text-[10px] uppercase text-zinc-500 mb-2">Role</label>
                     <select id="admin-create-user-role" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
                         <option value="contributor">Contributor</option>
+                        <option value="data_collector">Data Collector</option>
                         <option value="qa">QA</option>
                         <option value="admin">Admin</option>
                     </select>
@@ -1317,6 +1611,7 @@ button {
             <select id="admin-workforce-role-filter" onchange="filterAdminWorkforceUsers()" class="bg-[#030303] border border-zinc-800 rounded-lg px-4 py-2.5 text-xs">
                 <option value="all">All roles</option>
                 <option value="contributor">Contributors</option>
+                <option value="data_collector">Data Collectors</option>
                 <option value="qa">QA</option>
                 <option value="admin">Admins</option>
             </select>
@@ -1334,6 +1629,75 @@ button {
             </table>
         </div>
     </section>
+
+    <section
+        id="admin-data-collector-review-section"
+        class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden"
+    >
+        <div class="px-5 py-4 border-b border-zinc-800 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-5">
+            <div>
+                <div class="text-sm font-medium text-white">Data Collector Verification</div>
+                <div class="text-[10px] text-zinc-600 mt-1">Review collector profiles before they become eligible for future collection opportunities.</div>
+            </div>
+            <div class="flex flex-wrap gap-2 text-[10px] font-mono uppercase">
+                <span class="border border-amber-500/30 text-amber-400 px-3 py-1.5 rounded-full">Pending <span id="admin-dc-count-pending">0</span></span>
+                <span class="border border-blue-500/30 text-blue-400 px-3 py-1.5 rounded-full">Changes <span id="admin-dc-count-changes">0</span></span>
+                <span class="border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-full">Approved <span id="admin-dc-count-approved">0</span></span>
+                <span class="border border-red-500/30 text-red-400 px-3 py-1.5 rounded-full">Rejected <span id="admin-dc-count-rejected">0</span></span>
+            </div>
+        </div>
+
+        <div class="px-5 py-4 border-b border-zinc-800 flex flex-col md:flex-row gap-3">
+            <input id="admin-dc-search" type="search" placeholder="Search collector by name or email..." oninput="filterAdminDataCollectors()" class="flex-1 bg-[#030303] border border-zinc-800 rounded-lg px-4 py-2.5 text-xs">
+            <select id="admin-dc-status-filter" onchange="filterAdminDataCollectors()" class="bg-[#030303] border border-zinc-800 rounded-lg px-4 py-2.5 text-xs">
+                <option value="all">All review statuses</option>
+                <option value="submitted">Pending Review</option>
+                <option value="changes_requested">Changes Requested</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="pending">Incomplete</option>
+            </select>
+            <button type="button" onclick="loadAdminDataCollectorReview()" class="border border-zinc-800 rounded-lg px-4 py-2.5 text-xs uppercase">Refresh</button>
+        </div>
+
+        <div class="overflow-auto max-h-[560px]">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
+                        <th class="p-4">Collector</th>
+                        <th class="p-4">Location</th>
+                        <th class="p-4">Capabilities</th>
+                        <th class="p-4">Devices</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-data-collector-review-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <div id="admin-data-collector-review-modal" class="hidden fixed inset-0 z-[250] bg-black/80 backdrop-blur-sm p-4 md:p-8">
+        <div class="max-w-5xl mx-auto bg-[#080808] border border-zinc-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="px-6 py-5 border-b border-zinc-800 flex items-start justify-between gap-5">
+                <div>
+                    <div class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">Data Collector Review</div>
+                    <h3 id="admin-data-collector-review-title" class="text-2xl font-light mt-2">Review Collector</h3>
+                    <div id="admin-data-collector-review-email" class="text-xs text-zinc-500 font-mono mt-1"></div>
+                </div>
+                <button type="button" onclick="closeAdminDataCollectorReview()" class="border border-zinc-800 rounded-lg px-3 py-2 text-xs uppercase">Close</button>
+            </div>
+            <div id="admin-data-collector-review-content" class="p-6 overflow-auto"></div>
+            <div class="px-6 py-5 border-t border-zinc-800">
+                <div id="admin-data-collector-review-message" class="text-xs font-mono min-h-[18px] mb-4"></div>
+                <div class="flex flex-col sm:flex-row gap-3 justify-end">
+                    <button type="button" onclick="reviewAdminDataCollectorAction('request_changes')" class="border border-blue-500/40 text-blue-400 rounded-lg px-5 py-3 text-xs uppercase">Request Changes</button>
+                    <button type="button" onclick="reviewAdminDataCollectorAction('reject')" class="border border-red-500/40 text-red-400 rounded-lg px-5 py-3 text-xs uppercase">Reject</button>
+                    <button type="button" onclick="reviewAdminDataCollectorAction('approve')" class="bg-white text-black rounded-lg px-5 py-3 text-xs uppercase">Approve Collector</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <section class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
         <div class="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4"><div><div class="text-sm font-medium text-white">Contributor Interest Pools</div><div class="text-[10px] text-zinc-600 mt-1">Filter the contributor database by work interest and language. These are preferences, not qualifications.</div></div><div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto"><select id="admin-interest-pool-interest" onchange="loadAdminInterestPools()" class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[210px]"><option value="all">All work interests</option></select><select id="admin-interest-pool-language" onchange="loadAdminInterestPools()" class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[190px]"><option value="all">All languages</option></select><input id="admin-interest-pool-search" oninput="loadAdminInterestPoolsDebounced()" type="search" placeholder="Search email..." class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[190px]"></div></div>
@@ -1613,6 +1977,50 @@ button {
         </div>
 
     </div>
+
+    <section class="kelyvo-card p-7">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <div>
+                <div class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">Data Collection QA</div>
+                <h3 class="text-2xl font-light mt-2">Collection Submission Queue</h3>
+                <p class="text-xs text-zinc-500 mt-2 max-w-2xl">
+                    Generic collection submissions are kept separate from annotation QA. No storage provider or fixed collection template is required at this stage.
+                </p>
+            </div>
+            <button type="button" onclick="loadQADataCollectionQueue()" class="text-[10px] uppercase border border-zinc-800 px-4 py-2 rounded-lg">
+                Refresh
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
+            <div class="border border-amber-500/20 bg-amber-500/[0.03] rounded-xl px-5 py-4">
+                <div class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">Pending QA</div>
+                <div id="dc-qa-count-pending" class="text-2xl text-white mt-1 font-light">0</div>
+            </div>
+            <div class="border border-emerald-500/20 bg-emerald-500/[0.03] rounded-xl px-5 py-4">
+                <div class="text-[10px] uppercase tracking-widest text-emerald-400 font-mono">Approved</div>
+                <div id="dc-qa-count-approved" class="text-2xl text-white mt-1 font-light">0</div>
+            </div>
+            <div class="border border-red-500/20 bg-red-500/[0.03] rounded-xl px-5 py-4">
+                <div class="text-[10px] uppercase tracking-widest text-red-400 font-mono">Rejected</div>
+                <div id="dc-qa-count-rejected" class="text-2xl text-white mt-1 font-light">0</div>
+            </div>
+        </div>
+
+        <div id="qa-data-collection-queue" class="mt-6 border border-zinc-800 rounded-xl overflow-hidden">
+            <div class="grid grid-cols-6 text-[10px] uppercase text-zinc-600 font-mono border-b border-zinc-800">
+                <div class="p-4">ID</div>
+                <div class="p-4">Collector</div>
+                <div class="p-4">Type</div>
+                <div class="p-4">Project</div>
+                <div class="p-4">Status</div>
+                <div class="p-4 text-right">Actions</div>
+            </div>
+            <div id="qa-data-collection-queue-body" class="text-xs divide-y divide-zinc-800">
+                <div class="p-8 text-center text-zinc-600">Loading collection submissions...</div>
+            </div>
+        </div>
+    </section>
 
 </section>
 
@@ -2467,7 +2875,7 @@ function switchTab(mode) {
         registerTab.className =
             "flex-1 pb-3 text-white border-b-2 border-white uppercase";
 
-        // Registration has exactly three account types.
+        // Registration supports Contributor, Data Collector, QA and Admin accounts.
         roleContainer.classList.remove(
             "hidden"
         );
@@ -2715,6 +3123,7 @@ function initializeAuthenticatedUI(user) {
     // can never leave another role's controls visible.
     [
         "dashboard-section",
+        "data-collector-section",
         "admin-ops-section",
         "admin-section"
     ].forEach(function (id) {
@@ -2749,6 +3158,7 @@ function initializeAuthenticatedUI(user) {
         loadAdminOperations();
         loadAdminWorkforceUsers();
         loadAdminInterestPools();
+        loadAdminDataCollectorReview();
 
         if (!window.kelyvoAdminOpsRefreshTimer) {
             window.kelyvoAdminOpsRefreshTimer =
@@ -2764,6 +3174,7 @@ function initializeAuthenticatedUI(user) {
                             !adminOpsSection.classList.contains("hidden")
                         ) {
                             loadAdminOperations();
+                            loadAdminDataCollectorReview();
                         }
                     },
                     2500
@@ -2791,6 +3202,7 @@ function initializeAuthenticatedUI(user) {
         );
 
         loadAdminQueue();
+        loadQADataCollectionQueue();
 
         if (!window.kelyvoQAQueueRefreshTimer) {
             window.kelyvoQAQueueRefreshTimer =
@@ -2806,11 +3218,42 @@ function initializeAuthenticatedUI(user) {
                             !adminSection.classList.contains("hidden")
                         ) {
                             loadAdminQueue();
+                            loadQADataCollectionQueue();
                         }
                     },
                     2500
                 );
         }
+
+    } else if (user.role === "data_collector") {
+
+        document.getElementById(
+            "dashboard-section"
+        ).classList.add(
+            "hidden"
+        );
+
+        document.getElementById(
+            "admin-section"
+        ).classList.add(
+            "hidden"
+        );
+
+        document.getElementById(
+            "admin-ops-section"
+        ).classList.add(
+            "hidden"
+        );
+
+        document.getElementById(
+            "data-collector-section"
+        ).classList.remove(
+            "hidden"
+        );
+
+        loadDataCollectorSummary();
+        loadDataCollectorProfile();
+        loadDataCollectorSubmissions();
 
     } else {
 
@@ -2866,6 +3309,378 @@ function initializeAuthenticatedUI(user) {
     }
 }
 
+
+
+let dataCollectorProfileState = null;
+
+function getCheckedValues(containerId) {
+    return Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(el => el.value);
+}
+
+function setCheckedValues(containerId, values) {
+    const selected = new Set(Array.isArray(values) ? values.map(String) : []);
+    document.querySelectorAll(`#${containerId} input[type="checkbox"]`).forEach(el => {
+        el.checked = selected.has(String(el.value));
+    });
+}
+
+function setDataCollectorProfileLocked(locked, onboardingState = "pending") {
+    const form = document.getElementById("data-collector-profile-form");
+    const collapsedSummary = document.getElementById("data-collector-profile-locked-summary");
+
+    if (form) {
+        form.classList.toggle("hidden", Boolean(locked));
+        form.querySelectorAll("input, select, textarea, button").forEach(el => {
+            el.disabled = Boolean(locked);
+        });
+    }
+
+    const button = document.getElementById("data-collector-profile-save");
+    if (button) {
+        button.disabled = Boolean(locked);
+        button.innerText = locked ? "Profile Locked" : "Save & Submit Profile";
+        button.classList.toggle("opacity-50", Boolean(locked));
+        button.classList.toggle("cursor-not-allowed", Boolean(locked));
+    }
+
+    if (collapsedSummary) {
+        collapsedSummary.classList.toggle("hidden", !locked);
+    }
+
+    const summaryTitle = document.getElementById("data-collector-profile-locked-title");
+    const summaryCopy = document.getElementById("data-collector-profile-locked-copy");
+    const summaryBadge = document.getElementById("data-collector-profile-locked-badge");
+
+    const state = String(onboardingState || "pending").toLowerCase();
+    if (locked) {
+        if (state === "approved") {
+            if (summaryTitle) summaryTitle.innerText = "Profile approved";
+            if (summaryCopy) summaryCopy.innerText = "Your profile is approved. KELYVO will show eligible collection opportunities here when available.";
+            if (summaryBadge) {
+                summaryBadge.innerText = "Approved";
+                summaryBadge.className = "kelyvo-pill text-emerald-400 border-emerald-500/20";
+            }
+        } else {
+            if (summaryTitle) summaryTitle.innerText = "Profile submitted";
+            if (summaryCopy) summaryCopy.innerText = "Your profile is locked while KELYVO reviews it. There is nothing else to complete here right now.";
+            if (summaryBadge) {
+                summaryBadge.innerText = "Awaiting review";
+                summaryBadge.className = "kelyvo-pill text-amber-400 border-amber-500/20";
+            }
+        }
+    }
+}
+
+function toggleDataCollectorPaymentFields() {
+    const method = document.getElementById("dc-payment-method")?.value || "";
+    const upi = document.getElementById("dc-upi-fields");
+    const bank = document.getElementById("dc-bank-fields");
+    if (upi) upi.classList.toggle("hidden", method !== "upi");
+    if (bank) bank.classList.toggle("hidden", method !== "bank_account");
+}
+
+function renderDataCollectorProfile(data) {
+    const profile = data?.profile || {};
+    const setValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value ?? "";
+    };
+
+    setValue("dc-display-name", profile.display_name || "");
+    setValue("dc-country", profile.country || "India");
+    setValue("dc-region", profile.region || "");
+    setValue("dc-city", profile.city || "");
+    setValue("dc-pin-code", profile.pin_code || "");
+    setValue("dc-area-type", profile.area_type || "");
+    setValue("dc-timezone", profile.timezone || "Asia/Kolkata");
+    setValue("dc-languages", Array.isArray(profile.languages) ? profile.languages.join(", ") : "");
+    setCheckedValues("dc-capability-options", profile.collection_capabilities || []);
+    setCheckedValues("dc-device-options", profile.device_availability || []);
+    setCheckedValues("dc-environment-options", profile.collection_environment || []);
+    setValue("dc-availability-status", profile.availability_status || "");
+    setValue("dc-hours", profile.availability_hours_per_week ?? "");
+    setValue("dc-experience", profile.experience_summary || "");
+    setValue("dc-payment-method", profile.payment_method || "");
+    setValue("dc-upi-id", profile.upi_id || "");
+    setValue("dc-bank-account-name", profile.bank_account_name || "");
+    setValue("dc-bank-account-number", profile.bank_account_number || "");
+    setValue("dc-bank-ifsc", profile.bank_ifsc || "");
+    setValue("dc-bank-name", profile.bank_name || "");
+    setValue("dc-bank-branch", profile.bank_branch || "");
+    setValue("dc-bank-account-type", profile.bank_account_type || "");
+
+    const consent = document.getElementById("dc-consent");
+    if (consent) consent.checked = Boolean(profile.consent_accepted);
+
+    toggleDataCollectorPaymentFields();
+
+    const locked = Boolean(profile.profile_locked || profile.payment_locked);
+    const status = document.getElementById("data-collector-profile-status");
+    if (status) {
+        const state = String(profile.onboarding_status || "pending").toLowerCase();
+        if (locked && state === "submitted") {
+            status.innerText = "Submitted — awaiting KELYVO review";
+            status.className = "text-[10px] uppercase text-amber-400 font-mono";
+        } else if (state === "changes_requested") {
+            status.innerText = "Changes requested — profile unlocked";
+            status.className = "text-[10px] uppercase text-blue-400 font-mono";
+        } else if (state === "approved") {
+            status.innerText = "Approved for future collection work";
+            status.className = "text-[10px] uppercase text-emerald-400 font-mono";
+        } else if (state === "rejected") {
+            status.innerText = "Rejected — profile unlocked for correction";
+            status.className = "text-[10px] uppercase text-red-400 font-mono";
+        } else {
+            status.innerText = "Profile required";
+            status.className = "text-[10px] uppercase text-amber-400 font-mono";
+        }
+    }
+
+    setDataCollectorProfileLocked(locked, profile.onboarding_status || "pending");
+}
+
+async function loadDataCollectorProfile() {
+    try {
+        const response = await fetch("/api/data-collector/profile", {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data?.detail || "Could not load Data Collector profile.");
+        }
+        dataCollectorProfileState = data;
+        renderDataCollectorProfile(data);
+    } catch (error) {
+        const message = document.getElementById("data-collector-profile-message");
+        if (message) {
+            message.innerText = error.message || "Could not load Data Collector profile.";
+            message.className = "text-xs font-mono text-red-400 min-h-[18px]";
+        }
+    }
+}
+
+async function saveDataCollectorProfile(event) {
+    event.preventDefault();
+
+    const message = document.getElementById("data-collector-profile-message");
+    const button = document.getElementById("data-collector-profile-save");
+
+    if (dataCollectorProfileState?.profile?.profile_locked || dataCollectorProfileState?.profile?.payment_locked) {
+        if (message) {
+            message.innerText = "Your profile is locked. Contact a KELYVO Admin for changes.";
+            message.className = "text-xs font-mono text-amber-400 min-h-[18px]";
+        }
+        return;
+    }
+
+    if (message) {
+        message.innerText = "Saving and submitting...";
+        message.className = "text-xs font-mono text-zinc-500 min-h-[18px]";
+    }
+    if (button) button.disabled = true;
+
+    const value = id => document.getElementById(id)?.value?.trim() || "";
+
+    const profile = {
+        display_name: value("dc-display-name"),
+        country: value("dc-country"),
+        region: value("dc-region"),
+        city: value("dc-city"),
+        pin_code: value("dc-pin-code"),
+        area_type: value("dc-area-type"),
+        timezone: value("dc-timezone"),
+        languages: value("dc-languages"),
+        collection_capabilities: getCheckedValues("dc-capability-options"),
+        device_availability: getCheckedValues("dc-device-options"),
+        collection_environment: getCheckedValues("dc-environment-options"),
+        availability_status: value("dc-availability-status"),
+        availability_hours_per_week: document.getElementById("dc-hours")?.value || "",
+        experience_summary: value("dc-experience"),
+        payment_method: value("dc-payment-method"),
+        upi_id: value("dc-upi-id"),
+        bank_account_name: value("dc-bank-account-name"),
+        bank_account_number: value("dc-bank-account-number"),
+        bank_ifsc: value("dc-bank-ifsc").toUpperCase(),
+        bank_name: value("dc-bank-name"),
+        bank_branch: value("dc-bank-branch"),
+        bank_account_type: value("dc-bank-account-type"),
+        consent_accepted: Boolean(document.getElementById("dc-consent")?.checked),
+    };
+
+    try {
+        const response = await fetch("/api/data-collector/profile", {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({profile})
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data?.detail || "Could not save Data Collector profile.");
+        }
+
+        dataCollectorProfileState = data;
+        renderDataCollectorProfile(data);
+
+        if (message) {
+            if (data.submitted) {
+                message.innerText = "Profile submitted and locked. KELYVO will review it before collection work is assigned.";
+                message.className = "text-xs font-mono text-emerald-400 min-h-[18px]";
+            } else {
+                const missing = Array.isArray(data.missing) ? data.missing.join(", ") : "required fields";
+                message.innerText = `Please complete: ${missing}`;
+                message.className = "text-xs font-mono text-amber-400 min-h-[18px]";
+            }
+        }
+    } catch (error) {
+        if (message) {
+            message.innerText = error.message || "Could not save Data Collector profile.";
+            message.className = "text-xs font-mono text-red-400 min-h-[18px]";
+        }
+    } finally {
+        if (button && !(dataCollectorProfileState?.profile?.profile_locked || dataCollectorProfileState?.profile?.payment_locked)) {
+            button.disabled = false;
+        }
+    }
+}
+
+async function loadDataCollectorSummary() {
+    try {
+        const response = await fetch("/api/data-collector/summary", {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data?.detail || "Could not load Data Collector workspace.");
+        }
+
+        const setText = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = String(value ?? 0);
+        };
+
+        setText("dc-stat-opportunities", data.opportunities);
+        setText("dc-stat-assignments", data.active_assignments);
+        setText("dc-stat-pending", data.submissions_pending);
+        setText("dc-stat-approved", data.submissions_approved);
+    } catch (error) {
+        console.warn("KELYVO Data Collector summary error:", error);
+    }
+}
+
+
+let dataCollectorSubmissionsState = [];
+
+async function loadDataCollectorSubmissions() {
+    const body = document.getElementById("data-collector-submissions-body");
+    if (!body) return;
+    body.innerHTML = `<div class="p-8 text-center text-zinc-600">Loading submissions...</div>`;
+    try {
+        const response = await fetch("/api/data-collector/submissions", {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load collection submissions.");
+        dataCollectorSubmissionsState = Array.isArray(data.submissions) ? data.submissions : [];
+        if (!dataCollectorSubmissionsState.length) {
+            body.innerHTML = `<div class="p-8 text-center text-zinc-600">No collection submissions yet. Approved collection opportunities will appear here when KELYVO assigns work.</div>`;
+            return;
+        }
+        body.innerHTML = dataCollectorSubmissionsState.map(item => {
+            const status = String(item.status || "pending_qa").toLowerCase();
+            const statusClass = status === "approved" ? "text-emerald-400" : status === "rejected" ? "text-red-400" : "text-amber-400";
+            const statusLabel = status === "pending_qa" ? "Pending QA" : status.replaceAll("_", " ");
+            return `<div class="grid grid-cols-4">
+                <div class="p-4 ${statusClass} uppercase text-[10px]">${escapeHtml(statusLabel)}</div>
+                <div class="p-4 text-zinc-300">${escapeHtml(item.submission_type || "Unclassified")}</div>
+                <div class="p-4 text-zinc-500">${escapeHtml(item.project_id || "—")}</div>
+                <div class="p-4 text-zinc-600 font-mono text-[10px]">${escapeHtml(formatAdminDate(item.updated_at || item.created_at) || "—")}</div>
+            </div>`;
+        }).join("");
+    } catch (error) {
+        body.innerHTML = `<div class="p-8 text-center text-red-400">${escapeHtml(error.message || "Could not load collection submissions.")}</div>`;
+    }
+}
+
+let qaDataCollectionSubmissions = [];
+
+async function loadQADataCollectionQueue() {
+    const body = document.getElementById("qa-data-collection-queue-body");
+    if (!body) return;
+    body.innerHTML = `<div class="p-8 text-center text-zinc-600">Loading collection submissions...</div>`;
+    try {
+        const response = await fetch("/api/qa/data-collection-submissions?status=all", {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load Data Collection QA queue.");
+        qaDataCollectionSubmissions = Array.isArray(data.submissions) ? data.submissions : [];
+
+        const counts = { pending_qa: 0, approved: 0, rejected: 0 };
+        qaDataCollectionSubmissions.forEach(item => {
+            const status = String(item.status || "pending_qa").toLowerCase();
+            if (counts[status] !== undefined) counts[status] += 1;
+        });
+        const pending = document.getElementById("dc-qa-count-pending");
+        const approved = document.getElementById("dc-qa-count-approved");
+        const rejected = document.getElementById("dc-qa-count-rejected");
+        if (pending) pending.innerText = counts.pending_qa;
+        if (approved) approved.innerText = counts.approved;
+        if (rejected) rejected.innerText = counts.rejected;
+
+        if (!qaDataCollectionSubmissions.length) {
+            body.innerHTML = `<div class="p-8 text-center text-zinc-600">No data collection submissions are in the pipeline yet.</div>`;
+            return;
+        }
+
+        body.innerHTML = qaDataCollectionSubmissions.map(item => {
+            const status = String(item.status || "pending_qa").toLowerCase();
+            const statusClass = status === "approved" ? "text-emerald-400" : status === "rejected" ? "text-red-400" : "text-amber-400";
+            const actions = status === "pending_qa"
+                ? `<div class="flex justify-end gap-2"><button type="button" onclick="reviewQADataCollectionSubmission('${escapeHtml(item.id)}','approve')" class="border border-emerald-500/30 text-emerald-300 rounded-md px-3 py-1.5 text-[10px] uppercase">Approve</button><button type="button" onclick="reviewQADataCollectionSubmission('${escapeHtml(item.id)}','reject')" class="border border-red-500/30 text-red-300 rounded-md px-3 py-1.5 text-[10px] uppercase">Reject</button></div>`
+                : `<span class="text-zinc-700">—</span>`;
+            return `<div class="grid grid-cols-6 items-center">
+                <div class="p-4 font-mono text-zinc-500">${escapeHtml(item.id)}</div>
+                <div class="p-4 text-zinc-300">${escapeHtml(item.collector_email || "—")}</div>
+                <div class="p-4 text-zinc-400">${escapeHtml(item.submission_type || "Unclassified")}</div>
+                <div class="p-4 text-zinc-500">${escapeHtml(item.project_id || "—")}</div>
+                <div class="p-4 ${statusClass} uppercase text-[10px]">${escapeHtml(status === "pending_qa" ? "Pending QA" : status)}</div>
+                <div class="p-4 text-right">${actions}</div>
+            </div>`;
+        }).join("");
+    } catch (error) {
+        body.innerHTML = `<div class="p-8 text-center text-red-400">${escapeHtml(error.message || "Could not load Data Collection QA queue.")}</div>`;
+    }
+}
+
+async function reviewQADataCollectionSubmission(submissionId, action) {
+    let notes = "";
+    if (action === "reject") {
+        notes = window.prompt("QA note for rejecting this collection submission:") || "";
+        if (!notes.trim()) return;
+    }
+    try {
+        const response = await fetch(`/api/qa/data-collection-submissions/${encodeURIComponent(submissionId)}/review`, {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action, notes: notes.trim() })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not update collection QA status.");
+        await loadQADataCollectionQueue();
+    } catch (error) {
+        window.alert(error.message || "Could not update collection QA status.");
+    }
+}
 
 let contributorPreferencesState = null;
 let contributorPreferencesModalForced = false;
@@ -5149,6 +5964,7 @@ function renderAdminWorkforceUsers(users) {
             <td class="p-4"><div class="text-white">${escapeHtml(user.email || "Unknown")}</div><div class="text-[10px] text-zinc-600 mt-1">ID #${escapeHtml(user.id ?? "—")}</div></td>
             <td class="p-4"><select onchange="changeAdminUserRole(${Number(user.id)}, this.value)" class="bg-[#030303] border border-zinc-800 rounded-md px-2 py-1.5 text-[10px] uppercase" ${isSelf ? "disabled" : ""}>
                 <option value="contributor" ${role === "contributor" ? "selected" : ""}>Contributor</option>
+                <option value="data_collector" ${role === "data_collector" ? "selected" : ""}>Data Collector</option>
                 <option value="qa" ${role === "qa" ? "selected" : ""}>QA</option>
                 <option value="admin" ${role === "admin" ? "selected" : ""}>Admin</option>
             </select></td>
@@ -5211,6 +6027,193 @@ async function toggleAdminUserStatus(userId, currentStatus) {
         if (!response.ok) throw new Error(data?.detail || "Could not update user status.");
         await loadAdminWorkforceUsers(); await loadAdminOperations();
     } catch (error) { alert(error.message || "Could not update user status."); await loadAdminWorkforceUsers(); }
+}
+
+
+let adminDataCollectors = [];
+let activeAdminDataCollector = null;
+
+function formatDataCollectorStatus(status) {
+    const state = String(status || "pending").toLowerCase();
+    const map = {
+        submitted: ["Pending Review", "text-amber-400", "border-amber-500/30"],
+        changes_requested: ["Changes Requested", "text-blue-400", "border-blue-500/30"],
+        approved: ["Approved", "text-emerald-400", "border-emerald-500/30"],
+        rejected: ["Rejected", "text-red-400", "border-red-500/30"],
+        pending: ["Incomplete", "text-zinc-400", "border-zinc-700"]
+    };
+    return map[state] || map.pending;
+}
+
+function loadAdminDataCollectorReview() {
+    const body = document.getElementById("admin-data-collector-review-body");
+    if (!body) return;
+    fetch("/api/admin/data-collectors", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store"
+    })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) throw new Error(data?.detail || "Could not load Data Collector reviews.");
+            return data;
+        })
+        .then(data => {
+            adminDataCollectors = Array.isArray(data.data_collectors) ? data.data_collectors : [];
+            updateAdminDataCollectorCounts(adminDataCollectors);
+            filterAdminDataCollectors();
+        })
+        .catch(error => {
+            console.error("Admin Data Collector review error:", error);
+            body.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-400">${escapeHtml(error.message || "Could not load Data Collector reviews.")}</td></tr>`;
+        });
+}
+
+function updateAdminDataCollectorCounts(items) {
+    const counts = { pending: 0, changes_requested: 0, approved: 0, rejected: 0 };
+    (items || []).forEach(item => {
+        const state = String(item.status || "pending").toLowerCase();
+        if (counts[state] !== undefined) counts[state] += 1;
+    });
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = String(value);
+    };
+    set("admin-dc-count-pending", counts.submitted + counts.pending);
+    set("admin-dc-count-changes", counts.changes_requested);
+    set("admin-dc-count-approved", counts.approved);
+    set("admin-dc-count-rejected", counts.rejected);
+}
+
+function filterAdminDataCollectors() {
+    const body = document.getElementById("admin-data-collector-review-body");
+    if (!body) return;
+    const search = String(document.getElementById("admin-dc-search")?.value || "").trim().toLowerCase();
+    const statusFilter = String(document.getElementById("admin-dc-status-filter")?.value || "all").toLowerCase();
+    const filtered = adminDataCollectors.filter(item => {
+        const haystack = [item.display_name, item.email, item.city, item.region, ...(item.languages || [])].join(" ").toLowerCase();
+        const matchesSearch = !search || haystack.includes(search);
+        const matchesStatus = statusFilter === "all" || String(item.status || "pending").toLowerCase() === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+    renderAdminDataCollectors(filtered);
+}
+
+function renderAdminDataCollectors(items) {
+    const body = document.getElementById("admin-data-collector-review-body");
+    if (!body) return;
+    if (!items.length) {
+        body.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-zinc-600">No Data Collectors match this review filter.</td></tr>`;
+        return;
+    }
+    body.innerHTML = items.map(item => {
+        const [label, color, border] = formatDataCollectorStatus(item.status);
+        const location = [item.city, item.region, item.country].filter(Boolean).join(", ") || "—";
+        const capabilities = (item.capabilities || []).map(value => String(value).replaceAll("_", " ")).join(", ") || "—";
+        const devices = (item.devices || []).map(value => String(value).replaceAll("_", " ")).join(", ") || "—";
+        const canReview = ["submitted", "changes_requested", "rejected", "pending"].includes(String(item.status || "pending").toLowerCase());
+        return `
+            <tr class="hover:bg-white/[0.02]">
+                <td class="p-4">
+                    <div class="text-white">${escapeHtml(item.display_name || "Unnamed collector")}</div>
+                    <div class="text-[10px] text-zinc-600 mt-1">${escapeHtml(item.email || "")}</div>
+                </td>
+                <td class="p-4 text-zinc-400">${escapeHtml(location)}</td>
+                <td class="p-4 text-zinc-400 max-w-[280px]">${escapeHtml(capabilities)}</td>
+                <td class="p-4 text-zinc-400 max-w-[220px]">${escapeHtml(devices)}</td>
+                <td class="p-4"><span class="inline-flex border ${border} ${color} px-2.5 py-1 rounded-full text-[10px] uppercase">${escapeHtml(label)}</span></td>
+                <td class="p-4 text-right">
+                    <button type="button" onclick="openAdminDataCollectorReview(${Number(item.id)})" class="border border-zinc-700 rounded-md px-3 py-1.5 text-[10px] uppercase hover:border-zinc-500 transition">${canReview ? "Review" : "View"}</button>
+                </td>
+            </tr>`;
+    }).join("");
+}
+
+function openAdminDataCollectorReview(userId) {
+    const item = adminDataCollectors.find(entry => Number(entry.id) === Number(userId));
+    if (!item) return;
+    activeAdminDataCollector = item;
+    const modal = document.getElementById("admin-data-collector-review-modal");
+    const title = document.getElementById("admin-data-collector-review-title");
+    const email = document.getElementById("admin-data-collector-review-email");
+    const content = document.getElementById("admin-data-collector-review-content");
+    const message = document.getElementById("admin-data-collector-review-message");
+    const [label, color] = formatDataCollectorStatus(item.status);
+    if (title) title.innerText = item.display_name || "Data Collector";
+    if (email) email.innerText = item.email || "";
+    if (message) message.innerText = "";
+    if (content) {
+        const capabilities = (item.capabilities || []).map(value => String(value).replaceAll("_", " ")).join(", ") || "—";
+        const devices = (item.devices || []).map(value => String(value).replaceAll("_", " ")).join(", ") || "—";
+        const environments = (item.environments || []).map(value => String(value).replaceAll("_", " ")).join(", ") || "—";
+        const languages = (item.languages || []).join(", ") || "—";
+        const location = [item.city, item.region, item.country].filter(Boolean).join(", ") || "—";
+        const reviewReason = item.review_reason || "";
+        content.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+                <div class="border border-zinc-800 rounded-xl p-4"><div class="text-[10px] uppercase text-zinc-600 font-mono">Review status</div><div class="mt-2 text-sm ${color}">${escapeHtml(label)}</div></div>
+                <div class="border border-zinc-800 rounded-xl p-4"><div class="text-[10px] uppercase text-zinc-600 font-mono">Profile lock</div><div class="mt-2 text-sm">${item.profile_locked ? "Locked" : "Unlocked"}</div></div>
+                <div class="border border-zinc-800 rounded-xl p-4"><div class="text-[10px] uppercase text-zinc-600 font-mono">Payment</div><div class="mt-2 text-sm">${item.payment_method ? `${escapeHtml(item.payment_method)} · ${item.payment_locked ? "Locked" : "Unlocked"}` : "Not set"}</div></div>
+                <div class="border border-zinc-800 rounded-xl p-4"><div class="text-[10px] uppercase text-zinc-600 font-mono">Availability</div><div class="mt-2 text-sm">${escapeHtml(item.availability_status || "—")} · ${escapeHtml(item.availability_hours_per_week ?? "—")} hrs</div></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="border border-zinc-800 rounded-xl p-5"><div class="text-[10px] uppercase text-zinc-500 font-mono">Identity & location</div><div class="mt-4 space-y-2 text-sm"><div><span class="text-zinc-600">Location:</span> ${escapeHtml(location)}</div><div><span class="text-zinc-600">PIN:</span> ${escapeHtml(item.pin_code || "—")}</div><div><span class="text-zinc-600">Area:</span> ${escapeHtml(item.area_type || "—")}</div><div><span class="text-zinc-600">Timezone:</span> ${escapeHtml(item.timezone || "—")}</div></div></div>
+                <div class="border border-zinc-800 rounded-xl p-5"><div class="text-[10px] uppercase text-zinc-500 font-mono">Languages</div><div class="mt-4 text-sm text-zinc-300">${escapeHtml(languages)}</div></div>
+                <div class="border border-zinc-800 rounded-xl p-5"><div class="text-[10px] uppercase text-zinc-500 font-mono">Collection capabilities</div><div class="mt-4 text-sm text-zinc-300 leading-relaxed">${escapeHtml(capabilities)}</div></div>
+                <div class="border border-zinc-800 rounded-xl p-5"><div class="text-[10px] uppercase text-zinc-500 font-mono">Devices</div><div class="mt-4 text-sm text-zinc-300 leading-relaxed">${escapeHtml(devices)}</div></div>
+                <div class="border border-zinc-800 rounded-xl p-5"><div class="text-[10px] uppercase text-zinc-500 font-mono">Collection environment</div><div class="mt-4 text-sm text-zinc-300 leading-relaxed">${escapeHtml(environments)}</div></div>
+                <div class="border border-zinc-800 rounded-xl p-5"><div class="text-[10px] uppercase text-zinc-500 font-mono">Consent</div><div class="mt-4 text-sm ${item.consent_accepted ? "text-emerald-400" : "text-red-400"}">${item.consent_accepted ? `Accepted${item.submitted_at ? ` · submitted ${escapeHtml(formatAdminDate(item.submitted_at))}` : ""}` : "Not accepted"}</div></div>
+                <div class="md:col-span-2 border border-zinc-800 rounded-xl p-5"><div class="text-[10px] uppercase text-zinc-500 font-mono">Experience</div><div class="mt-4 text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">${escapeHtml(item.experience_summary || "—")}</div></div>
+                ${reviewReason ? `<div class="md:col-span-2 border border-zinc-800 rounded-xl p-5 bg-amber-500/[0.03]"><div class="text-[10px] uppercase text-zinc-500 font-mono">Previous review note</div><div class="mt-4 text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">${escapeHtml(reviewReason)}</div></div>` : ""}
+            </div>`;
+    }
+    if (modal) modal.classList.remove("hidden");
+}
+
+function closeAdminDataCollectorReview() {
+    const modal = document.getElementById("admin-data-collector-review-modal");
+    if (modal) modal.classList.add("hidden");
+    activeAdminDataCollector = null;
+}
+
+async function reviewAdminDataCollectorAction(action) {
+    if (!activeAdminDataCollector?.id) return;
+    let reason = "";
+    if (action === "reject") {
+        reason = window.prompt("Reason for rejecting this Data Collector profile:") || "";
+    } else if (action === "request_changes") {
+        reason = window.prompt("What does the Data Collector need to change?") || "";
+    }
+    if ((action === "reject" || action === "request_changes") && !reason.trim()) return;
+
+    const message = document.getElementById("admin-data-collector-review-message");
+    if (message) {
+        message.innerText = action === "approve" ? "Approving collector..." : action === "reject" ? "Rejecting profile..." : "Requesting changes...";
+        message.className = "text-xs font-mono min-h-[18px] mb-4 text-zinc-400";
+    }
+
+    try {
+        const response = await fetch(`/api/admin/data-collectors/${Number(activeAdminDataCollector.id)}/review`, {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action, reason: reason.trim() })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not update Data Collector review.");
+        if (message) {
+            message.innerText = data.profile?.onboarding_status === "approved" ? "Collector approved." : "Review decision saved.";
+            message.className = "text-xs font-mono min-h-[18px] mb-4 text-emerald-400";
+        }
+        await loadAdminDataCollectorReview();
+        await loadAdminWorkforceUsers();
+        window.setTimeout(closeAdminDataCollectorReview, 550);
+    } catch (error) {
+        if (message) {
+            message.innerText = error.message || "Could not update Data Collector review.";
+            message.className = "text-xs font-mono min-h-[18px] mb-4 text-red-400";
+        }
+    }
 }
 
 async function loadAdminInterestPools() {

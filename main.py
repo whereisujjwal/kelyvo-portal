@@ -231,6 +231,65 @@ def _ensure_workforce_profile_detail_schema():
 _ensure_workforce_profile_detail_schema()
 
 
+# ============================================================
+# DATA COLLECTOR PROFILE SCHEMA MIGRATION
+# ============================================================
+
+def _ensure_data_collector_profile_schema():
+    """Apply only additive, non-destructive schema updates for data collectors."""
+    try:
+        existing_columns = {
+            column.get("name")
+            for column in inspect(engine).get_columns("data_collector_profiles")
+        }
+        additive_columns = {
+            "pin_code": "VARCHAR",
+            "area_type": "VARCHAR",
+            "collection_environment": "TEXT",
+            "payment_method": "VARCHAR",
+            "upi_id": "VARCHAR",
+            "bank_account_name": "VARCHAR",
+            "bank_account_number": "VARCHAR",
+            "bank_ifsc": "VARCHAR",
+            "bank_name": "VARCHAR",
+            "bank_branch": "VARCHAR",
+            "bank_account_type": "VARCHAR",
+            "consent_accepted": "BOOLEAN DEFAULT 0",
+            "consent_version": "VARCHAR",
+            "consent_accepted_at": "DATETIME",
+            "profile_locked": "BOOLEAN DEFAULT 0",
+            "payment_locked": "BOOLEAN DEFAULT 0",
+            "profile_locked_at": "DATETIME",
+            "payment_locked_at": "DATETIME",
+            "profile_unlock_reason": "TEXT",
+            "payment_unlock_reason": "TEXT",
+            "submitted_at": "DATETIME",
+            "reviewed_at": "DATETIME",
+            "reviewed_by_user_id": "INTEGER",
+            "rejection_reason": "TEXT",
+        }
+        missing_columns = [
+            (name, definition)
+            for name, definition in additive_columns.items()
+            if name not in existing_columns
+        ]
+        if missing_columns:
+            with engine.begin() as connection:
+                for name, definition in missing_columns:
+                    connection.execute(
+                        text(
+                            f"ALTER TABLE data_collector_profiles "
+                            f"ADD COLUMN {name} {definition}"
+                        )
+                    )
+    except Exception:
+        # Keep startup compatible with the existing database.
+        pass
+
+
+_ensure_data_collector_profile_schema()
+
+
 app = FastAPI(title="KELYVO Portal API")
 
 
@@ -318,7 +377,7 @@ def require_portal_session(request: Request, allowed_roles=None):
             )
 
         current_role = str(user.role or "").strip().lower()
-        if current_role not in {"contributor", "qa", "admin"}:
+        if current_role not in {"contributor", "data_collector", "qa", "admin"}:
             raise HTTPException(
                 status_code=500,
                 detail="This account has an invalid portal role configuration."
@@ -346,6 +405,10 @@ def require_portal_session(request: Request, allowed_roles=None):
 
 def require_contributor_session(request: Request):
     return require_portal_session(request, {"contributor"})
+
+
+def require_data_collector_session(request: Request):
+    return require_portal_session(request, {"data_collector"})
 
 
 def require_admin_session(request: Request):
@@ -551,6 +614,8 @@ def _enterprise_role_for_user(user_role: str) -> str:
         return "admin"
     if role == "qa":
         return "qa"
+    if role == "data_collector":
+        return "data_collector"
     return "contributor"
 
 
@@ -2541,6 +2606,7 @@ def register_user(
 
     if requested_role not in {
         "contributor",
+        "data_collector",
         "qa",
         "admin"
     }:
@@ -2604,6 +2670,18 @@ def register_user(
     )
 
     db.add(new_user)
+    db.flush()
+
+    if requested_role == "data_collector" and hasattr(models, "DataCollectorProfile"):
+        db.add(
+            models.DataCollectorProfile(
+                user_id=int(new_user.id),
+                display_name="",
+                country="India",
+                onboarding_status="pending",
+            )
+        )
+
     db.commit()
     db.refresh(new_user)
 
@@ -2679,6 +2757,7 @@ def login_user(
 
     if actual_role not in {
         "contributor",
+        "data_collector",
         "qa",
         "admin"
     }:
@@ -4751,6 +4830,737 @@ def _write_audit_log(db, request, action, resource_type, resource_id, details=No
         pass
 
 
+
+# ============================================================
+# DATA COLLECTOR PROFILE
+# ============================================================
+
+DATA_COLLECTOR_AVAILABILITY_OPTIONS = {
+    "available",
+    "part-time",
+    "full-time",
+    "on-demand",
+    "weekends",
+    "evenings",
+    "flexible",
+    "unspecified",
+}
+
+
+DATA_COLLECTOR_AVAILABILITY_OPTIONS = {
+    "available",
+    "part-time",
+    "full-time",
+    "on-demand",
+    "weekends",
+    "evenings",
+    "flexible",
+    "unspecified",
+}
+
+DATA_COLLECTOR_AREA_TYPES = {
+    "urban",
+    "semi-urban",
+    "rural",
+}
+
+DATA_COLLECTOR_PAYMENT_METHODS = {
+    "upi",
+    "bank_account",
+}
+
+DATA_COLLECTOR_ACCOUNT_TYPES = {
+    "savings",
+    "current",
+}
+
+DATA_COLLECTOR_CAPABILITIES = {
+    "voice_recording",
+    "image_collection",
+    "video_collection",
+    "speech_collection",
+    "text_collection",
+    "face_data_collection",
+    "environment_data_collection",
+    "local_language_recording",
+}
+
+DATA_COLLECTOR_DEVICES = {
+    "android_smartphone",
+    "iphone",
+    "dslr_camera",
+    "mirrorless_camera",
+    "laptop_desktop",
+    "external_microphone",
+}
+
+DATA_COLLECTOR_ENVIRONMENTS = {
+    "home",
+    "outdoor",
+    "studio_office",
+    "field_location",
+}
+
+DATA_COLLECTOR_CONSENT_VERSION = "v1.0"
+
+
+def _get_data_collector_profile(db: Session, user_id: int):
+    if not hasattr(models, "DataCollectorProfile"):
+        return None
+
+    profile = (
+        db.query(models.DataCollectorProfile)
+        .filter(models.DataCollectorProfile.user_id == int(user_id))
+        .first()
+    )
+
+    if profile is None:
+        profile = models.DataCollectorProfile(
+            user_id=int(user_id),
+            display_name="",
+            country="India",
+            onboarding_status="pending",
+        )
+        db.add(profile)
+        db.flush()
+
+    return profile
+
+
+def _validate_data_collector_profile(profile):
+    capabilities = _split_csv(profile.collection_capabilities)
+    devices = _split_csv(profile.device_availability)
+    environments = _split_csv(profile.collection_environment)
+    pin_code = str(profile.pin_code or "").strip()
+
+    required_checks = {
+        "display_name": bool(str(profile.display_name or "").strip()),
+        "country": bool(str(profile.country or "").strip()),
+        "region": bool(str(profile.region or "").strip()),
+        "city": bool(str(profile.city or "").strip()),
+        "pin_code": bool(re.fullmatch(r"\d{6}", pin_code)),
+        "area_type": str(profile.area_type or "").strip().lower() in DATA_COLLECTOR_AREA_TYPES,
+        "timezone": bool(str(profile.timezone or "").strip()),
+        "languages": bool(_split_csv(profile.languages)),
+        "collection_capabilities": bool(capabilities) and all(item in DATA_COLLECTOR_CAPABILITIES for item in capabilities),
+        "device_availability": bool(devices) and all(item in DATA_COLLECTOR_DEVICES for item in devices),
+        "collection_environment": bool(environments) and all(item in DATA_COLLECTOR_ENVIRONMENTS for item in environments),
+        "availability_status": str(profile.availability_status or "").strip().lower() in DATA_COLLECTOR_AVAILABILITY_OPTIONS - {"unspecified"},
+        "availability_hours_per_week": profile.availability_hours_per_week is not None and 0 < float(profile.availability_hours_per_week) <= 168,
+        "experience_summary": bool(str(profile.experience_summary or "").strip()),
+        "payment_method": str(profile.payment_method or "").strip().lower() in DATA_COLLECTOR_PAYMENT_METHODS,
+        "payment_details": False,
+        "consent_accepted": bool(profile.consent_accepted),
+    }
+
+    payment_method = str(profile.payment_method or "").strip().lower()
+    if payment_method == "upi":
+        required_checks["payment_details"] = bool(str(profile.upi_id or "").strip())
+    elif payment_method == "bank_account":
+        required_checks["payment_details"] = all([
+            str(profile.bank_account_name or "").strip(),
+            str(profile.bank_account_number or "").strip(),
+            str(profile.bank_ifsc or "").strip(),
+            str(profile.bank_name or "").strip(),
+            str(profile.bank_branch or "").strip(),
+            str(profile.bank_account_type or "").strip().lower() in DATA_COLLECTOR_ACCOUNT_TYPES,
+        ])
+
+    missing = [key for key, valid in required_checks.items() if not valid]
+    return missing
+
+
+def _data_collector_profile_payload(profile):
+    return {
+        "id": getattr(profile, "id", None),
+        "display_name": str(profile.display_name or ""),
+        "country": str(profile.country or ""),
+        "region": str(profile.region or ""),
+        "city": str(profile.city or ""),
+        "pin_code": str(profile.pin_code or ""),
+        "area_type": str(profile.area_type or ""),
+        "timezone": str(profile.timezone or ""),
+        "languages": _split_csv(profile.languages),
+        "collection_capabilities": _split_csv(profile.collection_capabilities),
+        "device_availability": _split_csv(profile.device_availability),
+        "collection_environment": _split_csv(profile.collection_environment),
+        "experience_summary": str(profile.experience_summary or ""),
+        "availability_status": str(profile.availability_status or "unspecified"),
+        "availability_hours_per_week": profile.availability_hours_per_week,
+        "payment_method": str(profile.payment_method or ""),
+        "upi_id": str(profile.upi_id or ""),
+        "bank_account_name": str(profile.bank_account_name or ""),
+        "bank_account_number": str(profile.bank_account_number or ""),
+        "bank_ifsc": str(profile.bank_ifsc or ""),
+        "bank_name": str(profile.bank_name or ""),
+        "bank_branch": str(profile.bank_branch or ""),
+        "bank_account_type": str(profile.bank_account_type or ""),
+        "consent_accepted": bool(profile.consent_accepted),
+        "consent_version": str(profile.consent_version or ""),
+        "onboarding_status": str(profile.onboarding_status or "pending"),
+        "profile_locked": bool(profile.profile_locked),
+        "payment_locked": bool(profile.payment_locked),
+        "profile_locked_at": profile.profile_locked_at.isoformat() if getattr(profile, "profile_locked_at", None) else None,
+        "payment_locked_at": profile.payment_locked_at.isoformat() if getattr(profile, "payment_locked_at", None) else None,
+        "submitted_at": profile.submitted_at.isoformat() if getattr(profile, "submitted_at", None) else None,
+        "reviewed_at": profile.reviewed_at.isoformat() if getattr(profile, "reviewed_at", None) else None,
+        "rejection_reason": str(profile.rejection_reason or ""),
+    }
+
+
+@app.get("/api/data-collector/profile")
+def get_data_collector_profile(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_data_collector_session(request)
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Data Collector session is not authenticated.")
+
+    profile = _get_data_collector_profile(db, int(user_id))
+    if profile is None:
+        raise HTTPException(status_code=500, detail="Data Collector profile is unavailable.")
+
+    return {
+        "status": "success",
+        "profile": _data_collector_profile_payload(profile),
+    }
+
+
+@app.patch("/api/data-collector/profile")
+async def update_data_collector_profile(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_data_collector_session(request)
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Data Collector session is not authenticated.")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    profile = _get_data_collector_profile(db, int(user_id))
+    if profile is None:
+        raise HTTPException(status_code=500, detail="Data Collector profile is unavailable.")
+
+    if bool(profile.profile_locked) or bool(profile.payment_locked):
+        raise HTTPException(
+            status_code=423,
+            detail="Your Data Collector profile is locked after submission. Ask a KELYVO Admin to unlock it before making changes.",
+        )
+
+    profile_data = payload.get("profile") or {}
+
+    string_fields = {
+        "display_name",
+        "country",
+        "region",
+        "city",
+        "pin_code",
+        "timezone",
+        "experience_summary",
+        "payment_method",
+        "upi_id",
+        "bank_account_name",
+        "bank_account_number",
+        "bank_ifsc",
+        "bank_name",
+        "bank_branch",
+        "bank_account_type",
+    }
+
+    for field in string_fields:
+        if field in profile_data:
+            value = str(profile_data.get(field) or "").strip()
+            if field == "bank_ifsc":
+                value = value.upper()
+            if field == "payment_method":
+                value = value.lower()
+            if field == "bank_account_type":
+                value = value.lower()
+            setattr(profile, field, value)
+
+    list_fields = {
+        "languages": "languages",
+        "collection_capabilities": "collection_capabilities",
+        "device_availability": "device_availability",
+        "collection_environment": "collection_environment",
+    }
+
+    for payload_key, model_field in list_fields.items():
+        if payload_key in profile_data:
+            raw_values = profile_data.get(payload_key)
+            if not isinstance(raw_values, list):
+                raw_values = _split_csv(raw_values)
+            values = [str(item).strip() for item in raw_values if str(item).strip()]
+            allowed = {
+                "collection_capabilities": DATA_COLLECTOR_CAPABILITIES,
+                "device_availability": DATA_COLLECTOR_DEVICES,
+                "collection_environment": DATA_COLLECTOR_ENVIRONMENTS,
+            }.get(model_field)
+            if allowed is not None and any(item not in allowed for item in values):
+                raise HTTPException(status_code=400, detail=f"Invalid value supplied for {model_field.replace('_', ' ')}.")
+            setattr(profile, model_field, _join_csv(values))
+
+    if "area_type" in profile_data:
+        area_type = str(profile_data.get("area_type") or "").strip().lower()
+        if area_type not in DATA_COLLECTOR_AREA_TYPES:
+            raise HTTPException(status_code=400, detail="Invalid area type.")
+        profile.area_type = area_type
+
+    if "availability_status" in profile_data:
+        availability_status = str(profile_data.get("availability_status") or "unspecified").strip().lower()
+        if availability_status not in DATA_COLLECTOR_AVAILABILITY_OPTIONS:
+            raise HTTPException(status_code=400, detail="Invalid availability status.")
+        profile.availability_status = availability_status
+
+    if "availability_hours_per_week" in profile_data:
+        raw_hours = profile_data.get("availability_hours_per_week")
+        if raw_hours in (None, ""):
+            profile.availability_hours_per_week = None
+        else:
+            try:
+                hours = float(raw_hours)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Hours per week must be numeric.")
+            if hours <= 0 or hours > 168:
+                raise HTTPException(status_code=400, detail="Hours per week must be between 0 and 168.")
+            profile.availability_hours_per_week = hours
+
+    consent_value = profile_data.get("consent_accepted")
+    if consent_value is True:
+        profile.consent_accepted = True
+        profile.consent_version = DATA_COLLECTOR_CONSENT_VERSION
+        profile.consent_accepted_at = _utc_now()
+
+    missing = _validate_data_collector_profile(profile)
+
+    if missing:
+        profile.onboarding_status = "pending"
+        profile.updated_at = _utc_now()
+        db.commit()
+        db.refresh(profile)
+        return {
+            "status": "success",
+            "profile": _data_collector_profile_payload(profile),
+            "complete": False,
+            "missing": missing,
+        }
+
+    # A complete first submission is immutable until KELYVO Admin unlocks it.
+    now = _utc_now()
+    profile.onboarding_status = "submitted"
+    profile.profile_locked = True
+    profile.payment_locked = True
+    profile.profile_locked_at = now
+    profile.payment_locked_at = now
+    profile.submitted_at = now
+    profile.updated_at = now
+    profile.rejection_reason = None
+    db.commit()
+    db.refresh(profile)
+
+    return {
+        "status": "success",
+        "profile": _data_collector_profile_payload(profile),
+        "complete": True,
+        "submitted": True,
+        "message": "Your Data Collector profile has been submitted and locked. KELYVO will review it before collection work is assigned.",
+        "missing": [],
+    }
+
+
+@app.get("/api/data-collector/summary")
+def get_data_collector_summary(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_data_collector_session(request)
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Data Collector session is not authenticated.")
+
+    profile = _get_data_collector_profile(db, int(user_id))
+    pending_count = (
+        db.query(models.DataCollectionSubmission)
+        .filter(
+            models.DataCollectionSubmission.collector_id == int(user_id),
+            models.DataCollectionSubmission.status == "pending_qa",
+        )
+        .count()
+    )
+    approved_count = (
+        db.query(models.DataCollectionSubmission)
+        .filter(
+            models.DataCollectionSubmission.collector_id == int(user_id),
+            models.DataCollectionSubmission.status == "approved",
+        )
+        .count()
+    )
+
+    return {
+        "status": "success",
+        "profile_status": str(profile.onboarding_status or "pending") if profile is not None else "pending",
+        "opportunities": 0,
+        "active_assignments": 0,
+        "submissions_pending": pending_count,
+        "submissions_approved": approved_count,
+    }
+
+
+@app.get("/api/admin/data-collectors")
+def list_admin_data_collectors(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+    users = (
+        db.query(models.User)
+        .filter(models.User.role == "data_collector")
+        .order_by(models.User.id.desc())
+        .all()
+    )
+    payload = []
+    for user in users:
+        profile = _get_data_collector_profile(db, int(user.id))
+        payload.append({
+            "id": int(user.id),
+            "email": user.email,
+            "status": str(profile.onboarding_status or "pending") if profile else "pending",
+            "profile_locked": bool(profile.profile_locked) if profile else False,
+            "payment_locked": bool(profile.payment_locked) if profile else False,
+            "display_name": str(profile.display_name or "") if profile else "",
+            "country": str(profile.country or "") if profile else "",
+            "region": str(profile.region or "") if profile else "",
+            "city": str(profile.city or "") if profile else "",
+            "pin_code": str(profile.pin_code or "") if profile else "",
+            "area_type": str(profile.area_type or "") if profile else "",
+            "timezone": str(profile.timezone or "") if profile else "",
+            "languages": _split_csv(profile.languages) if profile else [],
+            "capabilities": _split_csv(profile.collection_capabilities) if profile else [],
+            "devices": _split_csv(profile.device_availability) if profile else [],
+            "environments": _split_csv(profile.collection_environment) if profile else [],
+            "availability_status": str(profile.availability_status or "") if profile else "",
+            "availability_hours_per_week": profile.availability_hours_per_week if profile else None,
+            "experience_summary": str(profile.experience_summary or "") if profile else "",
+            "payment_method": str(profile.payment_method or "") if profile else "",
+            "payment_verified": bool(profile.payment_locked) if profile else False,
+            "consent_accepted": bool(profile.consent_accepted) if profile else False,
+            "submitted_at": profile.submitted_at.isoformat() if profile and profile.submitted_at else None,
+            "reviewed_at": profile.reviewed_at.isoformat() if profile and profile.reviewed_at else None,
+            "reviewed_by_user_id": profile.reviewed_by_user_id if profile else None,
+            "review_reason": str(profile.rejection_reason or "") if profile else "",
+        })
+    return {"status": "success", "data_collectors": payload}
+
+
+@app.patch("/api/admin/data-collectors/{user_id}/review")
+async def review_admin_data_collector(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    admin_session = require_admin_session(request)
+    user = db.query(models.User).filter(models.User.id == int(user_id), models.User.role == "data_collector").first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Data Collector account not found.")
+    profile = _get_data_collector_profile(db, int(user.id))
+    if profile is None:
+        raise HTTPException(status_code=500, detail="Data Collector profile is unavailable.")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    action = str(payload.get("action") or "").strip().lower()
+    reason = str(payload.get("reason") or "").strip()
+    reviewer_id = _get_authenticated_user_id(request) or admin_session.get("user_id")
+
+    if action == "approve":
+        missing = _validate_data_collector_profile(profile)
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"This profile is not complete. Missing: {', '.join(missing)}.",
+            )
+        profile.onboarding_status = "approved"
+        profile.reviewed_at = _utc_now()
+        profile.reviewed_by_user_id = int(reviewer_id) if reviewer_id is not None else None
+        profile.rejection_reason = None
+        # Approval keeps the submitted profile and payment details locked.
+        profile.profile_locked = True
+        profile.payment_locked = True
+    elif action in {"reject", "request_changes"}:
+        if not reason:
+            label = "rejection reason" if action == "reject" else "change request reason"
+            raise HTTPException(status_code=400, detail=f"A {label} is required.")
+        profile.onboarding_status = "rejected" if action == "reject" else "changes_requested"
+        profile.reviewed_at = _utc_now()
+        profile.reviewed_by_user_id = int(reviewer_id) if reviewer_id is not None else None
+        profile.rejection_reason = reason
+        # Both actions return the collector to an editable state; the status
+        # tells the collector whether the result was a rejection or a change request.
+        profile.profile_locked = False
+        profile.payment_locked = False
+        profile.profile_locked_at = None
+        profile.payment_locked_at = None
+        profile.profile_unlock_reason = reason
+        profile.payment_unlock_reason = reason
+    else:
+        raise HTTPException(status_code=400, detail="Action must be approve, reject, or request_changes.")
+
+    profile.updated_at = _utc_now()
+    db.commit()
+    db.refresh(profile)
+    return {"status": "success", "profile": _data_collector_profile_payload(profile)}
+
+
+@app.patch("/api/admin/data-collectors/{user_id}/unlock")
+async def unlock_admin_data_collector(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+    user = db.query(models.User).filter(models.User.id == int(user_id), models.User.role == "data_collector").first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Data Collector account not found.")
+    profile = _get_data_collector_profile(db, int(user.id))
+    if profile is None:
+        raise HTTPException(status_code=500, detail="Data Collector profile is unavailable.")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    section = str(payload.get("section") or "profile").strip().lower()
+    reason = str(payload.get("reason") or "").strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail="An unlock reason is required.")
+
+    if section == "profile":
+        profile.profile_locked = False
+        profile.profile_locked_at = None
+        profile.profile_unlock_reason = reason
+    elif section == "payment":
+        profile.payment_locked = False
+        profile.payment_locked_at = None
+        profile.payment_unlock_reason = reason
+    elif section == "all":
+        profile.profile_locked = False
+        profile.payment_locked = False
+        profile.profile_locked_at = None
+        profile.payment_locked_at = None
+        profile.profile_unlock_reason = reason
+        profile.payment_unlock_reason = reason
+    else:
+        raise HTTPException(status_code=400, detail="Section must be profile, payment, or all.")
+
+    profile.onboarding_status = "pending"
+    profile.updated_at = _utc_now()
+    db.commit()
+    db.refresh(profile)
+    return {"status": "success", "profile": _data_collector_profile_payload(profile)}
+
+
+# ============================================================
+# DATA COLLECTION SUBMISSION PIPELINE
+# ============================================================
+
+DATA_COLLECTION_SUBMISSION_STATUSES = {
+    "pending_qa",
+    "approved",
+    "rejected",
+}
+
+
+def _data_collection_submission_payload(submission, collector_email=None):
+    return {
+        "id": str(submission.id),
+        "collector_id": int(submission.collector_id),
+        "collector_email": collector_email,
+        "project_id": str(submission.project_id) if submission.project_id is not None else None,
+        "submission_type": str(submission.submission_type or "unclassified"),
+        "file_reference": submission.file_reference,
+        "status": str(submission.status or "pending_qa"),
+        "qa_status": str(submission.qa_status or "pending"),
+        "qa_reviewer_id": int(submission.qa_reviewer_id) if submission.qa_reviewer_id is not None else None,
+        "qa_notes": submission.qa_notes,
+        "submitted_at": submission.submitted_at.isoformat() if submission.submitted_at else None,
+        "reviewed_at": submission.reviewed_at.isoformat() if submission.reviewed_at else None,
+        "created_at": submission.created_at.isoformat() if submission.created_at else None,
+        "updated_at": submission.updated_at.isoformat() if submission.updated_at else None,
+    }
+
+
+@app.get("/api/data-collector/submissions")
+def list_data_collector_submissions(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_data_collector_session(request)
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Data Collector session is not authenticated.")
+
+    rows = (
+        db.query(models.DataCollectionSubmission)
+        .filter(models.DataCollectionSubmission.collector_id == int(user_id))
+        .order_by(models.DataCollectionSubmission.created_at.desc())
+        .all()
+    )
+    return {
+        "status": "success",
+        "submissions": [
+            _data_collection_submission_payload(row)
+            for row in rows
+        ],
+    }
+
+
+@app.post("/api/data-collector/submissions")
+async def create_data_collector_submission(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_data_collector_session(request)
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Data Collector session is not authenticated.")
+
+    profile = _get_data_collector_profile(db, int(user_id))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Data Collector profile not found.")
+    if str(profile.onboarding_status or "pending").lower() != "approved":
+        raise HTTPException(status_code=403, detail="Your Data Collector profile must be approved before submitting collection work.")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    submission_type = str(payload.get("submission_type") or "unclassified").strip().lower()
+    project_id = payload.get("project_id")
+    file_reference = payload.get("file_reference")
+
+    if not submission_type:
+        submission_type = "unclassified"
+    if project_id is not None:
+        project_id = str(project_id).strip() or None
+    if file_reference is not None:
+        file_reference = str(file_reference).strip() or None
+
+    now = _utc_now()
+    submission = models.DataCollectionSubmission(
+        collector_id=int(user_id),
+        project_id=project_id,
+        submission_type=submission_type,
+        file_reference=file_reference,
+        status="pending_qa",
+        qa_status="pending",
+        submitted_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+
+    return {
+        "status": "success",
+        "submission": _data_collection_submission_payload(submission),
+        "message": "Collection submission created and placed in the QA queue.",
+    }
+
+
+@app.get("/api/qa/data-collection-submissions")
+def list_qa_data_collection_submissions(
+    request: Request,
+    status: str = "all",
+    db: Session = Depends(get_db),
+):
+    require_qa_session(request)
+    normalized_status = str(status or "all").strip().lower()
+    allowed_filters = {"all", "pending_qa", "approved", "rejected"}
+    if normalized_status not in allowed_filters:
+        raise HTTPException(status_code=400, detail="Invalid data collection QA status filter.")
+
+    query = (
+        db.query(models.DataCollectionSubmission, models.User.email)
+        .join(models.User, models.User.id == models.DataCollectionSubmission.collector_id)
+    )
+    if normalized_status != "all":
+        query = query.filter(models.DataCollectionSubmission.status == normalized_status)
+
+    rows = query.order_by(models.DataCollectionSubmission.created_at.desc()).all()
+    return {
+        "status": "success",
+        "submissions": [
+            _data_collection_submission_payload(submission, collector_email=email)
+            for submission, email in rows
+        ],
+    }
+
+
+@app.patch("/api/qa/data-collection-submissions/{submission_id}/review")
+async def review_qa_data_collection_submission(
+    submission_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    reviewer_session = require_qa_session(request)
+    reviewer_id = _get_authenticated_user_id(request)
+    if reviewer_id is None:
+        raise HTTPException(status_code=401, detail="QA session is not authenticated.")
+
+    submission = (
+        db.query(models.DataCollectionSubmission)
+        .filter(models.DataCollectionSubmission.id == str(submission_id))
+        .first()
+    )
+    if submission is None:
+        raise HTTPException(status_code=404, detail="Data collection submission not found.")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    action = str(payload.get("action") or "").strip().lower()
+    notes = str(payload.get("notes") or "").strip()
+    if action not in {"approve", "reject"}:
+        raise HTTPException(status_code=400, detail="Action must be approve or reject.")
+    if action == "reject" and not notes:
+        raise HTTPException(status_code=400, detail="A QA note is required when rejecting a collection submission.")
+
+    now = _utc_now()
+    submission.qa_reviewer_id = int(reviewer_id)
+    submission.qa_notes = notes or None
+    submission.reviewed_at = now
+    submission.updated_at = now
+    submission.qa_status = "approved" if action == "approve" else "rejected"
+    submission.status = "approved" if action == "approve" else "rejected"
+
+    db.commit()
+    db.refresh(submission)
+
+    collector = db.query(models.User).filter(models.User.id == int(submission.collector_id)).first()
+    return {
+        "status": "success",
+        "submission": _data_collection_submission_payload(
+            submission,
+            collector_email=collector.email if collector else None,
+        ),
+        "message": "Collection submission approved." if action == "approve" else "Collection submission rejected.",
+    }
+
+
 @app.get("/api/contributor/preferences")
 def get_contributor_preferences(request: Request, db: Session = Depends(get_db)):
     require_contributor_session(request)
@@ -5225,7 +6035,7 @@ def get_admin_workforce_users(request: Request, q: str = "", role: str = "all", 
     query = db.query(models.User)
     normalized_role = (role or "all").strip().lower()
     normalized_q = (q or "").strip().lower()
-    if normalized_role in {"contributor", "qa", "admin"}:
+    if normalized_role in {"contributor", "data_collector", "qa", "admin"}:
         query = query.filter(models.User.role == normalized_role)
     if normalized_q:
         query = query.filter(models.User.email.ilike(f"%{normalized_q}%"))
@@ -5235,8 +6045,19 @@ def get_admin_workforce_users(request: Request, q: str = "", role: str = "all", 
         membership = _get_user_membership(db, int(user.id))
         role_value = str(user.role or "contributor").strip().lower()
         profile = _ensure_contributor_profile(db, user) if role_value == "contributor" else None
+        collector_profile = _get_data_collector_profile(db, int(user.id)) if role_value == "data_collector" else None
         detail = _ensure_workforce_detail_row(db, int(user.id))
         detail_map = dict(detail._mapping) if detail is not None else {}
+        qualification_status = (
+            str(getattr(profile, "onboarding_status", "pending")) if profile is not None else
+            str(getattr(collector_profile, "onboarding_status", "pending")) if collector_profile is not None else
+            str(detail_map.get("qualification_status") or "pending")
+        )
+        display_name = (
+            str(getattr(profile, "display_name", "") or "") if profile is not None else
+            str(getattr(collector_profile, "display_name", "") or "") if collector_profile is not None else
+            ""
+        )
         payload.append({
             "id": int(user.id),
             "email": user.email,
@@ -5247,8 +6068,8 @@ def get_admin_workforce_users(request: Request, q: str = "", role: str = "all", 
             "tasks_passed_qa": int(user.tasks_passed_qa or 0),
             "earnings": float(user.earnings or 0),
             "worker_tier": str(detail_map.get("worker_tier") or "general"),
-            "qualification_status": str(detail_map.get("qualification_status") or (getattr(profile, "onboarding_status", "pending") if profile is not None else "pending")),
-            "display_name": str(getattr(profile, "display_name", "") or "") if profile is not None else "",
+            "qualification_status": qualification_status,
+            "display_name": display_name,
         })
     db.commit()
     return {"status": "success", "users": payload}
@@ -5264,8 +6085,8 @@ async def create_admin_workforce_user(request: Request, db: Session = Depends(ge
     email = normalize_email(str(payload.get("email") or ""))
     password = str(payload.get("password") or "")
     role = str(payload.get("role") or "contributor").strip().lower()
-    if role not in {"contributor", "qa", "admin"}:
-        raise HTTPException(status_code=400, detail="Role must be contributor, qa, or admin.")
+    if role not in {"contributor", "data_collector", "qa", "admin"}:
+        raise HTTPException(status_code=400, detail="Role must be contributor, data_collector, qa, or admin.")
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="A valid email address is required.")
     if len(password) < 8:
@@ -5274,8 +6095,10 @@ async def create_admin_workforce_user(request: Request, db: Session = Depends(ge
         raise HTTPException(status_code=409, detail="Email already registered.")
     new_user = models.User(email=email, hashed_password=hash_password(password), role=role, tasks_today=0, tasks_week=0, tasks_passed_qa=0, earnings=0.0)
     db.add(new_user); db.flush()
-    if hasattr(models, "ContributorProfile"):
+    if role == "contributor" and hasattr(models, "ContributorProfile"):
         db.add(models.ContributorProfile(user_id=int(new_user.id), display_name="", country="India", onboarding_status="pending"))
+    elif role == "data_collector" and hasattr(models, "DataCollectorProfile"):
+        db.add(models.DataCollectorProfile(user_id=int(new_user.id), display_name="", country="India", onboarding_status="pending"))
     _ensure_workforce_detail_row(db, int(new_user.id))
     organization = _get_kelyvo_organization(db)
     if organization is not None and hasattr(models, "OrganizationMember"):
@@ -5302,8 +6125,8 @@ async def update_admin_workforce_user(user_id: int, request: Request, db: Sessio
         raise HTTPException(status_code=400, detail="Provide role or status to update.")
     if requested_role is not None:
         new_role = str(requested_role).strip().lower()
-        if new_role not in {"contributor", "qa", "admin"}:
-            raise HTTPException(status_code=400, detail="Role must be contributor, qa, or admin.")
+        if new_role not in {"contributor", "data_collector", "qa", "admin"}:
+            raise HTTPException(status_code=400, detail="Role must be contributor, data_collector, qa, or admin.")
         old_role = str(user.role or "contributor").strip().lower()
         if old_role == "admin" and new_role != "admin" and _count_active_admins(db) <= 1:
             raise HTTPException(status_code=409, detail="KELYVO must retain at least one Admin account.")

@@ -68,6 +68,13 @@ class User(Base):
         cascade="all, delete-orphan"
     )
 
+    data_collector_profile = relationship(
+        "DataCollectorProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+
     contributor_skills = relationship(
         "ContributorSkill",
         back_populates="user",
@@ -108,6 +115,13 @@ class User(Base):
     payout_ledger_entries = relationship(
         "PayoutLedger",
         back_populates="user"
+    )
+
+    data_collection_submissions = relationship(
+        "DataCollectionSubmission",
+        foreign_keys="DataCollectionSubmission.collector_id",
+        back_populates="collector",
+        cascade="all, delete-orphan"
     )
 
 
@@ -1008,6 +1022,226 @@ class ContributorProfile(Base):
     user = relationship(
         "User",
         back_populates="contributor_profile"
+    )
+
+
+# ============================================================
+# DATA COLLECTOR PROFILE
+# ============================================================
+
+class DataCollectorProfile(Base):
+    """
+    Dedicated profile for the KELYVO data-collection workforce.
+
+    Data collectors are intentionally separate from annotators. Their
+    recruitment, qualifications and future collection workflow can evolve
+    independently without changing the existing ContributorProfile model.
+    """
+
+    __tablename__ = "data_collector_profiles"
+
+    id = Column(
+        String,
+        primary_key=True,
+        default=generate_uuid
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        unique=True,
+        index=True
+    )
+
+    display_name = Column(String, nullable=True)
+    country = Column(String, nullable=True, index=True)
+    region = Column(String, nullable=True, index=True)
+    city = Column(String, nullable=True)
+    pin_code = Column(String, nullable=True)
+    area_type = Column(String, nullable=True, index=True)
+    timezone = Column(String, nullable=True)
+    languages = Column(Text, nullable=True)
+    collection_capabilities = Column(Text, nullable=True)
+    device_availability = Column(Text, nullable=True)
+    collection_environment = Column(Text, nullable=True)
+    experience_summary = Column(Text, nullable=True)
+
+    availability_status = Column(
+        String,
+        nullable=False,
+        default="unspecified"
+    )
+    availability_hours_per_week = Column(Float, nullable=True)
+
+    payment_method = Column(String, nullable=True)
+    upi_id = Column(String, nullable=True)
+    bank_account_name = Column(String, nullable=True)
+    bank_account_number = Column(String, nullable=True)
+    bank_ifsc = Column(String, nullable=True)
+    bank_name = Column(String, nullable=True)
+    bank_branch = Column(String, nullable=True)
+    bank_account_type = Column(String, nullable=True)
+
+    consent_accepted = Column(Boolean, nullable=False, default=False)
+    consent_version = Column(String, nullable=True)
+    consent_accepted_at = Column(DateTime(timezone=True), nullable=True)
+
+    onboarding_status = Column(
+        String,
+        nullable=False,
+        default="pending",
+        index=True
+    )
+
+    profile_locked = Column(Boolean, nullable=False, default=False)
+    payment_locked = Column(Boolean, nullable=False, default=False)
+    profile_locked_at = Column(DateTime(timezone=True), nullable=True)
+    payment_locked_at = Column(DateTime(timezone=True), nullable=True)
+    profile_unlock_reason = Column(Text, nullable=True)
+    payment_unlock_reason = Column(Text, nullable=True)
+
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    reviewed_by_user_id = Column(Integer, nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now
+    )
+
+    user = relationship(
+        "User",
+        back_populates="data_collector_profile"
+    )
+
+
+# ============================================================
+# DATA COLLECTION SUBMISSION
+# ============================================================
+
+class DataCollectionSubmission(Base):
+    """
+    Generic data-collection submission record.
+
+    This is intentionally storage-agnostic: file_reference remains nullable
+    until a real collection project and storage provider are connected.
+    """
+
+    __tablename__ = "data_collection_submissions"
+
+    id = Column(
+        String,
+        primary_key=True,
+        default=generate_uuid
+    )
+
+    collector_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+
+    project_id = Column(
+        String,
+        nullable=True,
+        index=True
+    )
+
+    submission_type = Column(
+        String,
+        nullable=False,
+        default="unclassified",
+        index=True
+    )
+
+    file_reference = Column(
+        Text,
+        nullable=True
+    )
+
+    status = Column(
+        String,
+        nullable=False,
+        default="pending_qa",
+        index=True
+    )
+
+    qa_status = Column(
+        String,
+        nullable=False,
+        default="pending",
+        index=True
+    )
+
+    qa_reviewer_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True
+    )
+
+    qa_notes = Column(
+        Text,
+        nullable=True
+    )
+
+    submitted_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now
+    )
+
+    reviewed_at = Column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now
+    )
+
+    collector = relationship(
+        "User",
+        foreign_keys=[collector_id],
+        back_populates="data_collection_submissions"
+    )
+
+    qa_reviewer = relationship(
+        "User",
+        foreign_keys=[qa_reviewer_id]
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_data_collection_submissions_collector_status",
+            "collector_id",
+            "status"
+        ),
+        Index(
+            "ix_data_collection_submissions_project_status",
+            "project_id",
+            "status"
+        ),
     )
 
 
