@@ -8,10 +8,11 @@ import threading
 from datetime import datetime, timedelta, timezone
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from urllib.parse import quote, unquote
+from typing import Optional
 
 import requests
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from sqlalchemy import Table, Column, String, Text, Integer, Float, Boolean, inspect, text
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from database import SessionLocal, engine
 import models
+from storage_service import storage_provider
 
 
 load_dotenv()
@@ -5393,12 +5395,35 @@ DATA_COLLECTION_SUBMISSION_STATUSES = {
 }
 
 
+def _data_collection_submission_asset_payload(asset):
+    return {
+        "id": str(asset.id),
+        "submission_id": str(asset.submission_id),
+        "original_filename": str(asset.original_filename or ""),
+        "stored_filename": str(asset.stored_filename or ""),
+        "storage_provider": str(asset.storage_provider or ""),
+        "storage_reference": str(asset.storage_reference or ""),
+        "mime_type": asset.mime_type,
+        "size_bytes": int(asset.size_bytes) if asset.size_bytes is not None else None,
+        "checksum_sha256": asset.checksum_sha256,
+        "status": str(asset.status or "active"),
+        "uploaded_by_user_id": int(asset.uploaded_by_user_id),
+        "created_at": asset.created_at.isoformat() if asset.created_at else None,
+    }
+
+
 def _data_collection_submission_payload(submission, collector_email=None):
+    opportunity_id = (
+        str(submission.project_id).strip()
+        if submission.project_id is not None and str(submission.project_id).strip()
+        else None
+    )
     return {
         "id": str(submission.id),
         "collector_id": int(submission.collector_id),
         "collector_email": collector_email,
-        "project_id": str(submission.project_id) if submission.project_id is not None else None,
+        "project_id": opportunity_id,
+        "opportunity_id": opportunity_id,
         "submission_type": str(submission.submission_type or "unclassified"),
         "file_reference": submission.file_reference,
         "status": str(submission.status or "pending_qa"),
@@ -5409,6 +5434,11 @@ def _data_collection_submission_payload(submission, collector_email=None):
         "reviewed_at": submission.reviewed_at.isoformat() if submission.reviewed_at else None,
         "created_at": submission.created_at.isoformat() if submission.created_at else None,
         "updated_at": submission.updated_at.isoformat() if submission.updated_at else None,
+        "assets": [
+            _data_collection_submission_asset_payload(asset)
+            for asset in getattr(submission, "assets", [])
+            if str(asset.status or "active").lower() != "deleted"
+        ],
     }
 
 
@@ -5458,21 +5488,63 @@ async def create_data_collector_submission(
     except Exception:
         payload = {}
 
-    submission_type = str(payload.get("submission_type") or "unclassified").strip().lower()
-    project_id = payload.get("project_id")
-    file_reference = payload.get("file_reference")
+    submission_type = str(payload.get("submission_type") or "").strip().lower()
+    opportunity_id = str(payload.get("opportunity_id") or payload.get("project_id") or "").strip()
+    file_reference = str(payload.get("file_reference") or "").strip()
 
-    if not submission_type:
-        submission_type = "unclassified"
-    if project_id is not None:
-        project_id = str(project_id).strip() or None
-    if file_reference is not None:
-        file_reference = str(file_reference).strip() or None
+    allowed_submission_types = {
+        "audio",
+        "image",
+        "video",
+        "text",
+        "document",
+        "other",
+    }
+    if submission_type not in allowed_submission_types:
+        raise HTTPException(status_code=400, detail="Select a valid collection submission type.")
+    if not opportunity_id:
+        raise HTTPException(status_code=400, detail="Select an accepted collection opportunity.")
+    if not file_reference:
+        raise HTTPException(status_code=400, detail="Enter the collection data reference before submitting.")
+    if len(file_reference) > 4000:
+        raise HTTPException(status_code=400, detail="The collection data reference is too long.")
+
+    opportunity = (
+        db.query(models.DataCollectionOpportunity)
+        .filter(models.DataCollectionOpportunity.id == opportunity_id)
+        .first()
+    )
+    if opportunity is None:
+        raise HTTPException(status_code=404, detail="Collection opportunity not found.")
+
+    claim = (
+        db.query(models.DataCollectionOpportunityClaim)
+        .filter(
+            models.DataCollectionOpportunityClaim.opportunity_id == opportunity_id,
+            models.DataCollectionOpportunityClaim.collector_id == int(user_id),
+            models.DataCollectionOpportunityClaim.status == "accepted",
+        )
+        .first()
+    )
+    if claim is None:
+        raise HTTPException(status_code=403, detail="You must accept this collection opportunity before submitting work for it.")
+
+    duplicate_pending = (
+        db.query(models.DataCollectionSubmission)
+        .filter(
+            models.DataCollectionSubmission.collector_id == int(user_id),
+            models.DataCollectionSubmission.project_id == opportunity_id,
+            models.DataCollectionSubmission.status == "pending_qa",
+        )
+        .first()
+    )
+    if duplicate_pending is not None:
+        raise HTTPException(status_code=409, detail="This opportunity already has a collection submission pending QA.")
 
     now = _utc_now()
     submission = models.DataCollectionSubmission(
         collector_id=int(user_id),
-        project_id=project_id,
+        project_id=opportunity_id,
         submission_type=submission_type,
         file_reference=file_reference,
         status="pending_qa",
@@ -5490,6 +5562,89 @@ async def create_data_collector_submission(
         "submission": _data_collection_submission_payload(submission),
         "message": "Collection submission created and placed in the QA queue.",
     }
+
+
+@app.post("/api/data-collector/submissions/{submission_id}/assets")
+async def upload_data_collector_submission_asset(
+    submission_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    require_data_collector_session(request)
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Data Collector session is not authenticated.")
+
+    profile = _get_data_collector_profile(db, int(user_id))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Data Collector profile not found.")
+    if str(profile.onboarding_status or "pending").lower() != "approved":
+        raise HTTPException(status_code=403, detail="Your Data Collector profile must be approved before uploading collection work.")
+
+    submission = (
+        db.query(models.DataCollectionSubmission)
+        .filter(
+            models.DataCollectionSubmission.id == str(submission_id),
+            models.DataCollectionSubmission.collector_id == int(user_id),
+        )
+        .first()
+    )
+    if submission is None:
+        raise HTTPException(status_code=404, detail="Collection submission not found.")
+
+    if str(submission.status or "").lower() != "pending_qa":
+        raise HTTPException(status_code=409, detail="Files can only be attached while the submission is pending QA.")
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="A file is required.")
+
+    try:
+        stored = storage_provider.save_file(file, folder=f"submissions/{submission.id}")
+        storage_path = str(stored.get("path") or "").strip()
+        if not storage_path:
+            raise RuntimeError("Storage provider returned no storage path.")
+
+        size_bytes = os.path.getsize(storage_path)
+        checksum = hashlib.sha256()
+        with open(storage_path, "rb") as stored_file:
+            for chunk in iter(lambda: stored_file.read(1024 * 1024), b""):
+                checksum.update(chunk)
+
+        now = _utc_now()
+        asset = models.DataCollectionSubmissionAsset(
+            submission_id=str(submission.id),
+            original_filename=str(file.filename),
+            stored_filename=str(stored.get("stored_name") or Path(storage_path).name),
+            storage_provider=str(stored.get("storage") or "local"),
+            storage_reference=storage_path,
+            mime_type=str(file.content_type or "application/octet-stream"),
+            size_bytes=int(size_bytes),
+            checksum_sha256=checksum.hexdigest(),
+            status="active",
+            uploaded_by_user_id=int(user_id),
+            created_at=now,
+        )
+        db.add(asset)
+        db.commit()
+        db.refresh(asset)
+
+        return {
+            "status": "success",
+            "asset": _data_collection_submission_asset_payload(asset),
+            "submission": _data_collection_submission_payload(submission),
+            "message": "Collection asset attached to the submission.",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        try:
+            if 'storage_path' in locals() and storage_path:
+                storage_provider.delete_file(storage_path)
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Could not store the collection file: {exc}")
 
 
 @app.get("/api/qa/data-collection-submissions")
@@ -9645,3 +9800,214 @@ threading.Thread(
     name="kelyvo-assignment-expiry",
     daemon=True,
 ).start()
+
+
+# ============================================================
+# SUPPORT CENTER
+# ============================================================
+
+@app.post("/api/support/tickets")
+async def create_support_ticket(
+    request: Request,
+    message: str = Form(...),
+    attachment: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    user_id = _get_authenticated_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found.")
+
+    normalized_message = (message or "").strip()
+    if not normalized_message:
+        raise HTTPException(status_code=400, detail="Support message cannot be empty.")
+
+    ticket = models.SupportTicket(
+        user_id=user.id,
+        role=str(user.role or "contributor"),
+        email_snapshot=str(user.email or ""),
+        message=normalized_message,
+        status="open",
+    )
+    db.add(ticket)
+    db.commit()
+    db.refresh(ticket)
+
+    if attachment and attachment.filename:
+        try:
+            allowed_types = {
+                "image/png",
+                "image/jpeg",
+                "image/webp",
+                "image/gif",
+            }
+
+            if attachment.content_type not in allowed_types:
+                db.delete(ticket)
+                db.commit()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Support attachments must be PNG, JPG, WEBP or GIF images."
+                )
+
+            result = storage_provider.save_file(
+                attachment,
+                folder=f"support/{ticket.id}"
+            )
+
+            ticket.attachment_path = result.get("path")
+            ticket.attachment_name = attachment.filename
+            ticket.attachment_mime_type = attachment.content_type
+            db.commit()
+        finally:
+            try:
+                await attachment.close()
+            except Exception:
+                pass
+
+    return {
+        "status": "success",
+        "ticket": {
+            "id": ticket.id,
+            "status": ticket.status,
+            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+            "has_attachment": bool(ticket.attachment_path),
+        },
+    }
+
+
+@app.get("/api/admin/support/tickets")
+def list_admin_support_tickets(
+    request: Request,
+    status: str = "open",
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+
+    normalized_status = (status or "open").strip().lower()
+    query = db.query(models.SupportTicket)
+
+    if normalized_status in {"open", "resolved"}:
+        query = query.filter(
+            models.SupportTicket.status == normalized_status
+        )
+
+    rows = (
+        query
+        .order_by(
+            models.SupportTicket.created_at.desc()
+        )
+        .limit(250)
+        .all()
+    )
+
+    return {
+        "status": "success",
+        "tickets": [
+            {
+                "id": row.id,
+                "email": row.email_snapshot,
+                "role": row.role,
+                "message": row.message,
+                "status": row.status,
+                "admin_notes": row.admin_notes,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
+                "attachment_name": row.attachment_name,
+                "attachment_url": (
+                    f"/api/admin/support/tickets/{row.id}/attachment"
+                    if row.attachment_path
+                    else None
+                ),
+            }
+            for row in rows
+        ],
+    }
+
+
+@app.patch("/api/admin/support/tickets/{ticket_id}")
+async def update_admin_support_ticket(
+    ticket_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+
+    payload = await request.json()
+    requested_status = str(payload.get("status") or "").strip().lower()
+    admin_notes = str(payload.get("admin_notes") or "").strip()
+
+    if requested_status not in {"open", "resolved"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Support ticket status must be open or resolved."
+        )
+
+    ticket = (
+        db.query(models.SupportTicket)
+        .filter(models.SupportTicket.id == ticket_id)
+        .first()
+    )
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Support ticket not found.")
+
+    ticket.status = requested_status
+    ticket.admin_notes = admin_notes or ticket.admin_notes
+
+    if requested_status == "resolved":
+        ticket.resolved_at = datetime.now(timezone.utc)
+    else:
+        ticket.resolved_at = None
+
+    db.commit()
+    db.refresh(ticket)
+
+    return {
+        "status": "success",
+        "ticket": {
+            "id": ticket.id,
+            "status": ticket.status,
+            "admin_notes": ticket.admin_notes,
+            "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
+        },
+    }
+
+
+@app.get("/api/admin/support/tickets/{ticket_id}/attachment")
+def get_admin_support_attachment(
+    ticket_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+
+    ticket = (
+        db.query(models.SupportTicket)
+        .filter(models.SupportTicket.id == ticket_id)
+        .first()
+    )
+
+    if not ticket or not ticket.attachment_path:
+        raise HTTPException(status_code=404, detail="Attachment not found.")
+
+    file_path = os.path.abspath(ticket.attachment_path)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Attachment file is unavailable.")
+
+    with open(file_path, "rb") as handle:
+        content = handle.read()
+
+    return Response(
+        content=content,
+        media_type=ticket.attachment_mime_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="{ticket.attachment_name or "attachment"}"'
+            )
+        },
+    )

@@ -1,3 +1,4 @@
+<!-- KELYVO PORTAL — UNIFIED VISUAL SYSTEM -->
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -5,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KELYVO — Enterprise Portal</title>
 
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23050607'/%3E%3Cpath d='M18 14v36M18 32h9l17-18M28 32l17 18' fill='none' stroke='%23F8FAFC' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='51' cy='13' r='3' fill='%235EEAD4'/%3E%3C/svg%3E">
 
 <script src="https://cdn.tailwindcss.com"></script>
 
@@ -311,8 +312,6 @@ button {
 }
 
 
-
-
 /* ============================================================
    KELYVO TASK SUBMISSION SUCCESS ANIMATION
    ============================================================ */
@@ -484,7 +483,2923 @@ button {
     .kelyvo-submit-success-progress span { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
 }
 
+
+/* ============================================================
+   KELYVO V16 — FULL UI / UX SYSTEM
+   ============================================================ */
+:root {
+    --k-role-accent:#d4af37;
+    --k-role-soft:rgba(212,175,55,.12);
+    --k-role-border:rgba(212,175,55,.32);
+    --k-bg:#030303;
+    --k-card:#080808;
+    --k-card2:#0b0b0b;
+    --k-border:#242428;
+    --k-text:#f4f4f5;
+    --k-muted:#8d8d97;
+}
+
+html[data-kelyvo-theme="light"] {
+    --k-bg:#f5f7fa;
+    --k-card:#ffffff;
+    --k-card2:#f8fafc;
+    --k-border:#d9dee7;
+    --k-text:#111827;
+    --k-muted:#64748b;
+}
+
+body {
+    background:var(--k-bg);
+    color:var(--k-text);
+    transition:background .2s ease,color .2s ease;
+}
+
+.kelyvo-v16-nav {
+    position:sticky;
+    top:0;
+    z-index:90;
+    display:none;
+    gap:8px;
+    align-items:center;
+    overflow-x:auto;
+    white-space:nowrap;
+    padding:8px 20px;
+    background:rgba(3,3,3,.86);
+    border-bottom:1px solid var(--k-border);
+    backdrop-filter:blur(16px);
+}
+html[data-kelyvo-theme="light"] .kelyvo-v16-nav {
+    background:rgba(255,255,255,.92);
+}
+.kelyvo-v16-nav.visible { display:flex; }
+.kelyvo-nav-title {
+    margin-right:8px;
+    color:var(--k-muted);
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.16em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.kelyvo-nav-btn {
+    border:1px solid var(--k-border);
+    background:var(--k-card);
+    color:var(--k-muted);
+    border-radius:999px;
+    padding:7px 12px;
+    font-size:11px;
+    transition:.16s ease;
+}
+.kelyvo-nav-btn:hover,
+.kelyvo-nav-btn.active {
+    color:var(--k-text);
+    border-color:var(--k-role-border);
+    background:var(--k-role-soft);
+}
+
+.kelyvo-v16-header-control {
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    border:1px solid var(--k-border);
+    background:var(--k-card);
+    color:var(--k-text);
+    padding:8px 11px;
+    border-radius:999px;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    transition:.16s ease;
+}
+.kelyvo-v16-header-control:hover {
+    border-color:var(--k-role-border);
+    background:var(--k-role-soft);
+}
+.kelyvo-v16-header-control .kelyvo-control-icon {
+    font-size:13px;
+    line-height:1;
+}
+.kelyvo-v16-header-control[hidden] { display:none; }
+
+.kelyvo-viewbar {
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:7px;
+    padding:10px 12px;
+    margin:0 0 10px;
+    background:var(--k-card2);
+    border:1px solid var(--k-border);
+    border-radius:12px;
+}
+.kelyvo-viewbar-label {
+    margin-right:4px;
+    color:var(--k-muted);
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.kelyvo-view-btn {
+    border:1px solid var(--k-border);
+    background:transparent;
+    color:var(--k-muted);
+    border-radius:999px;
+    padding:6px 10px;
+    font-size:10px;
+}
+.kelyvo-view-btn.active {
+    color:var(--k-text);
+    border-color:var(--k-role-border);
+    background:var(--k-role-soft);
+}
+
+.kelyvo-pager {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px 12px;
+    border-top:1px solid var(--k-border);
+    background:var(--k-card2);
+    color:var(--k-muted);
+    font-size:10px;
+}
+.kelyvo-pager-group { display:flex; gap:6px; align-items:center; }
+.kelyvo-page-btn {
+    min-width:30px;
+    height:30px;
+    border:1px solid var(--k-border);
+    background:var(--k-card);
+    color:var(--k-muted);
+    border-radius:8px;
+    font-size:10px;
+}
+.kelyvo-page-btn.active {
+    color:var(--k-text);
+    border-color:var(--k-role-border);
+    background:var(--k-role-soft);
+}
+.kelyvo-page-btn:disabled { opacity:.35; cursor:default; }
+
+.kelyvo-support-modal {
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:100000;
+    padding:18px;
+    background:rgba(0,0,0,.72);
+    backdrop-filter:blur(18px);
+}
+.kelyvo-support-modal.open { display:flex; }
+.kelyvo-support-dialog {
+    width:min(520px,100%);
+    background:var(--k-card);
+    color:var(--k-text);
+    border:1px solid var(--k-border);
+    border-radius:20px;
+    box-shadow:0 24px 100px rgba(0,0,0,.45);
+}
+.kelyvo-support-dialog textarea {
+    width:100%;
+    min-height:130px;
+    resize:vertical;
+    border:1px solid var(--k-border);
+    border-radius:12px;
+    padding:12px;
+    background:var(--k-bg);
+    color:var(--k-text);
+    outline:none;
+}
+.kelyvo-support-dialog input[type="file"] {
+    width:100%;
+    border:1px dashed var(--k-border);
+    border-radius:12px;
+    padding:12px;
+    color:var(--k-muted);
+    background:var(--k-bg);
+}
+.kelyvo-support-status {
+    min-height:20px;
+    font-size:11px;
+}
+
+.kelyvo-notify-modal,
+.kelyvo-search-modal {
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:flex-start;
+    justify-content:flex-end;
+    z-index:99998;
+    padding:78px 18px 18px;
+    background:rgba(0,0,0,.28);
+}
+.kelyvo-notify-modal.open,
+.kelyvo-search-modal.open { display:flex; }
+.kelyvo-flyout {
+    width:min(420px,92vw);
+    background:var(--k-card);
+    border:1px solid var(--k-border);
+    border-radius:16px;
+    box-shadow:0 20px 80px rgba(0,0,0,.42);
+    overflow:hidden;
+}
+.kelyvo-search-input {
+    width:100%;
+    border:0;
+    border-bottom:1px solid var(--k-border);
+    background:transparent;
+    color:var(--k-text);
+    padding:14px 16px;
+    outline:none;
+}
+.kelyvo-search-results {
+    max-height:60vh;
+    overflow:auto;
+}
+.kelyvo-search-hit {
+    display:block;
+    padding:12px 16px;
+    border-bottom:1px solid var(--k-border);
+    color:var(--k-text);
+    cursor:pointer;
+}
+.kelyvo-search-hit:hover { background:var(--k-role-soft); }
+
+.kelyvo-admin-support-list {
+    max-height:520px;
+    overflow:auto;
+}
+.kelyvo-ticket {
+    border-top:1px solid var(--k-border);
+    padding:14px 16px;
+}
+.kelyvo-ticket:first-child { border-top:0; }
+.kelyvo-ticket-meta {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    color:var(--k-muted);
+    font-size:10px;
+}
+.kelyvo-ticket-message {
+    margin-top:8px;
+    color:var(--k-text);
+    font-size:13px;
+    line-height:1.55;
+}
+.kelyvo-ticket-actions {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:10px;
+}
+.kelyvo-ticket-action {
+    border:1px solid var(--k-border);
+    background:var(--k-card2);
+    color:var(--k-text);
+    border-radius:8px;
+    padding:7px 10px;
+    font-size:10px;
+    text-transform:uppercase;
+}
+
+html[data-kelyvo-theme="light"] .bg-darkbg,
+html[data-kelyvo-theme="light"] header {
+    background:#fff !important;
+    border-color:#d9dee7 !important;
+}
+html[data-kelyvo-theme="light"] input,
+html[data-kelyvo-theme="light"] select,
+html[data-kelyvo-theme="light"] textarea {
+    background:#fff !important;
+    color:#111827 !important;
+    border-color:#d9dee7 !important;
+}
+html[data-kelyvo-theme="light"] .kelyvo-card {
+    background:#fff !important;
+    border-color:#d9dee7 !important;
+}
+html[data-kelyvo-theme="light"] #label-studio-container,
+html[data-kelyvo-theme="light"] #label-studio-editor,
+html[data-kelyvo-theme="light"] #label-studio-iframe {
+    background:#f3f4f6 !important;
+}
+body.kelyvo-light .kelyvo-card { background:#ffffff !important; border-color:#d9dee7 !important; }
+body.kelyvo-light .kelyvo-soft-divider { border-color:#d9dee7 !important; }
+body.kelyvo-light header { background:#ffffff !important; border-color:#d9dee7 !important; }
+body.kelyvo-light input,
+body.kelyvo-light select,
+body.kelyvo-light textarea { background:#ffffff !important; color:#111827 !important; border-color:#d9dee7 !important; }
+body.kelyvo-light .text-zinc-100,
+body.kelyvo-light .text-zinc-200,
+body.kelyvo-light .text-zinc-300,
+body.kelyvo-light .text-white { color:#111827 !important; }
+body.kelyvo-light .text-zinc-400,
+body.kelyvo-light .text-zinc-500,
+body.kelyvo-light .text-zinc-600 { color:#64748b !important; }
+
+@media (max-width:760px) {
+    .kelyvo-v16-nav { padding:8px 12px; }
+    .kelyvo-nav-title { display:none; }
+    .kelyvo-v16-header-control { padding:7px 9px; }
+    .kelyvo-v16-header-control .kelyvo-control-text { display:none; }
+}
 </style>
+
+<style id="kelyvo-portal-visual-system">
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root {
+    --portal-bg: #050607;
+    --portal-bg-soft: #080b0f;
+    --portal-surface: #0c1117;
+    --portal-surface-2: #111820;
+    --portal-surface-3: #151e28;
+    --portal-surface-hover: #18222d;
+    --portal-border: rgba(255,255,255,.105);
+    --portal-border-strong: rgba(255,255,255,.16);
+    --portal-text: #f7f9fc;
+    --portal-text-soft: #d5dbe3;
+    --portal-muted: #9aa6b5;
+    --portal-subtle: #6f7c8c;
+    --portal-white: #ffffff;
+    --portal-success: #5eead4;
+    --portal-danger: #fb8b84;
+    --portal-warning: #f3c66a;
+    --portal-info: #93c5fd;
+    --portal-admin: #f3c66a;
+    --portal-qa: #b99cff;
+    --portal-contributor: #5eead4;
+    --portal-collector: #fb9b72;
+    --portal-radius: 16px;
+    --portal-shadow: 0 18px 55px rgba(0,0,0,.28);
+
+    /* Compatibility aliases used by the existing workflow/list JS. */
+    --k17-bg: var(--portal-bg);
+    --k17-surface: var(--portal-surface);
+    --k17-surface-2: var(--portal-surface-2);
+    --k17-surface-3: var(--portal-surface-3);
+    --k17-border: var(--portal-border-strong);
+    --k17-border-soft: var(--portal-border);
+    --k17-text: var(--portal-text-soft);
+    --k17-text-strong: var(--portal-text);
+    --k17-muted: var(--portal-muted);
+    --k17-accent: var(--portal-warning);
+    --k17-accent-2: var(--portal-collector);
+    --k17-success: var(--portal-success);
+    --k17-danger: var(--portal-danger);
+    --k17-role-accent: var(--portal-admin);
+    --k17-role-soft: rgba(243,198,106,.11);
+    --k17-role-border: rgba(243,198,106,.30);
+
+    --v18-bg: var(--portal-bg);
+    --v18-surface: var(--portal-surface);
+    --v18-surface-2: var(--portal-surface-2);
+    --v18-surface-3: var(--portal-surface-3);
+    --v18-surface-4: var(--portal-surface-hover);
+    --v18-border: var(--portal-border-strong);
+    --v18-border-soft: var(--portal-border);
+    --v18-text: var(--portal-text-soft);
+    --v18-text-strong: var(--portal-text);
+    --v18-muted: var(--portal-muted);
+    --v18-subtle: var(--portal-subtle);
+    --v18-gold: var(--portal-warning);
+    --v18-copper: var(--portal-collector);
+    --v18-blue: var(--portal-info);
+    --v18-green: var(--portal-success);
+    --v18-red: var(--portal-danger);
+    --v18-role-accent: var(--portal-admin);
+    --v18-role-soft: rgba(243,198,106,.11);
+    --v18-role-border: rgba(243,198,106,.30);
+    --v18-shadow: var(--portal-shadow);
+}
+
+html[data-kelyvo-theme="light"] {
+    --portal-bg: #f4f7fb;
+    --portal-bg-soft: #eef2f7;
+    --portal-surface: #ffffff;
+    --portal-surface-2: #f7f9fc;
+    --portal-surface-3: #eef3f8;
+    --portal-surface-hover: #e7edf4;
+    --portal-border: rgba(15,23,42,.10);
+    --portal-border-strong: rgba(15,23,42,.16);
+    --portal-text: #101722;
+    --portal-text-soft: #334155;
+    --portal-muted: #64748b;
+    --portal-subtle: #8a98aa;
+    --portal-white: #101722;
+    --portal-success: #0f9f88;
+    --portal-danger: #d95d55;
+    --portal-warning: #b27a1b;
+    --portal-info: #3674b9;
+    --portal-admin: #b27a1b;
+    --portal-qa: #7656c4;
+    --portal-contributor: #087f72;
+    --portal-collector: #bd6235;
+    --portal-shadow: 0 16px 45px rgba(15,23,42,.09);
+}
+
+html, body {
+    font-family: "Inter", "Avenir Next", "Helvetica Neue", Arial, sans-serif !important;
+    background: var(--portal-bg) !important;
+    color: var(--portal-text-soft) !important;
+}
+
+body {
+    min-height: 100vh;
+    background-image:
+        radial-gradient(circle at 12% -5%, rgba(120,140,255,.085), transparent 25%),
+        radial-gradient(circle at 90% 0%, rgba(94,234,212,.055), transparent 22%),
+        linear-gradient(180deg, rgba(255,255,255,.012), transparent 28%);
+}
+
+html[data-kelyvo-theme="light"] body {
+    background-image:
+        radial-gradient(circle at 8% -8%, rgba(99,102,241,.07), transparent 25%),
+        radial-gradient(circle at 92% 0%, rgba(20,184,166,.05), transparent 22%);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: "Space Grotesk", "Inter", sans-serif !important;
+    color: var(--portal-text) !important;
+    letter-spacing: -.025em;
+}
+
+p, label, th, td, button, input, select, textarea {
+    font-family: "Inter", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+}
+
+.font-mono, code, pre, .font-mono * {
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, monospace !important;
+}
+
+/* -----------------------------
+   Global surfaces + readability
+   ----------------------------- */
+
+main {
+    color: var(--portal-text-soft);
+}
+
+main.max-w-7xl {
+    max-width: 1320px !important;
+}
+
+.bg-\[\#030303\],
+.bg-\[\#050505\],
+.bg-\[\#080808\],
+.bg-\[\#0a0a0a\],
+.bg-darkbg {
+    background: var(--portal-surface) !important;
+}
+
+.border-zinc-900,
+.border-zinc-800,
+.border-zinc-700,
+.border-zinc-600 {
+    border-color: var(--portal-border) !important;
+}
+
+.divide-zinc-800 > :not([hidden]) ~ :not([hidden]),
+.divide-zinc-700 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--portal-border) !important;
+}
+
+.text-white,
+.text-gray-100,
+.text-gray-200,
+.text-zinc-100,
+.text-zinc-200,
+.text-zinc-300 {
+    color: var(--portal-text) !important;
+}
+
+.text-zinc-400,
+.text-gray-400 {
+    color: var(--portal-muted) !important;
+}
+
+.text-zinc-500,
+.text-gray-500 {
+    color: #8290a0 !important;
+}
+
+.text-zinc-600,
+.text-gray-600 {
+    color: var(--portal-subtle) !important;
+}
+
+.text-amber-300,
+.text-amber-400,
+.text-amber-500 {
+    color: var(--portal-warning) !important;
+}
+
+.text-emerald-300,
+.text-emerald-400,
+.text-emerald-500 {
+    color: var(--portal-success) !important;
+}
+
+.text-red-300,
+.text-red-400,
+.text-red-500 {
+    color: var(--portal-danger) !important;
+}
+
+/* Make small uppercase labels readable without making them shout. */
+.text-\[10px\],
+.text-\[11px\] {
+    line-height: 1.45 !important;
+}
+
+/* -----------------------------
+   Header / navigation
+   ----------------------------- */
+
+body > header,
+header.border-b {
+    background: rgba(5,6,7,.88) !important;
+    border-color: var(--portal-border) !important;
+    box-shadow: 0 1px 0 rgba(255,255,255,.025);
+    backdrop-filter: blur(18px);
+}
+
+html[data-kelyvo-theme="light"] body > header,
+html[data-kelyvo-theme="light"] header.border-b {
+    background: rgba(255,255,255,.88) !important;
+}
+
+header > span:first-child {
+    color: var(--portal-text) !important;
+    letter-spacing: .22em !important;
+}
+
+header > span:first-child > span {
+    color: var(--portal-muted) !important;
+    font-weight: 500 !important;
+}
+
+.kelyvo-v16-header-control,
+#kelyvo-header-notifications,
+#kelyvo-theme-toggle,
+#kelyvo-support-open {
+    background: rgba(255,255,255,.035) !important;
+    border: 1px solid var(--portal-border) !important;
+    color: var(--portal-text-soft) !important;
+    border-radius: 999px !important;
+    min-height: 36px;
+    padding: 8px 13px !important;
+}
+
+.kelyvo-v16-header-control:hover,
+#kelyvo-header-notifications:hover,
+#kelyvo-theme-toggle:hover,
+#kelyvo-support-open:hover {
+    background: rgba(255,255,255,.075) !important;
+    border-color: var(--portal-border-strong) !important;
+    color: var(--portal-text) !important;
+}
+
+#user-nav {
+    gap: 8px !important;
+}
+
+#user-email-display {
+    color: var(--portal-muted) !important;
+    margin-right: 5px;
+}
+
+#kelyvo-v16-role-nav,
+.kelyvo-v16-nav {
+    background: rgba(8,11,15,.92) !important;
+    border-color: var(--portal-border) !important;
+    color: var(--portal-muted) !important;
+    backdrop-filter: blur(16px);
+}
+
+html[data-kelyvo-theme="light"] #kelyvo-v16-role-nav,
+html[data-kelyvo-theme="light"] .kelyvo-v16-nav {
+    background: rgba(247,249,252,.94) !important;
+}
+
+.kelyvo-nav-title {
+    color: var(--portal-subtle) !important;
+}
+
+.kelyvo-nav-btn {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: var(--portal-muted) !important;
+    border-radius: 999px !important;
+    transition: .18s ease;
+}
+
+.kelyvo-nav-btn:hover {
+    background: rgba(255,255,255,.045) !important;
+    border-color: var(--portal-border) !important;
+    color: var(--portal-text) !important;
+}
+
+.kelyvo-nav-btn.active,
+.kelyvo-nav-btn[aria-current="page"] {
+    background: color-mix(in srgb, var(--v18-role-accent) 13%, transparent) !important;
+    border-color: color-mix(in srgb, var(--v18-role-accent) 34%, transparent) !important;
+    color: var(--portal-text) !important;
+}
+
+/* -----------------------------
+   Role accents
+   ----------------------------- */
+
+body[data-kelyvo-role="admin"] {
+    --v18-role-accent: var(--portal-admin);
+    --v18-role-soft: rgba(243,198,106,.12);
+    --v18-role-border: rgba(243,198,106,.34);
+    --k17-role-accent: var(--portal-admin);
+    --k17-role-soft: rgba(243,198,106,.12);
+    --k17-role-border: rgba(243,198,106,.34);
+}
+
+body[data-kelyvo-role="qa"] {
+    --v18-role-accent: var(--portal-qa);
+    --v18-role-soft: rgba(185,156,255,.12);
+    --v18-role-border: rgba(185,156,255,.34);
+    --k17-role-accent: var(--portal-qa);
+    --k17-role-soft: rgba(185,156,255,.12);
+    --k17-role-border: rgba(185,156,255,.34);
+}
+
+body[data-kelyvo-role="contributor"] {
+    --v18-role-accent: var(--portal-contributor);
+    --v18-role-soft: rgba(94,234,212,.11);
+    --v18-role-border: rgba(94,234,212,.32);
+    --k17-role-accent: var(--portal-contributor);
+    --k17-role-soft: rgba(94,234,212,.11);
+    --k17-role-border: rgba(94,234,212,.32);
+}
+
+body[data-kelyvo-role="data_collector"] {
+    --v18-role-accent: var(--portal-collector);
+    --v18-role-soft: rgba(251,155,114,.11);
+    --v18-role-border: rgba(251,155,114,.32);
+    --k17-role-accent: var(--portal-collector);
+    --k17-role-soft: rgba(251,155,114,.11);
+    --k17-role-border: rgba(251,155,114,.32);
+}
+
+/* -----------------------------
+   Cards and sections
+   ----------------------------- */
+
+.kelyvo-v17-card,
+.kelyvo-card,
+#auth-section,
+#admin-ops-section,
+#admin-workforce-section,
+#admin-data-collector-review-section,
+#admin-data-collection-opportunities-section,
+#admin-support-section,
+#data-collector-section > div,
+#qa-section > div,
+#admin-section > div:not(.hidden) {
+    background: linear-gradient(180deg, var(--portal-surface-2), var(--portal-surface)) !important;
+    border-color: var(--portal-border) !important;
+    box-shadow: var(--portal-shadow);
+}
+
+.kelyvo-v17-card,
+.kelyvo-card {
+    border-radius: var(--portal-radius) !important;
+}
+
+.kelyvo-v17-card:hover,
+.kelyvo-card:hover {
+    border-color: var(--portal-border-strong) !important;
+}
+
+/* Avoid excessive nested-card darkness. */
+.kelyvo-v17-card .bg-\[\#030303\],
+.kelyvo-v17-card .bg-\[\#050505\],
+.kelyvo-v17-card .bg-\[\#080808\],
+.kelyvo-card .bg-\[\#030303\],
+.kelyvo-card .bg-\[\#050505\],
+.kelyvo-card .bg-\[\#080808\] {
+    background: var(--portal-surface-3) !important;
+}
+
+/* -----------------------------
+   Page headings / alignment
+   ----------------------------- */
+
+#admin-section > div:first-child {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) auto !important;
+    align-items: center !important;
+    gap: 24px !important;
+    padding: 2px 0 24px !important;
+    border-bottom: 1px solid var(--portal-border) !important;
+}
+
+#admin-section > div:first-child > div {
+    min-width: 0;
+}
+
+#admin-section > div:first-child > div > span {
+    display: inline-flex !important;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 9px;
+    border: 1px solid var(--v18-role-border) !important;
+    border-radius: 999px;
+    background: var(--v18-role-soft) !important;
+    color: var(--v18-role-accent) !important;
+    letter-spacing: .13em !important;
+}
+
+#admin-section > div:first-child h2 {
+    margin-top: 12px !important;
+    font-size: clamp(28px, 3vw, 38px) !important;
+    line-height: 1.08 !important;
+    font-weight: 600 !important;
+}
+
+#admin-section > div:first-child p {
+    margin-top: 9px !important;
+    color: var(--portal-muted) !important;
+    max-width: 680px;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+}
+
+#admin-section > div:first-child > button {
+    align-self: center !important;
+    white-space: nowrap;
+    min-height: 40px;
+    padding: 10px 15px !important;
+    border: 1px solid var(--portal-border-strong) !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,.045) !important;
+    color: var(--portal-text-soft) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: .04em;
+}
+
+#admin-section > div:first-child > button:hover {
+    background: color-mix(in srgb, var(--v18-role-accent) 11%, transparent) !important;
+    border-color: var(--v18-role-border) !important;
+    color: var(--portal-text) !important;
+}
+
+.kelyvo-page-heading {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 24px !important;
+    padding: 2px 0 24px !important;
+    border-bottom: 1px solid var(--portal-border) !important;
+}
+
+.kelyvo-page-heading-copy {
+    min-width: 0;
+}
+
+.kelyvo-page-heading .kelyvo-eyebrow {
+    display: inline-flex !important;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 9px;
+    border: 1px solid var(--v18-role-border) !important;
+    border-radius: 999px;
+    background: var(--v18-role-soft) !important;
+    color: var(--v18-role-accent) !important;
+    letter-spacing: .13em !important;
+}
+
+.kelyvo-page-heading h2 {
+    margin: 12px 0 0 !important;
+    font-size: clamp(28px, 3vw, 38px) !important;
+    line-height: 1.08 !important;
+    font-weight: 600 !important;
+}
+
+.kelyvo-page-heading p {
+    margin: 9px 0 0 !important;
+    color: var(--portal-muted) !important;
+    max-width: 680px;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+}
+
+.kelyvo-page-heading-action {
+    align-self: center !important;
+    white-space: nowrap;
+    min-height: 40px;
+    padding: 10px 15px !important;
+    border: 1px solid var(--portal-border-strong) !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,.045) !important;
+    color: var(--portal-text-soft) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: .04em;
+}
+
+.kelyvo-page-heading-action:hover {
+    background: color-mix(in srgb, var(--v18-role-accent) 11%, transparent) !important;
+    border-color: var(--v18-role-border) !important;
+    color: var(--portal-text) !important;
+}
+
+/* -----------------------------
+   Summary / KPI cards
+   ----------------------------- */
+
+#admin-section .grid.grid-cols-1.md\:grid-cols-3,
+#dashboard-section .grid,
+#data-collector-section .grid,
+#qa-section .grid {
+    gap: 14px !important;
+}
+
+#admin-section .qa-queue-tab,
+#admin-section .grid > button {
+    background: linear-gradient(180deg, var(--portal-surface-3), var(--portal-surface)) !important;
+    border-color: var(--portal-border) !important;
+    border-radius: 14px !important;
+    min-height: 112px;
+    transition: .18s ease;
+}
+
+#admin-section .qa-queue-tab:hover,
+#admin-section .grid > button:hover {
+    transform: translateY(-1px);
+    border-color: var(--v18-role-border) !important;
+    background: linear-gradient(180deg, var(--portal-surface-hover), var(--portal-surface-2)) !important;
+}
+
+#admin-section .qa-queue-tab:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--v18-role-accent) 70%, transparent) !important;
+    outline-offset: 2px;
+}
+
+/* -----------------------------
+   Tables / queues
+   ----------------------------- */
+
+table {
+    color: var(--portal-text-soft) !important;
+}
+
+thead {
+    background: rgba(255,255,255,.025) !important;
+}
+
+thead tr {
+    border-color: var(--portal-border) !important;
+}
+
+th {
+    color: var(--portal-muted) !important;
+    font-weight: 600 !important;
+    letter-spacing: .09em !important;
+}
+
+tbody tr {
+    border-color: var(--portal-border) !important;
+}
+
+tbody tr:hover {
+    background: rgba(255,255,255,.025) !important;
+}
+
+td {
+    color: var(--portal-text-soft) !important;
+}
+
+.kelyvo-v17-listframe {
+    max-height: 440px !important;
+    overflow: auto !important;
+    border: 1px solid var(--portal-border) !important;
+    border-radius: 0 0 14px 14px !important;
+    background: var(--portal-surface) !important;
+}
+
+.kelyvo-v17-hidden-row {
+    display: none !important;
+}
+
+.kelyvo-v17-list-actions {
+    background: var(--portal-surface-2) !important;
+    border-color: var(--portal-border) !important;
+    color: var(--portal-muted) !important;
+}
+
+.kelyvo-v17-view-all {
+    border-color: var(--v18-role-border) !important;
+    background: var(--v18-role-soft) !important;
+    color: var(--portal-text) !important;
+    font-weight: 600 !important;
+}
+
+/* -----------------------------
+   Forms / controls
+   ----------------------------- */
+
+input,
+select,
+textarea {
+    background: var(--portal-surface-3) !important;
+    border: 1px solid var(--portal-border) !important;
+    color: var(--portal-text) !important;
+    border-radius: 10px !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #718096 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--v18-role-border) !important;
+    box-shadow: 0 0 0 3px var(--v18-role-soft) !important;
+    outline: none !important;
+}
+
+button {
+    transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+button:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.bg-white.text-black,
+button.bg-white.text-black {
+    background: #f8fafc !important;
+    color: #07090c !important;
+    border: 1px solid rgba(255,255,255,.78) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.16);
+}
+
+.bg-white.text-black:hover,
+button.bg-white.text-black:hover {
+    background: #ffffff !important;
+    box-shadow: 0 10px 28px rgba(0,0,0,.22);
+}
+
+/* Status colors retain meaning but use controlled chips instead of loud blocks. */
+.border-emerald-500\/30,
+.border-emerald-700,
+.border-green-500\/30 {
+    border-color: rgba(94,234,212,.30) !important;
+}
+
+.border-red-500\/30,
+.border-red-700 {
+    border-color: rgba(251,139,132,.30) !important;
+}
+
+.border-amber-500\/30,
+.border-amber-500\/40,
+.border-amber-900 {
+    border-color: rgba(243,198,106,.30) !important;
+}
+
+/* -----------------------------
+   Admin / QA review desk
+   ----------------------------- */
+
+#admin-section {
+    color: var(--portal-text-soft) !important;
+}
+
+#admin-section > .grid.grid-cols-1.md\:grid-cols-3 {
+    margin-top: 2px;
+}
+
+#admin-section > .grid.grid-cols-1.md\:grid-cols-3 + * {
+    margin-top: 18px !important;
+}
+
+#admin-section .qa-queue-tab div:first-child {
+    color: var(--v18-role-accent) !important;
+}
+
+#admin-section .qa-queue-tab div:nth-child(2) {
+    color: var(--portal-text) !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 28px !important;
+}
+
+#admin-section .qa-queue-tab div:last-child {
+    color: var(--portal-muted) !important;
+}
+
+/* -----------------------------
+   Modal surfaces
+   ----------------------------- */
+
+.fixed.inset-0 {
+    backdrop-filter: blur(8px);
+}
+
+.fixed.inset-0 > .bg-\[\#080808\],
+.fixed.inset-0 > div.bg-\[\#080808\],
+.kelyvo-v17-list-dialog {
+    background: linear-gradient(180deg, var(--portal-surface-2), var(--portal-surface)) !important;
+    border-color: var(--portal-border-strong) !important;
+    box-shadow: 0 30px 100px rgba(0,0,0,.48) !important;
+}
+
+.kelyvo-v17-list-modal,
+#kelyvo-v17-list-modal {
+    background: rgba(0,0,0,.68) !important;
+    backdrop-filter: blur(8px);
+}
+
+.kelyvo-v17-list-dialog {
+    width: min(1180px, 96vw);
+    max-height: 86vh;
+    overflow: hidden;
+    border: 1px solid var(--portal-border-strong);
+    border-radius: 18px;
+}
+
+.kelyvo-v17-list-dialog-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--portal-border);
+}
+
+.kelyvo-v17-list-dialog-scroll {
+    max-height: calc(86vh - 80px);
+    overflow: auto;
+    padding: 10px 14px 18px;
+}
+
+.kelyvo-v17-list-dialog-scroll .kelyvo-v17-hidden-row {
+    display: table-row !important;
+}
+
+/* -----------------------------
+   Footer + misc
+   ----------------------------- */
+
+footer {
+    border-color: var(--portal-border) !important;
+    color: var(--portal-subtle) !important;
+}
+
+#loading-screen {
+    background: var(--portal-bg) !important;
+}
+
+#loading-text {
+    color: var(--portal-muted) !important;
+}
+
+/* Make the Label Studio workspace feel like the same product. */
+#task-workspace-modal {
+    background: #050607 !important;
+}
+
+#task-workspace-modal > header,
+#task-workspace-modal header {
+    background: rgba(9,13,18,.96) !important;
+    border-color: var(--portal-border) !important;
+}
+
+/* -----------------------------
+   Responsive
+   ----------------------------- */
+
+@media (max-width: 760px) {
+    header {
+        padding: 14px 16px !important;
+    }
+
+    header > span:first-child {
+        letter-spacing: .16em !important;
+        font-size: 15px !important;
+    }
+
+    #user-email-display {
+        display: none !important;
+    }
+
+    .kelyvo-v16-nav {
+        padding: 8px 10px !important;
+        overflow-x: auto;
+    }
+
+    .kelyvo-page-heading {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    .kelyvo-page-heading-action {
+        justify-self: start;
+    }
+
+    .kelyvo-page-heading h2 {
+        font-size: 30px !important;
+    }
+
+    .kelyvo-v17-listframe {
+        max-height: 380px !important;
+    }
+}
+</style>
+
+
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23050505'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='Arial' font-size='32' fill='white'%3EKY%3C/text%3E%3C/svg%3E">
+
+<style id="kelyvo-final-brand-system">
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
+:root{
+ --ky-bg:#050505;
+ --ky-surface:#0c0c0d;
+ --ky-surface-2:#121214;
+ --ky-border:rgba(255,255,255,.10);
+ --ky-text:#f5f5f5;
+ --ky-muted:#a1a1aa;
+ --ky-gold:#d7b06a;
+ --ky-violet:#b8a1ff;
+ --ky-teal:#61d9c4;
+ --ky-orange:#e39a6b;
+}
+
+html,body{
+ font-family:Inter,Arial,sans-serif!important;
+ background:var(--ky-bg)!important;
+ color:var(--ky-text)!important;
+}
+
+h1,h2,h3,h4,.kelyvo-title{
+ font-family:Manrope,Inter,sans-serif!important;
+ letter-spacing:-.035em!important;
+ color:#fff!important;
+}
+
+p,span,td,th,label,input,button,select{
+ font-family:Inter,Arial,sans-serif!important;
+}
+
+body{
+ background:
+ radial-gradient(circle at 50% -10%,rgba(255,255,255,.08),transparent 35%),
+ #050505!important;
+}
+
+header,.kelyvo-v16-header,nav{
+ background:rgba(5,5,5,.85)!important;
+ border-color:var(--ky-border)!important;
+ backdrop-filter:blur(16px);
+}
+
+.kelyvo-card,
+.kelyvo-v17-card,
+#admin-ops-section,
+#admin-workforce-section,
+#qa-section .kelyvo-card,
+#dashboard-section .kelyvo-card,
+#data-collector-section .kelyvo-card{
+ background:linear-gradient(180deg,#111113,#0b0b0c)!important;
+ border:1px solid var(--ky-border)!important;
+ box-shadow:0 20px 60px rgba(0,0,0,.25)!important;
+ border-radius:18px!important;
+}
+
+p,.text-gray-400,.text-gray-500{
+ color:#b4b4bd!important;
+}
+
+button{
+ border-radius:12px!important;
+ font-weight:600!important;
+ letter-spacing:-.01em;
+}
+
+button:hover{
+ transform:translateY(-1px);
+}
+
+input,select,textarea{
+ background:#101012!important;
+ color:#fff!important;
+ border:1px solid rgba(255,255,255,.12)!important;
+}
+
+#admin-workforce-section .kelyvo-viewbar,
+#admin-workforce-section .kelyvo-viewbar *,
+.kelyvo-viewbar{
+ display:none!important;
+}
+
+#admin-workforce-section table{
+ background:transparent!important;
+}
+
+table th{
+ color:#8f8f99!important;
+ font-size:11px!important;
+ letter-spacing:.08em!important;
+}
+
+table td{
+ color:#ededed!important;
+}
+
+.kelyvo-role-admin{color:var(--ky-gold)!important}
+.kelyvo-role-qa{color:var(--ky-violet)!important}
+.kelyvo-role-contributor{color:var(--ky-teal)!important}
+.kelyvo-role-data-collector{color:var(--ky-orange)!important}
+
+html[data-kelyvo-theme="light"] body{
+ background:#faf7f2!important;
+ color:#171717!important;
+}
+
+html[data-kelyvo-theme="light"] .kelyvo-card,
+html[data-kelyvo-theme="light"] .kelyvo-v17-card,
+html[data-kelyvo-theme="light"] #admin-ops-section,
+html[data-kelyvo-theme="light"] #admin-workforce-section{
+ background:#fffdf9!important;
+ border-color:#e7dccd!important;
+ box-shadow:0 18px 50px rgba(90,60,30,.08)!important;
+}
+
+html[data-kelyvo-theme="light"] h1,
+html[data-kelyvo-theme="light"] h2,
+html[data-kelyvo-theme="light"] h3{
+ color:#161616!important;
+}
+
+</style>
+
+
+<style id="kelyvo-final-enterprise-fix">
+/* Final enterprise cleanup */
+
+:root{
+ --enterprise-bg:#070707;
+ --enterprise-panel:#0d0d0f;
+ --enterprise-panel-2:#111113;
+ --enterprise-border:rgba(255,255,255,.09);
+ --enterprise-text:#f4f4f5;
+ --enterprise-muted:#a1a1aa;
+ --enterprise-accent:#d6b06a;
+}
+
+body{
+ background:#070707!important;
+ color:var(--enterprise-text)!important;
+}
+
+h1,h2,h3,h4{
+ letter-spacing:-0.045em!important;
+ font-weight:700!important;
+}
+
+p{
+ line-height:1.65!important;
+}
+
+/* Remove duplicate contributor history/view blocks */
+[class*="showing-latest"],
+[class*="Showing latest"],
+[id*="showing"],
+[id*="latest-count"]{
+ margin:0!important;
+}
+
+.kelyvo-card,
+.kelyvo-v16-card,
+.kelyvo-v17-card,
+.kelyvo-v18-card{
+ background:linear-gradient(180deg,#111214,#0b0b0c)!important;
+ border:1px solid rgba(255,255,255,.08)!important;
+ border-radius:20px!important;
+}
+
+/* Replace tight task grids */
+[class*="task-grid"],
+[class*="submission-grid"]{
+ gap:24px!important;
+ padding:8px 0 24px!important;
+}
+
+[class*="task-card"],
+[class*="submission-card"]{
+ min-height:210px!important;
+ padding:24px!important;
+ border-radius:20px!important;
+}
+
+/* Better modal/history layout */
+[class*="submission-history"],
+[class*="history-modal"]{
+ width:min(1100px,92vw)!important;
+ max-height:75vh!important;
+ border-radius:24px!important;
+ padding:28px!important;
+}
+
+/* Better pipeline cards */
+[class*="pipeline-card"]{
+ background:#101114!important;
+ border-radius:22px!important;
+ padding:26px!important;
+ border:1px solid rgba(255,255,255,.08)!important;
+}
+
+/* Remove duplicated controls */
+button[class*="view-all"],
+button[class*="View all"]{
+ display:none!important;
+}
+
+/* QA spacing */
+#qa-section,
+[class*="qa-section"]{
+ padding-top:40px!important;
+}
+
+#qa-section .kelyvo-card,
+[class*="qa-review"]{
+ padding:32px!important;
+ margin-bottom:32px!important;
+}
+
+/* Headers */
+[class*="section-header"]{
+ align-items:center!important;
+ gap:24px!important;
+}
+
+/* ============================================================
+   CONTRIBUTOR WORKSPACE + PIPELINE VISUAL REFINEMENT
+   ============================================================ */
+
+#dashboard-section > .kelyvo-contributor-hero {
+    background:
+        radial-gradient(circle at 72% 22%, rgba(94,234,212,.055), transparent 26%),
+        radial-gradient(circle at 94% 0%, rgba(147,197,253,.045), transparent 24%),
+        transparent !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.075) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 4px 0 30px !important;
+    margin: 0 !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:first-child {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:first-child > span {
+    background: rgba(94,234,212,.055) !important;
+    border-color: rgba(94,234,212,.22) !important;
+    color: #76e5d2 !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero h2 {
+    font-size: clamp(32px, 4vw, 46px) !important;
+    line-height: 1.02 !important;
+    font-weight: 600 !important;
+    letter-spacing: -.045em !important;
+    text-shadow: 0 8px 34px rgba(0,0,0,.28);
+}
+
+#dashboard-section > .kelyvo-contributor-hero p {
+    max-width: 650px !important;
+    color: #9da9b7 !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(88px, 1fr)) !important;
+    gap: 9px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    align-self: stretch !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div {
+    position: relative !important;
+    min-width: 92px !important;
+    min-height: 86px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    padding: 13px 14px !important;
+    background: linear-gradient(145deg, #141e28, #0d151e) !important;
+    border: 1px solid rgba(255,255,255,.075) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 12px 35px rgba(0,0,0,.16) !important;
+    overflow: hidden !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(118,168,255,.68), rgba(118,168,255,.12), transparent);
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div:nth-child(2)::after {
+    background: linear-gradient(90deg, rgba(111,224,203,.72), rgba(111,224,203,.12), transparent);
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div:nth-child(3)::after {
+    background: linear-gradient(90deg, rgba(94,234,212,.82), rgba(94,234,212,.12), transparent);
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div:nth-child(4)::after {
+    background: linear-gradient(90deg, rgba(240,184,108,.75), rgba(240,184,108,.10), transparent);
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div > span:first-child {
+    color: #7f8b9a !important;
+    font-size: 9px !important;
+    letter-spacing: .13em !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div > span:last-child {
+    margin-top: 8px !important;
+    color: #f4f7fb !important;
+    font-family: "Space Grotesk", "Inter", sans-serif !important;
+    font-size: 19px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div:nth-child(3) > span:last-child {
+    color: #5eead4 !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div:nth-child(4) > span:last-child {
+    color: #f0b86c !important;
+}
+
+#dashboard-section {
+    gap: 26px !important;
+}
+
+#dashboard-section > #contributor-profile-card,
+#dashboard-section > #contributor-preferences-card {
+    box-shadow: 0 16px 48px rgba(0,0,0,.20) !important;
+}
+
+#dashboard-section > #contributor-profile-card {
+    border-color: rgba(243,198,106,.22) !important;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(243,198,106,.045), transparent 28%),
+        linear-gradient(145deg, #111b24, #0c131b) !important;
+}
+
+#dashboard-section > #contributor-preferences-card {
+    background:
+        radial-gradient(circle at 100% 0%, rgba(94,234,212,.04), transparent 28%),
+        linear-gradient(145deg, #111b24, #0c131b) !important;
+}
+
+#dashboard-section > div:not(.kelyvo-contributor-hero):not(#contributor-profile-card):not(#contributor-preferences-card) {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 {
+    border-top-color: rgba(255,255,255,.075) !important;
+    padding-top: 28px !important;
+    margin-top: 2px !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 > div:first-child {
+    margin-bottom: 17px !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 > div:first-child h3 {
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    letter-spacing: -.03em !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 > div:first-child p {
+    color: #788596 !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 > div:first-child > button {
+    min-height: 34px !important;
+    padding: 8px 12px !important;
+    border-radius: 9px !important;
+    background: rgba(255,255,255,.025) !important;
+    border-color: rgba(255,255,255,.09) !important;
+    color: #aab5c2 !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 > div:first-child > button:hover {
+    background: rgba(94,234,212,.055) !important;
+    border-color: rgba(94,234,212,.20) !important;
+    color: #d9f7f2 !important;
+}
+
+#pipeline-container.kelyvo-pipeline-grid,
+#pipeline-container {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 13px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 1px 0 3px !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    align-items: stretch !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card {
+    --pipeline-accent: #8ea3b7;
+    position: relative !important;
+    min-width: 0 !important;
+    min-height: 205px !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 17px 17px 15px !important;
+    background: linear-gradient(145deg, #151f29 0%, #0e161e 100%) !important;
+    border: 1px solid rgba(255,255,255,.085) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 14px 38px rgba(0,0,0,.18) !important;
+    overflow: hidden !important;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card:hover {
+    transform: translateY(-2px) !important;
+    border-color: color-mix(in srgb, var(--pipeline-accent) 35%, rgba(255,255,255,.08)) !important;
+    box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px color-mix(in srgb, var(--pipeline-accent) 7%, transparent) !important;
+    background: linear-gradient(145deg, #18232e 0%, #101922 100%) !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-image { --pipeline-accent: #76a8ff; }
+#pipeline-container > .kelyvo-pipeline-audio { --pipeline-accent: #6fe0cb; }
+#pipeline-container > .kelyvo-pipeline-video { --pipeline-accent: #b9a1ff; }
+#pipeline-container > .kelyvo-pipeline-text  { --pipeline-accent: #f0b86c; }
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-accent {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: 2px !important;
+    background: linear-gradient(90deg, var(--pipeline-accent), color-mix(in srgb, var(--pipeline-accent) 18%, transparent), transparent 78%) !important;
+    opacity: .82 !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-topline {
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+    min-height: 25px !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important;
+    height: 24px !important;
+    flex: 0 0 auto !important;
+    border: 1px solid color-mix(in srgb, var(--pipeline-accent) 24%, rgba(255,255,255,.07)) !important;
+    border-radius: 7px !important;
+    background: color-mix(in srgb, var(--pipeline-accent) 8%, transparent) !important;
+    color: var(--pipeline-accent) !important;
+    font-family: "IBM Plex Mono", monospace !important;
+    font-size: 7px !important;
+    font-weight: 700 !important;
+    letter-spacing: .08em !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-type {
+    color: #7f8c9b !important;
+    font-size: 8px !important;
+    font-weight: 600 !important;
+    letter-spacing: .14em !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-title {
+    margin: 13px 0 0 !important;
+    color: #f2f5f8 !important;
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+    font-weight: 600 !important;
+    letter-spacing: -.025em !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-description {
+    margin: 7px 0 0 !important;
+    color: #9aa7b6 !important;
+    font-size: 10.5px !important;
+    line-height: 1.45 !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    margin-top: auto !important;
+    padding-top: 14px !important;
+    color: #667486 !important;
+    font-family: "IBM Plex Mono", monospace !important;
+    font-size: 8px !important;
+    line-height: 1 !important;
+    letter-spacing: .045em !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-meta-dot {
+    color: color-mix(in srgb, var(--pipeline-accent) 70%, transparent) !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-start {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-height: 37px !important;
+    margin-top: 11px !important;
+    padding: 9px 11px 9px 13px !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    border-radius: 10px !important;
+    background: rgba(248,250,252,.96) !important;
+    color: #0a0d11 !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    letter-spacing: .035em !important;
+    box-shadow: 0 7px 18px rgba(0,0,0,.16) !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-start:hover {
+    background: #ffffff !important;
+    border-color: color-mix(in srgb, var(--pipeline-accent) 45%, rgba(255,255,255,.5)) !important;
+    box-shadow: 0 9px 24px rgba(0,0,0,.22) !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-arrow {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 7px !important;
+    background: #111820 !important;
+    color: var(--pipeline-accent) !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+}
+
+#pipeline-container::-webkit-scrollbar {
+    display: none !important;
+}
+
+#pipeline-container {
+    scrollbar-width: none !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > .kelyvo-contributor-hero {
+    background:
+        radial-gradient(circle at 74% 30%, rgba(8,127,114,.055), transparent 27%),
+        transparent !important;
+    border-bottom-color: rgba(15,23,42,.10) !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > .kelyvo-contributor-hero > div:last-child > div {
+    background: linear-gradient(145deg, #ffffff, #f5f8fb) !important;
+    border-color: rgba(15,23,42,.10) !important;
+    box-shadow: 0 12px 30px rgba(15,23,42,.06) !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-profile-card,
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-preferences-card {
+    background: #ffffff !important;
+    border-color: rgba(15,23,42,.10) !important;
+    box-shadow: 0 14px 38px rgba(15,23,42,.07) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card {
+    background: linear-gradient(145deg, #ffffff, #f4f7fa) !important;
+    border-color: rgba(15,23,42,.10) !important;
+    box-shadow: 0 12px 30px rgba(15,23,42,.06) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card:hover {
+    background: #ffffff !important;
+    border-color: color-mix(in srgb, var(--pipeline-accent) 30%, rgba(15,23,42,.10)) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-title {
+    color: #17202b !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-description {
+    color: #64748b !important;
+}
+
+@media (max-width: 1100px) {
+    #dashboard-section > .kelyvo-contributor-hero > div:last-child {
+        grid-template-columns: repeat(2, minmax(90px, 1fr)) !important;
+    }
+
+    #pipeline-container.kelyvo-pipeline-grid,
+    #pipeline-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 700px) {
+    #dashboard-section > .kelyvo-contributor-hero > div:last-child {
+        grid-template-columns: repeat(2, minmax(90px, 1fr)) !important;
+    }
+
+    #pipeline-container.kelyvo-pipeline-grid,
+    #pipeline-container {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    #pipeline-container > .kelyvo-pipeline-card {
+        min-height: 190px !important;
+    }
+}
+
+/* Light theme premium */
+html[data-kelyvo-theme="light"] body{
+ background:#faf7f1!important;
+}
+
+html[data-kelyvo-theme="light"] .kelyvo-card,
+html[data-kelyvo-theme="light"] [class*="card"]{
+ background:#fffdf9!important;
+ border-color:#e7dccd!important;
+}
+
+</style>
+
+
+<style id="kelyvo-final-warm-enterprise-system">
+/* ============================================================
+   KELYVO — FINAL WARM ENTERPRISE UI
+   Visual-only layer. Existing IDs, API bindings and workflows are untouched.
+   ============================================================ */
+
+:root {
+    --kx-dark-bg: #090a0a;
+    --kx-dark-surface: #111313;
+    --kx-dark-surface-2: #151817;
+    --kx-dark-surface-3: #191c1b;
+    --kx-dark-border: rgba(255,255,255,.095);
+    --kx-dark-border-strong: rgba(255,255,255,.14);
+    --kx-dark-text: #f5f2ec;
+    --kx-dark-muted: #a8aaa5;
+    --kx-dark-subtle: #777b76;
+
+    --kx-ivory: #f6f1e8;
+    --kx-ivory-deep: #eee6d9;
+    --kx-card: #fffaf1;
+    --kx-card-alt: #fcf6ec;
+    --kx-card-hover: #f7eee1;
+    --kx-border: #e2d7c6;
+    --kx-border-soft: #ece3d6;
+    --kx-text: #211f1b;
+    --kx-muted: #625d54;
+    --kx-subtle: #817a70;
+
+    --kx-admin: #b7791f;
+    --kx-qa: #7657a9;
+    --kx-contributor: #087d70;
+    --kx-collector: #bd6840;
+    --kx-success: #087d70;
+    --kx-warning: #a96f12;
+    --kx-danger: #b7473d;
+}
+
+/* ---------- Global type ---------- */
+html, body {
+    font-family: "Manrope", "Inter", "Avenir Next", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    -webkit-font-smoothing: antialiased !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+h1, h2, h3, h4, h5, h6,
+.kelyvo-title {
+    font-family: "Manrope", "Inter", "Avenir Next", system-ui, sans-serif !important;
+    font-weight: 650 !important;
+    letter-spacing: -0.035em !important;
+}
+
+body, p, span, div, td, th, label, input, select, textarea, button, a {
+    font-family: "Manrope", "Inter", "Avenir Next", system-ui, sans-serif !important;
+}
+
+button, input, select, textarea {
+    -webkit-font-smoothing: antialiased !important;
+}
+
+/* ---------- Dark theme: neutral graphite, not blue ---------- */
+html:not([data-kelyvo-theme="light"]) body,
+html:not([data-kelyvo-theme="light"]) body.bg-darkbg {
+    background:
+        radial-gradient(circle at 50% -15%, rgba(255,248,232,.045), transparent 34%),
+        linear-gradient(180deg, #0b0c0c 0%, #090a0a 100%) !important;
+    color: var(--kx-dark-text) !important;
+}
+
+html:not([data-kelyvo-theme="light"]) header,
+html:not([data-kelyvo-theme="light"]) nav,
+html:not([data-kelyvo-theme="light"]) .kelyvo-v16-header,
+html:not([data-kelyvo-theme="light"]) #kelyvo-v16-role-nav {
+    background: rgba(9,10,10,.92) !important;
+    border-color: var(--kx-dark-border) !important;
+    color: var(--kx-dark-text) !important;
+}
+
+html:not([data-kelyvo-theme="light"]) .kelyvo-card,
+html:not([data-kelyvo-theme="light"]) .kelyvo-v17-card,
+html:not([data-kelyvo-theme="light"]) .kelyvo-v18-card,
+html:not([data-kelyvo-theme="light"]) #admin-ops-section,
+html:not([data-kelyvo-theme="light"]) #admin-workforce-section,
+html:not([data-kelyvo-theme="light"]) #qa-section .kelyvo-card,
+html:not([data-kelyvo-theme="light"]) #dashboard-section .kelyvo-card,
+html:not([data-kelyvo-theme="light"]) #data-collector-section .kelyvo-card {
+    background: linear-gradient(145deg, #121514 0%, #0f1110 100%) !important;
+    border-color: var(--kx-dark-border) !important;
+    box-shadow: 0 18px 50px rgba(0,0,0,.22) !important;
+}
+
+html:not([data-kelyvo-theme="light"]) table tr:hover,
+html:not([data-kelyvo-theme="light"]) .kelyvo-pipeline-card:hover {
+    background: rgba(255,248,232,.025) !important;
+}
+
+html:not([data-kelyvo-theme="light"]) table td,
+html:not([data-kelyvo-theme="light"]) table td * {
+    color: #e9e7e2 !important;
+}
+
+html:not([data-kelyvo-theme="light"]) table th {
+    color: #9b9d98 !important;
+}
+
+/* ---------- Warm ivory light theme ---------- */
+html[data-kelyvo-theme="light"],
+html[data-kelyvo-theme="light"] body {
+    background: var(--kx-ivory) !important;
+    color: var(--kx-text) !important;
+}
+
+html[data-kelyvo-theme="light"] body {
+    background:
+        radial-gradient(circle at 12% 0%, rgba(219,190,151,.16), transparent 30%),
+        radial-gradient(circle at 90% 8%, rgba(194,174,145,.11), transparent 27%),
+        linear-gradient(180deg, #f8f3eb 0%, #f3ede3 100%) !important;
+}
+
+html[data-kelyvo-theme="light"] header,
+html[data-kelyvo-theme="light"] nav,
+html[data-kelyvo-theme="light"] .kelyvo-v16-header,
+html[data-kelyvo-theme="light"] #kelyvo-v16-role-nav {
+    background: rgba(250,247,241,.94) !important;
+    color: var(--kx-text) !important;
+    border-color: var(--kx-border-soft) !important;
+    box-shadow: 0 1px 0 rgba(79,61,37,.035) !important;
+    backdrop-filter: blur(18px) !important;
+}
+
+/* Every common Tailwind text utility is remapped for readable light mode. */
+html[data-kelyvo-theme="light"] .text-white,
+html[data-kelyvo-theme="light"] .text-gray-100,
+html[data-kelyvo-theme="light"] .text-gray-200,
+html[data-kelyvo-theme="light"] .text-gray-300,
+html[data-kelyvo-theme="light"] .text-zinc-100,
+html[data-kelyvo-theme="light"] .text-zinc-200,
+html[data-kelyvo-theme="light"] .text-zinc-300,
+html[data-kelyvo-theme="light"] .text-slate-100,
+html[data-kelyvo-theme="light"] .text-slate-200,
+html[data-kelyvo-theme="light"] .text-slate-300 {
+    color: #28251f !important;
+}
+
+html[data-kelyvo-theme="light"] .text-gray-400,
+html[data-kelyvo-theme="light"] .text-gray-500,
+html[data-kelyvo-theme="light"] .text-zinc-400,
+html[data-kelyvo-theme="light"] .text-zinc-500,
+html[data-kelyvo-theme="light"] .text-zinc-600,
+html[data-kelyvo-theme="light"] .text-slate-400,
+html[data-kelyvo-theme="light"] .text-slate-500,
+html[data-kelyvo-theme="light"] .text-slate-600 {
+    color: #625d54 !important;
+}
+
+html[data-kelyvo-theme="light"] .text-gray-600,
+html[data-kelyvo-theme="light"] .text-gray-700,
+html[data-kelyvo-theme="light"] .text-zinc-700,
+html[data-kelyvo-theme="light"] .text-zinc-800,
+html[data-kelyvo-theme="light"] .text-slate-700,
+html[data-kelyvo-theme="light"] .text-slate-800 {
+    color: #4e4941 !important;
+}
+
+html[data-kelyvo-theme="light"] p,
+html[data-kelyvo-theme="light"] .text-sm,
+html[data-kelyvo-theme="light"] .text-xs {
+    color: #625d54 !important;
+}
+
+html[data-kelyvo-theme="light"] h1,
+html[data-kelyvo-theme="light"] h2,
+html[data-kelyvo-theme="light"] h3,
+html[data-kelyvo-theme="light"] h4,
+html[data-kelyvo-theme="light"] h5,
+html[data-kelyvo-theme="light"] h6 {
+    color: #211f1b !important;
+}
+
+html[data-kelyvo-theme="light"] .kelyvo-card,
+html[data-kelyvo-theme="light"] .kelyvo-v17-card,
+html[data-kelyvo-theme="light"] .kelyvo-v18-card,
+html[data-kelyvo-theme="light"] #admin-ops-section,
+html[data-kelyvo-theme="light"] #admin-workforce-section,
+html[data-kelyvo-theme="light"] #qa-section .kelyvo-card,
+html[data-kelyvo-theme="light"] #dashboard-section .kelyvo-card,
+html[data-kelyvo-theme="light"] #data-collector-section .kelyvo-card,
+html[data-kelyvo-theme="light"] [class*="card"] {
+    background: linear-gradient(145deg, #fffaf1 0%, #fdf7ee 100%) !important;
+    border: 1px solid var(--kx-border) !important;
+    border-radius: 18px !important;
+    color: var(--kx-text) !important;
+    box-shadow: 0 16px 42px rgba(91,68,39,.075), 0 1px 0 rgba(255,255,255,.8) inset !important;
+}
+
+html[data-kelyvo-theme="light"] .kelyvo-card:hover,
+html[data-kelyvo-theme="light"] .kelyvo-v17-card:hover,
+html[data-kelyvo-theme="light"] .kelyvo-v18-card:hover,
+html[data-kelyvo-theme="light"] [class*="card"]:hover {
+    background: linear-gradient(145deg, #fffdf8 0%, #f8f0e5 100%) !important;
+    border-color: #d7c7b0 !important;
+    box-shadow: 0 20px 48px rgba(91,68,39,.105), 0 1px 0 rgba(255,255,255,.9) inset !important;
+}
+
+/* Warm section separation instead of cold blue blocks. */
+html[data-kelyvo-theme="light"] section,
+html[data-kelyvo-theme="light"] .border-t,
+html[data-kelyvo-theme="light"] .border-b,
+html[data-kelyvo-theme="light"] .border-zinc-800,
+html[data-kelyvo-theme="light"] .border-zinc-900 {
+    border-color: var(--kx-border-soft) !important;
+}
+
+html[data-kelyvo-theme="light"] input,
+html[data-kelyvo-theme="light"] select,
+html[data-kelyvo-theme="light"] textarea {
+    background: #fbf7ef !important;
+    color: #26231e !important;
+    border: 1px solid #d9cebe !important;
+    box-shadow: 0 1px 2px rgba(72,52,28,.035) inset !important;
+}
+
+html[data-kelyvo-theme="light"] input::placeholder,
+html[data-kelyvo-theme="light"] textarea::placeholder {
+    color: #8a8277 !important;
+    opacity: 1 !important;
+}
+
+html[data-kelyvo-theme="light"] input:focus,
+html[data-kelyvo-theme="light"] select:focus,
+html[data-kelyvo-theme="light"] textarea:focus {
+    border-color: #bda989 !important;
+    box-shadow: 0 0 0 3px rgba(189,169,137,.17) !important;
+    outline: none !important;
+}
+
+html[data-kelyvo-theme="light"] button {
+    color: #292620 !important;
+    border-color: #d9cebe !important;
+    background: #faf6ee !important;
+}
+
+html[data-kelyvo-theme="light"] button:hover {
+    background: #f2e9dc !important;
+    border-color: #cdbb9f !important;
+    color: #171511 !important;
+}
+
+html[data-kelyvo-theme="light"] table {
+    background: transparent !important;
+    color: var(--kx-text) !important;
+}
+
+html[data-kelyvo-theme="light"] table th {
+    color: #756d62 !important;
+    background: rgba(239,231,220,.46) !important;
+    border-color: var(--kx-border-soft) !important;
+    font-weight: 650 !important;
+}
+
+html[data-kelyvo-theme="light"] table td {
+    color: #302d27 !important;
+    border-color: #e8dfd3 !important;
+}
+
+html[data-kelyvo-theme="light"] table td * {
+    color: inherit !important;
+}
+
+html[data-kelyvo-theme="light"] table tbody tr {
+    transition: background .16s ease, box-shadow .16s ease !important;
+}
+
+html[data-kelyvo-theme="light"] table tbody tr:hover {
+    background: #f7efe3 !important;
+    box-shadow: inset 3px 0 0 rgba(183,121,31,.35) !important;
+}
+
+/* ---------- Role accents ---------- */
+body[data-kelyvo-role="admin"] { --kx-role: var(--kx-admin); }
+body[data-kelyvo-role="qa"] { --kx-role: var(--kx-qa); }
+body[data-kelyvo-role="contributor"] { --kx-role: var(--kx-contributor); }
+body[data-kelyvo-role="data_collector"] { --kx-role: var(--kx-collector); }
+
+.kelyvo-role-admin { color: var(--kx-admin) !important; }
+.kelyvo-role-qa { color: var(--kx-qa) !important; }
+.kelyvo-role-contributor { color: var(--kx-contributor) !important; }
+.kelyvo-role-data-collector { color: var(--kx-collector) !important; }
+
+html[data-kelyvo-theme="light"] body[data-kelyvo-role="qa"] .kelyvo-nav-btn.active,
+html[data-kelyvo-theme="light"] body[data-kelyvo-role="qa"] .kelyvo-role-pill {
+    color: var(--kx-qa) !important;
+    border-color: rgba(118,87,169,.32) !important;
+    background: rgba(118,87,169,.075) !important;
+}
+
+html[data-kelyvo-theme="light"] body[data-kelyvo-role="contributor"] .kelyvo-nav-btn.active {
+    color: var(--kx-contributor) !important;
+    border-color: rgba(8,125,112,.30) !important;
+    background: rgba(8,125,112,.07) !important;
+}
+
+html[data-kelyvo-theme="light"] body[data-kelyvo-role="data_collector"] .kelyvo-nav-btn.active {
+    color: var(--kx-collector) !important;
+    border-color: rgba(189,104,64,.30) !important;
+    background: rgba(189,104,64,.07) !important;
+}
+
+html[data-kelyvo-theme="light"] body[data-kelyvo-role="admin"] .kelyvo-nav-btn.active {
+    color: var(--kx-admin) !important;
+    border-color: rgba(183,121,31,.34) !important;
+    background: rgba(183,121,31,.075) !important;
+}
+
+/* ---------- Contributor workspace: spacious and warm ---------- */
+#dashboard-section {
+    gap: 30px !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero {
+    padding: 8px 0 30px !important;
+    margin-bottom: 2px !important;
+    border-radius: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.09) !important;
+}
+
+#dashboard-section > #contributor-profile-card,
+#dashboard-section > #contributor-preferences-card {
+    padding: 28px !important;
+    min-height: 170px !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-profile-card,
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-preferences-card {
+    background: linear-gradient(145deg,#fffaf1,#f8f0e5) !important;
+    border-color: #dfd2c0 !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-profile-card:hover,
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-preferences-card:hover {
+    transform: translateY(-2px) !important;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease !important;
+}
+
+/* Stats are separated without turning into a blue wall. */
+html[data-kelyvo-theme="light"] #dashboard-section > .kelyvo-contributor-hero > div:last-child > div {
+    background: linear-gradient(145deg,#fffaf2,#f3eadc) !important;
+    border-color: #ded1be !important;
+    box-shadow: 0 10px 26px rgba(84,62,36,.065) !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > .kelyvo-contributor-hero > div:last-child > div > span:first-child {
+    color: #7a7165 !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > .kelyvo-contributor-hero > div:last-child > div > span:last-child {
+    color: #27231d !important;
+}
+
+/* ---------- Pipelines: roomy, refined, no cold blue ---------- */
+#pipeline-container.kelyvo-pipeline-grid,
+#pipeline-container {
+    gap: 18px !important;
+    padding: 4px 0 8px !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card {
+    min-height: 222px !important;
+    padding: 23px 21px 19px !important;
+    border-radius: 18px !important;
+    background: linear-gradient(145deg,#151817 0%,#101211 100%) !important;
+    border-color: rgba(255,255,255,.105) !important;
+    box-shadow: 0 16px 38px rgba(0,0,0,.20) !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card:hover {
+    transform: translateY(-3px) !important;
+    background: linear-gradient(145deg,#1a1d1c 0%,#121514 100%) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card {
+    background: linear-gradient(145deg,#fffaf2 0%,#f6eee2 100%) !important;
+    border-color: #dfd3c2 !important;
+    box-shadow: 0 13px 30px rgba(84,62,36,.075) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card:hover {
+    background: linear-gradient(145deg,#fffdf8 0%,#f4eadc 100%) !important;
+    border-color: #cdbb9f !important;
+    box-shadow: 0 20px 42px rgba(84,62,36,.11) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-title {
+    color: #24211c !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-description {
+    color: #625d54 !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-type,
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-meta {
+    color: #81786d !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-start {
+    background: #292721 !important;
+    color: #fffaf1 !important;
+    border-color: #292721 !important;
+    box-shadow: 0 7px 16px rgba(52,39,24,.14) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-start:hover {
+    background: #171511 !important;
+    color: #fffaf1 !important;
+}
+
+/* ---------- QA: readable hierarchy + breathing room ---------- */
+#qa-section,
+#admin-section,
+[class*="qa-review"] {
+    scroll-margin-top: 92px !important;
+}
+
+#qa-section .kelyvo-card,
+#admin-section .kelyvo-card {
+    padding: 28px !important;
+}
+
+#qa-section table,
+#admin-section table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+#qa-section table td,
+#qa-section table th,
+#admin-section table td,
+#admin-section table th {
+    padding: 15px 16px !important;
+}
+
+html[data-kelyvo-theme="light"] #qa-section .kelyvo-card,
+html[data-kelyvo-theme="light"] #admin-section .kelyvo-card {
+    background: linear-gradient(145deg,#fffaf1,#f8f0e5) !important;
+}
+
+/* ---------- Admin workforce: no duplicate black VIEW strip ---------- */
+#admin-workforce-section .kelyvo-viewbar,
+#admin-workforce-section .kelyvo-viewbar *,
+.kelyvo-v17-list-actions,
+[class*="showing-latest"],
+[id*="showing-latest"],
+[id*="latest-count"] {
+    display: none !important;
+}
+
+#admin-workforce-section table tbody tr {
+    transition: background .16s ease !important;
+}
+
+html[data-kelyvo-theme="light"] #admin-workforce-section table tbody tr:hover {
+    background: #f7efe3 !important;
+}
+
+/* ---------- Contributor submissions: one contained scrollable history ---------- */
+#contributor-submissions-container {
+    max-height: 560px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 8px !important;
+    border-radius: 16px !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #bcae9a transparent !important;
+}
+
+#contributor-submissions-container::-webkit-scrollbar {
+    width: 8px !important;
+}
+
+#contributor-submissions-container::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+#contributor-submissions-container::-webkit-scrollbar-thumb {
+    background: #bcae9a !important;
+    border-radius: 999px !important;
+}
+
+/* Remove all legacy "latest X of Y" visual remnants. */
+.kelyvo-v17-list-actions,
+.kelyvo-v17-view-all {
+    display: none !important;
+}
+
+/* ---------- Smooth, restrained interaction ---------- */
+.kelyvo-card,
+.kelyvo-v17-card,
+.kelyvo-v18-card,
+.kelyvo-pipeline-card,
+.kelyvo-nav-btn,
+button,
+input,
+select,
+textarea,
+tr {
+    transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease, color .16s ease !important;
+}
+
+/* Keep motion accessible. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+@media (max-width: 900px) {
+    #pipeline-container.kelyvo-pipeline-grid,
+    #pipeline-container {
+        gap: 14px !important;
+    }
+    #dashboard-section > #contributor-profile-card,
+    #dashboard-section > #contributor-preferences-card {
+        padding: 22px !important;
+    }
+}
+</style>
+
+
+<style id="kelyvo-v19-visual-polish">
+/* ============================================================
+   KELYVO V19 — SPACIOUS ENTERPRISE VISUAL POLISH
+   Keeps existing functionality and JS intact.
+   Focus: hierarchy, breathing room, warm ivory light mode,
+   cleaner pipeline cards, stronger readability and interaction.
+   ============================================================ */
+
+:root {
+    --v19-ivory: #f5efe5;
+    --v19-ivory-deep: #eee4d6;
+    --v19-surface: #fffaf2;
+    --v19-surface-soft: #faf5ec;
+    --v19-surface-hover: #f3e9db;
+    --v19-border: #ddd0bd;
+    --v19-border-soft: #e8ddce;
+    --v19-ink: #24211c;
+    --v19-body: #5f594f;
+    --v19-muted: #7d7468;
+    --v19-gold: #a97822;
+    --v19-teal: #087d70;
+}
+
+/* ---------- Global breathing room ---------- */
+main.max-w-7xl {
+    max-width: 1240px !important;
+}
+
+main > section,
+main > div > section {
+    scroll-margin-top: 100px;
+}
+
+#dashboard-section,
+#data-collector-section,
+#qa-section,
+#admin-section {
+    row-gap: 38px !important;
+}
+
+#dashboard-section > * + *,
+#data-collector-section > * + *,
+#qa-section > * + *,
+#admin-section > * + * {
+    margin-top: 0 !important;
+}
+
+/* Don't let utility classes create cramped heading blocks. */
+#dashboard-section h2,
+#data-collector-section h2,
+#qa-section h2,
+#admin-section h2 {
+    margin-bottom: 12px !important;
+}
+
+#dashboard-section h3,
+#data-collector-section h3,
+#qa-section h3,
+#admin-section h3 {
+    line-height: 1.18 !important;
+}
+
+#dashboard-section p,
+#data-collector-section p,
+#qa-section p,
+#admin-section p {
+    line-height: 1.62 !important;
+}
+
+/* ---------- Contributor hero: clean, open, no ghost box ---------- */
+#dashboard-section > .kelyvo-contributor-hero {
+    padding: 10px 0 34px !important;
+    margin: 0 0 2px !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.075) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:first-child {
+    padding: 4px 0 !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero h2 {
+    margin-top: 16px !important;
+    margin-bottom: 12px !important;
+    font-size: clamp(34px, 4vw, 50px) !important;
+    line-height: 1.04 !important;
+    letter-spacing: -.047em !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero p {
+    margin-top: 0 !important;
+    max-width: 690px !important;
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child {
+    gap: 12px !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div {
+    min-height: 102px !important;
+    padding: 17px 16px !important;
+    border-radius: 16px !important;
+}
+
+#dashboard-section > .kelyvo-contributor-hero > div:last-child > div:hover {
+    transform: translateY(-2px) !important;
+}
+
+/* ---------- Major contributor cards ---------- */
+#dashboard-section > #contributor-profile-card,
+#dashboard-section > #contributor-preferences-card {
+    min-height: 190px !important;
+    padding: 32px !important;
+    border-radius: 20px !important;
+}
+
+#dashboard-section > #contributor-profile-card h3,
+#dashboard-section > #contributor-preferences-card h3 {
+    margin-top: 0 !important;
+    margin-bottom: 10px !important;
+    font-size: 24px !important;
+    line-height: 1.18 !important;
+}
+
+#dashboard-section > #contributor-profile-card p,
+#dashboard-section > #contributor-preferences-card p {
+    max-width: 760px !important;
+}
+
+/* ---------- Internal section headers ---------- */
+#dashboard-section .border-t.border-zinc-800.pt-8,
+#dashboard-section > div.border-t,
+#data-collector-section .border-t,
+#qa-section .border-t,
+#admin-section .border-t {
+    padding-top: 36px !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 > div:first-child,
+#dashboard-section > div.border-t > div:first-child {
+    margin-bottom: 22px !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 > div:first-child h3,
+#dashboard-section > div.border-t > div:first-child h3 {
+    font-size: 22px !important;
+    margin-bottom: 7px !important;
+}
+
+#dashboard-section .border-t.border-zinc-800.pt-8 > div:first-child p,
+#dashboard-section > div.border-t > div:first-child p {
+    line-height: 1.6 !important;
+}
+
+/* ---------- Pipelines: larger cards + deliberate spacing ---------- */
+#pipeline-container.kelyvo-pipeline-grid,
+#pipeline-container {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 22px !important;
+    padding: 3px 1px 10px !important;
+    margin-top: 4px !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card {
+    min-height: 252px !important;
+    padding: 27px 24px 22px !important;
+    border-radius: 19px !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-topline {
+    margin-bottom: 16px !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-title {
+    margin-top: 13px !important;
+    margin-bottom: 9px !important;
+    font-size: 16px !important;
+    line-height: 1.3 !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-description {
+    min-height: 42px !important;
+    line-height: 1.55 !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-meta {
+    margin-top: 15px !important;
+    line-height: 1.5 !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-start {
+    min-height: 40px !important;
+    margin-top: auto !important;
+    border-radius: 11px !important;
+    font-weight: 700 !important;
+}
+
+#pipeline-container > .kelyvo-pipeline-card:hover {
+    transform: translateY(-4px) !important;
+}
+
+/* ---------- Submission/task cards ---------- */
+#contributor-submissions-container {
+    gap: 18px !important;
+    padding: 6px !important;
+}
+
+#contributor-submissions-container > * {
+    min-height: 205px !important;
+    padding: 24px !important;
+    border-radius: 18px !important;
+}
+
+/* ---------- Guidance / lower workspace cards ---------- */
+#dashboard-section .grid.xl\:grid-cols-2 {
+    gap: 22px !important;
+}
+
+#dashboard-section .grid.xl\:grid-cols-2 > .kelyvo-card {
+    padding: 30px !important;
+}
+
+#dashboard-section .kelyvo-quality-check {
+    gap: 13px !important;
+    padding: 2px 0 !important;
+}
+
+#dashboard-section .kelyvo-quality-check + .kelyvo-quality-check {
+    margin-top: 16px !important;
+}
+
+/* ---------- QA / Admin: less compressed tables and panels ---------- */
+#qa-section .kelyvo-card,
+#admin-section .kelyvo-card,
+#admin-ops-section,
+#admin-workforce-section {
+    border-radius: 19px !important;
+}
+
+#qa-section table td,
+#qa-section table th,
+#admin-section table td,
+#admin-section table th,
+#admin-workforce-section table td,
+#admin-workforce-section table th {
+    padding: 17px 18px !important;
+    line-height: 1.45 !important;
+}
+
+#qa-section table tbody tr,
+#admin-section table tbody tr,
+#admin-workforce-section table tbody tr {
+    min-height: 58px !important;
+}
+
+/* ---------- Generic enterprise cards: avoid stuffed contents ---------- */
+.kelyvo-card,
+.kelyvo-v17-card,
+.kelyvo-v18-card {
+    overflow: hidden !important;
+}
+
+.kelyvo-card > .flex,
+.kelyvo-v17-card > .flex,
+.kelyvo-v18-card > .flex {
+    row-gap: 12px !important;
+}
+
+/* ---------- Warm light mode ---------- */
+html[data-kelyvo-theme="light"] {
+    --portal-bg: var(--v19-ivory) !important;
+    --portal-bg-soft: #efe7dc !important;
+    --portal-surface: var(--v19-surface) !important;
+    --portal-surface-2: var(--v19-surface-soft) !important;
+    --portal-surface-3: #f4ede3 !important;
+    --portal-surface-hover: var(--v19-surface-hover) !important;
+    --portal-border: rgba(105,82,51,.15) !important;
+    --portal-border-strong: rgba(105,82,51,.23) !important;
+    --portal-text: var(--v19-ink) !important;
+    --portal-text-soft: #403b33 !important;
+    --portal-muted: var(--v19-body) !important;
+    --portal-subtle: var(--v19-muted) !important;
+}
+
+html[data-kelyvo-theme="light"] body {
+    background:
+        radial-gradient(circle at 8% -5%, rgba(210,181,142,.23), transparent 29%),
+        radial-gradient(circle at 94% 4%, rgba(193,170,136,.15), transparent 25%),
+        linear-gradient(180deg, #f8f3eb 0%, #f1e9de 48%, #eee5d9 100%) !important;
+    color: var(--v19-body) !important;
+}
+
+html[data-kelyvo-theme="light"] body::selection {
+    background: rgba(169,120,34,.20);
+}
+
+html[data-kelyvo-theme="light"] header,
+html[data-kelyvo-theme="light"] nav,
+html[data-kelyvo-theme="light"] #kelyvo-v16-role-nav,
+html[data-kelyvo-theme="light"] .kelyvo-v16-nav {
+    background: rgba(250,246,239,.91) !important;
+    border-color: #e0d4c3 !important;
+    box-shadow: 0 1px 0 rgba(255,255,255,.75), 0 8px 30px rgba(91,68,39,.035) !important;
+}
+
+html[data-kelyvo-theme="light"] h1,
+html[data-kelyvo-theme="light"] h2,
+html[data-kelyvo-theme="light"] h3,
+html[data-kelyvo-theme="light"] h4,
+html[data-kelyvo-theme="light"] h5,
+html[data-kelyvo-theme="light"] h6 {
+    color: #211f1b !important;
+}
+
+html[data-kelyvo-theme="light"] p {
+    color: #625d54 !important;
+}
+
+/* All common text utilities become dark enough to read. */
+html[data-kelyvo-theme="light"] .text-white,
+html[data-kelyvo-theme="light"] .text-gray-100,
+html[data-kelyvo-theme="light"] .text-gray-200,
+html[data-kelyvo-theme="light"] .text-gray-300,
+html[data-kelyvo-theme="light"] .text-zinc-100,
+html[data-kelyvo-theme="light"] .text-zinc-200,
+html[data-kelyvo-theme="light"] .text-zinc-300,
+html[data-kelyvo-theme="light"] .text-slate-100,
+html[data-kelyvo-theme="light"] .text-slate-200,
+html[data-kelyvo-theme="light"] .text-slate-300 {
+    color: #292620 !important;
+}
+
+html[data-kelyvo-theme="light"] .text-gray-400,
+html[data-kelyvo-theme="light"] .text-gray-500,
+html[data-kelyvo-theme="light"] .text-zinc-400,
+html[data-kelyvo-theme="light"] .text-zinc-500,
+html[data-kelyvo-theme="light"] .text-zinc-600,
+html[data-kelyvo-theme="light"] .text-slate-400,
+html[data-kelyvo-theme="light"] .text-slate-500,
+html[data-kelyvo-theme="light"] .text-slate-600 {
+    color: #665f55 !important;
+}
+
+html[data-kelyvo-theme="light"] .text-gray-600,
+html[data-kelyvo-theme="light"] .text-gray-700,
+html[data-kelyvo-theme="light"] .text-zinc-700,
+html[data-kelyvo-theme="light"] .text-zinc-800,
+html[data-kelyvo-theme="light"] .text-slate-700,
+html[data-kelyvo-theme="light"] .text-slate-800 {
+    color: #514b42 !important;
+}
+
+/* Warm cards, not sterile white rectangles. */
+html[data-kelyvo-theme="light"] .kelyvo-card,
+html[data-kelyvo-theme="light"] .kelyvo-v17-card,
+html[data-kelyvo-theme="light"] .kelyvo-v18-card,
+html[data-kelyvo-theme="light"] #admin-ops-section,
+html[data-kelyvo-theme="light"] #admin-workforce-section,
+html[data-kelyvo-theme="light"] #qa-section .kelyvo-card,
+html[data-kelyvo-theme="light"] #dashboard-section .kelyvo-card,
+html[data-kelyvo-theme="light"] #data-collector-section .kelyvo-card {
+    background: linear-gradient(145deg, #fffaf2 0%, #f9f1e6 100%) !important;
+    border-color: #ddcfbc !important;
+    box-shadow: 0 18px 44px rgba(83,62,38,.075), 0 1px 0 rgba(255,255,255,.85) inset !important;
+}
+
+html[data-kelyvo-theme="light"] .kelyvo-card:hover,
+html[data-kelyvo-theme="light"] .kelyvo-v17-card:hover,
+html[data-kelyvo-theme="light"] .kelyvo-v18-card:hover,
+html[data-kelyvo-theme="light"] #dashboard-section .kelyvo-card:hover {
+    background: linear-gradient(145deg, #fffdf8 0%, #f5eadc 100%) !important;
+    border-color: #cdbb9f !important;
+    box-shadow: 0 22px 52px rgba(83,62,38,.105), 0 1px 0 rgba(255,255,255,.92) inset !important;
+}
+
+/* Warm hero statistics. */
+html[data-kelyvo-theme="light"] #dashboard-section > .kelyvo-contributor-hero > div:last-child > div {
+    background: linear-gradient(145deg, #fffaf2, #f1e6d6) !important;
+    border-color: #ddcfbc !important;
+    box-shadow: 0 12px 30px rgba(83,62,38,.075) !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > .kelyvo-contributor-hero > div:last-child > div:hover {
+    background: linear-gradient(145deg, #fffdf8, #eee1cf) !important;
+    border-color: #cdbb9f !important;
+}
+
+/* Warm contributor profile cards. */
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-profile-card,
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-preferences-card {
+    background:
+        radial-gradient(circle at 100% 0%, rgba(169,120,34,.055), transparent 27%),
+        linear-gradient(145deg, #fffaf2, #f7eee1) !important;
+    border-color: #dacbb7 !important;
+}
+
+html[data-kelyvo-theme="light"] #dashboard-section > #contributor-preferences-card {
+    background:
+        radial-gradient(circle at 100% 0%, rgba(8,125,112,.045), transparent 27%),
+        linear-gradient(145deg, #fffaf2, #f7eee1) !important;
+}
+
+/* Warm pipeline cards. */
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card {
+    background: linear-gradient(145deg, #fffaf2 0%, #f5ecdf 100%) !important;
+    border-color: #ddcfbc !important;
+    box-shadow: 0 15px 34px rgba(83,62,38,.075) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card:hover {
+    background: linear-gradient(145deg, #fffdf8 0%, #f0e4d3 100%) !important;
+    border-color: #c6b398 !important;
+    box-shadow: 0 22px 46px rgba(83,62,38,.12) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-title {
+    color: #28241e !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-description {
+    color: #625d54 !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-type,
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-meta {
+    color: #7b7266 !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-start {
+    background: #302c25 !important;
+    border-color: #302c25 !important;
+    color: #fffaf2 !important;
+    box-shadow: 0 8px 18px rgba(49,39,27,.14) !important;
+}
+
+html[data-kelyvo-theme="light"] #pipeline-container > .kelyvo-pipeline-card .kelyvo-pipeline-start:hover {
+    background: #181612 !important;
+    border-color: #181612 !important;
+}
+
+/* Inputs and selects: warm paper controls with clear focus. */
+html[data-kelyvo-theme="light"] input,
+html[data-kelyvo-theme="light"] select,
+html[data-kelyvo-theme="light"] textarea {
+    background: #fbf7ef !important;
+    color: #292620 !important;
+    border-color: #d7cab7 !important;
+}
+
+html[data-kelyvo-theme="light"] input:hover,
+html[data-kelyvo-theme="light"] select:hover,
+html[data-kelyvo-theme="light"] textarea:hover {
+    background: #fffaf2 !important;
+    border-color: #c9b89f !important;
+}
+
+html[data-kelyvo-theme="light"] input:focus,
+html[data-kelyvo-theme="light"] select:focus,
+html[data-kelyvo-theme="light"] textarea:focus {
+    border-color: #b79a6d !important;
+    box-shadow: 0 0 0 3px rgba(183,154,109,.16) !important;
+}
+
+/* Buttons visibly respond to hover instead of remaining flat. */
+html[data-kelyvo-theme="light"] button {
+    transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease !important;
+}
+
+html[data-kelyvo-theme="light"] button:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+    background: #f0e6d8 !important;
+    border-color: #c9b89f !important;
+    box-shadow: 0 8px 20px rgba(83,62,38,.07) !important;
+}
+
+html[data-kelyvo-theme="light"] .bg-white.text-black,
+html[data-kelyvo-theme="light"] button.bg-white.text-black {
+    background: #302c25 !important;
+    color: #fffaf2 !important;
+    border-color: #302c25 !important;
+}
+
+html[data-kelyvo-theme="light"] .bg-white.text-black:hover,
+html[data-kelyvo-theme="light"] button.bg-white.text-black:hover {
+    background: #171511 !important;
+    color: #fffaf2 !important;
+}
+
+/* Tables: more vertical air + warm row interaction. */
+html[data-kelyvo-theme="light"] table thead {
+    background: rgba(232,220,203,.42) !important;
+}
+
+html[data-kelyvo-theme="light"] table th {
+    color: #766d61 !important;
+    background: rgba(232,220,203,.42) !important;
+    border-color: #e2d7c8 !important;
+}
+
+html[data-kelyvo-theme="light"] table td {
+    color: #302d27 !important;
+    border-color: #e7ddd0 !important;
+}
+
+html[data-kelyvo-theme="light"] table tbody tr:hover {
+    background: #f6ede1 !important;
+    box-shadow: inset 3px 0 0 rgba(169,120,34,.38) !important;
+}
+
+/* Pills / active navigation retain the role accent but sit naturally in ivory. */
+html[data-kelyvo-theme="light"] .kelyvo-pill {
+    background: #f5ecdf !important;
+    border-color: #d8cbb9 !important;
+    color: #514a40 !important;
+}
+
+html[data-kelyvo-theme="light"] .kelyvo-nav-btn:hover {
+    background: #f0e7da !important;
+}
+
+/* Scrollbars feel part of the same warm surface. */
+html[data-kelyvo-theme="light"] * {
+    scrollbar-color: #c5b59f transparent;
+}
+
+html[data-kelyvo-theme="light"] *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+}
+
+html[data-kelyvo-theme="light"] *::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+html[data-kelyvo-theme="light"] *::-webkit-scrollbar-thumb {
+    background: #c8b8a2;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+html[data-kelyvo-theme="light"] *::-webkit-scrollbar-thumb:hover {
+    background: #a99578;
+    background-clip: padding-box;
+}
+
+/* ---------- Responsive spacing ---------- */
+@media (max-width: 1100px) {
+    #pipeline-container.kelyvo-pipeline-grid,
+    #pipeline-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 18px !important;
+    }
+}
+
+@media (max-width: 900px) {
+    #dashboard-section > #contributor-profile-card,
+    #dashboard-section > #contributor-preferences-card,
+    #dashboard-section .grid.xl\:grid-cols-2 > .kelyvo-card {
+        padding: 24px !important;
+    }
+
+    #dashboard-section > .kelyvo-contributor-hero {
+        padding-bottom: 28px !important;
+    }
+}
+
+@media (max-width: 640px) {
+    #pipeline-container.kelyvo-pipeline-grid,
+    #pipeline-container {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+
+    #pipeline-container > .kelyvo-pipeline-card {
+        min-height: 225px !important;
+        padding: 23px 20px 19px !important;
+    }
+
+    #dashboard-section > #contributor-profile-card,
+    #dashboard-section > #contributor-preferences-card {
+        padding: 22px !important;
+        min-height: 0 !important;
+    }
+
+    #dashboard-section > .kelyvo-contributor-hero h2 {
+        font-size: 34px !important;
+    }
+}
+</style>
+
 </head>
 
 <body class="bg-darkbg text-gray-100 min-h-screen">
@@ -543,6 +3458,41 @@ button {
             id="user-email-display"
             class="text-xs text-zinc-400 font-mono"
         ></span>
+<button
+            id="kelyvo-header-notifications"
+            type="button"
+            onclick="kelyvoOpenNotifications()"
+            class="kelyvo-v16-header-control"
+            hidden
+        >
+            <span class="kelyvo-control-icon">◔</span>
+            <span class="kelyvo-control-text">Alerts</span>
+        </button>
+
+        <button
+            id="kelyvo-theme-toggle"
+            type="button"
+            onclick="kelyvoToggleTheme()"
+            class="kelyvo-v16-header-control"
+            hidden
+            aria-label="Toggle dark or light mode"
+        >
+            <span id="kelyvo-theme-icon" class="kelyvo-control-icon">☾</span>
+            <span id="kelyvo-theme-text" class="kelyvo-control-text">Dark</span>
+        </button>
+
+        <button
+            id="kelyvo-support-open"
+            type="button"
+            onclick="kelyvoOpenSupport()"
+            class="kelyvo-v16-header-control"
+            hidden
+            aria-label="Open KELYVO support"
+        >
+            <span class="kelyvo-control-icon">?</span>
+            <span id="kelyvo-support-label" class="kelyvo-control-text">Support</span>
+        </button>
+
 
         <button
             onclick="logout()"
@@ -554,6 +3504,12 @@ button {
     </div>
 
 </header>
+
+<nav id="kelyvo-v16-role-nav" class="kelyvo-v16-nav" aria-label="Workspace navigation">
+    <span id="kelyvo-v16-nav-title" class="kelyvo-nav-title">Workspace</span>
+    <div id="kelyvo-v16-nav-items" class="flex items-center gap-2"></div>
+</nav>
+
 
 
 <main class="max-w-7xl mx-auto px-5 md:px-8 py-10">
@@ -747,7 +3703,7 @@ button {
 >
 
     <div
-        class="flex flex-col xl:flex-row justify-between gap-8 pb-8 border-b border-zinc-800"
+        class="kelyvo-contributor-hero flex flex-col xl:flex-row justify-between gap-8 pb-8 border-b border-zinc-800"
     >
 
         <div>
@@ -1199,7 +4155,7 @@ button {
 
         <div
             id="pipeline-container"
-            class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5"
+            class="kelyvo-pipeline-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5"
         ></div>
 
     </div>
@@ -1470,6 +4426,54 @@ button {
         </div>
     </section>
 
+    <section id="data-collector-submission-panel" class="kelyvo-card p-7 hidden">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <div>
+                <div class="text-[10px] uppercase tracking-widest text-emerald-400 font-mono">Collection Submission</div>
+                <h3 class="text-2xl font-light mt-2">Submit Collected Data</h3>
+                <p class="text-xs text-zinc-500 mt-2 max-w-2xl">
+                    This first pipeline version is storage-agnostic. Submit the approved collection reference here; the real client storage/upload connector will be attached when a live project defines the required storage provider.
+                </p>
+            </div>
+            <button type="button" onclick="closeDataCollectorSubmissionForm()" class="text-[10px] uppercase border border-zinc-800 rounded-lg px-4 py-2">
+                Cancel
+            </button>
+        </div>
+
+        <form class="mt-6 space-y-5" onsubmit="submitDataCollectorCollection(event)">
+            <input id="dc-submission-opportunity-id" type="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">Opportunity</label>
+                    <input id="dc-submission-opportunity-title" readonly class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-300">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">Submission type *</label>
+                    <select id="dc-submission-type" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-sm">
+                        <option value="">Select type</option>
+                        <option value="audio">Audio</option>
+                        <option value="image">Image</option>
+                        <option value="video">Video</option>
+                        <option value="text">Text</option>
+                        <option value="document">Document</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-[10px] uppercase text-zinc-500 mb-2">Collection data reference *</label>
+                <textarea id="dc-submission-file-reference" required rows="4" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-3 py-3 text-sm resize-y" placeholder="Paste the storage path, secure file URL, batch ID, or other project-approved data reference"></textarea>
+                <div class="text-[10px] text-zinc-600 mt-2">Do not paste passwords, access tokens, or private credentials here.</div>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div id="data-collector-submission-message" class="text-xs font-mono min-h-[18px]"></div>
+                <button id="data-collector-submission-submit" type="submit" class="bg-white text-black text-xs px-7 py-3 rounded-lg uppercase tracking-wider">
+                    Submit for QA
+                </button>
+            </div>
+        </form>
+    </section>
+
     <section class="kelyvo-card p-7">
         <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div>
@@ -1487,7 +4491,7 @@ button {
             <div class="grid grid-cols-4 text-[10px] uppercase text-zinc-600 font-mono border-b border-zinc-800">
                 <div class="p-4">Status</div>
                 <div class="p-4">Type</div>
-                <div class="p-4">Project</div>
+                <div class="p-4">Opportunity</div>
                 <div class="p-4">Updated</div>
             </div>
             <div id="data-collector-submissions-body" class="text-xs divide-y divide-zinc-800">
@@ -1531,6 +4535,23 @@ button {
     </div>
 
     <div id="admin-ops-error" class="hidden p-4 border border-red-900/60 bg-red-950/20 rounded-xl text-xs text-red-300 font-mono"></div>
+
+<section id="admin-support-section" class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div>
+            <div class="text-sm font-medium text-white">Support Inbox</div>
+            <div class="text-[10px] text-zinc-600 mt-1">User-reported issues and screenshots routed directly to Admin.</div>
+        </div>
+        <div class="flex gap-2 items-center">
+            <span id="admin-support-open-count" class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">0 open</span>
+            <button type="button" onclick="loadAdminSupportTickets()" class="text-xs uppercase border border-zinc-800 px-4 py-2.5 rounded-lg">Refresh</button>
+        </div>
+    </div>
+    <div id="admin-support-list" class="kelyvo-admin-support-list">
+        <div class="p-8 text-center text-zinc-600 text-xs">No support tickets loaded.</div>
+    </div>
+</section>
+
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div class="bg-[#080808] border border-zinc-800 px-5 py-4 rounded-xl">
@@ -1871,38 +4892,18 @@ button {
     class="hidden space-y-8"
 >
 
-    <div
-        class="pb-6 border-b border-zinc-800 flex justify-between items-end"
-    >
-
-        <div>
-
-            <span
-                class="text-[11px] font-mono text-amber-400 uppercase"
-            >
-                Admin Control
-            </span>
-
-            <h2 class="text-3xl font-light mt-3">
-                QA Review Operations
-            </h2>
-
-            <p
-                class="text-sm text-zinc-400 mt-2"
-            >
-                Review contributor submissions by workflow status.
-            </p>
-
+    <div class="kelyvo-page-heading">
+        <div class="kelyvo-page-heading-copy">
+            <span class="kelyvo-eyebrow text-[11px] font-mono uppercase">Admin Control</span>
+            <h2>QA Review Operations</h2>
+            <p>Review contributor submissions by workflow status.</p>
         </div>
-
-
         <button
             onclick="loadAdminQueue()"
-            class="text-xs uppercase border border-zinc-800 px-4 py-2.5 rounded-lg"
+            class="kelyvo-page-heading-action"
         >
             Refresh Queue
         </button>
-
     </div>
 
 
@@ -3235,7 +6236,6 @@ function initializeAuthenticatedUI(user) {
         loadAdminDataCollectorReview();
         loadAdminCollectionOpportunities();
 
-        // Automatic dashboard polling removed. Use manual refresh actions.
 
     } else if (user.role === "qa") {
 
@@ -3260,7 +6260,6 @@ function initializeAuthenticatedUI(user) {
         loadAdminQueue();
         loadQADataCollectionQueue();
 
-        // Automatic dashboard polling removed. Use manual refresh actions.
 
     } else if (user.role === "data_collector") {
 
@@ -3319,7 +6318,6 @@ function initializeAuthenticatedUI(user) {
 
         loadContributorSubmissions();
 
-        // Automatic dashboard polling removed. Use manual refresh actions.
 
         loadContributorPreferences(Boolean(localStorage.getItem("kelyvo_show_preferences")));
         loadContributorOwnProfile();
@@ -3630,7 +6628,7 @@ async function loadDataCollectorOpportunities() {
                         <div class="text-xs text-zinc-400 mt-2 whitespace-pre-wrap leading-relaxed">${escapeHtml(item.description || "No additional description.")}</div>
                     </div>
                     <div class="shrink-0">
-                        ${claimed ? `<span class="kelyvo-pill text-emerald-400 border-emerald-500/20">Accepted</span>` : `<button type="button" onclick="acceptDataCollectorOpportunity('${escapeHtml(item.id)}')" class="bg-white text-black rounded-lg px-5 py-2.5 text-xs uppercase">Accept Opportunity</button>`}
+                        ${claimed ? `<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center"><span class="kelyvo-pill text-emerald-400 border-emerald-500/20">Accepted</span><button type="button" onclick="openDataCollectorSubmissionForm('${escapeHtml(item.id)}')" class="bg-white text-black rounded-lg px-4 py-2.5 text-xs uppercase">Submit Collection</button></div>` : `<button type="button" onclick="acceptDataCollectorOpportunity('${escapeHtml(item.id)}')" class="bg-white text-black rounded-lg px-5 py-2.5 text-xs uppercase">Accept Opportunity</button>`}
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
@@ -3669,6 +6667,89 @@ async function acceptDataCollectorOpportunity(opportunityId) {
 }
 
 
+function openDataCollectorSubmissionForm(opportunityId) {
+    const opportunity = dataCollectorOpportunitiesState.find(item => String(item.id) === String(opportunityId));
+    if (!opportunity || !opportunity.claimed_by_current_collector) {
+        window.alert("Accept this collection opportunity before submitting work.");
+        return;
+    }
+    const panel = document.getElementById("data-collector-submission-panel");
+    const idInput = document.getElementById("dc-submission-opportunity-id");
+    const titleInput = document.getElementById("dc-submission-opportunity-title");
+    const message = document.getElementById("data-collector-submission-message");
+    const typeInput = document.getElementById("dc-submission-type");
+    const referenceInput = document.getElementById("dc-submission-file-reference");
+    if (!panel || !idInput || !titleInput) return;
+    idInput.value = String(opportunity.id);
+    titleInput.value = String(opportunity.title || "Collection Opportunity");
+    if (typeInput) typeInput.value = "";
+    if (referenceInput) referenceInput.value = "";
+    if (message) {
+        message.innerText = "";
+        message.className = "text-xs font-mono min-h-[18px]";
+    }
+    panel.classList.remove("hidden");
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeDataCollectorSubmissionForm() {
+    const panel = document.getElementById("data-collector-submission-panel");
+    if (panel) panel.classList.add("hidden");
+}
+
+async function submitDataCollectorCollection(event) {
+    event.preventDefault();
+    const opportunityId = document.getElementById("dc-submission-opportunity-id")?.value?.trim() || "";
+    const submissionType = document.getElementById("dc-submission-type")?.value?.trim() || "";
+    const fileReference = document.getElementById("dc-submission-file-reference")?.value?.trim() || "";
+    const button = document.getElementById("data-collector-submission-submit");
+    const message = document.getElementById("data-collector-submission-message");
+
+    if (!opportunityId || !submissionType || !fileReference) {
+        if (message) {
+            message.innerText = "Complete all required submission fields.";
+            message.className = "text-xs font-mono min-h-[18px] text-amber-400";
+        }
+        return;
+    }
+
+    if (button) button.disabled = true;
+    if (message) {
+        message.innerText = "Submitting collection for QA...";
+        message.className = "text-xs font-mono min-h-[18px] text-zinc-400";
+    }
+
+    try {
+        const response = await fetch("/api/data-collector/submissions", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                opportunity_id: opportunityId,
+                submission_type: submissionType,
+                file_reference: fileReference
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not submit collection data.");
+        if (message) {
+            message.innerText = "Collection submitted to QA.";
+            message.className = "text-xs font-mono min-h-[18px] text-emerald-400";
+        }
+        closeDataCollectorSubmissionForm();
+        await loadDataCollectorSubmissions();
+        await loadDataCollectorSummary();
+        await loadDataCollectorOpportunities();
+    } catch (error) {
+        if (message) {
+            message.innerText = error.message || "Could not submit collection data.";
+            message.className = "text-xs font-mono min-h-[18px] text-red-400";
+        }
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
 let dataCollectorSubmissionsState = [];
 
 async function loadDataCollectorSubmissions() {
@@ -3685,7 +6766,7 @@ async function loadDataCollectorSubmissions() {
         if (!response.ok) throw new Error(data?.detail || "Could not load collection submissions.");
         dataCollectorSubmissionsState = Array.isArray(data.submissions) ? data.submissions : [];
         if (!dataCollectorSubmissionsState.length) {
-            body.innerHTML = `<div class="p-8 text-center text-zinc-600">No collection submissions yet. Approved collection opportunities will appear here when KELYVO assigns work.</div>`;
+            body.innerHTML = `<div class="p-8 text-center text-zinc-600">No collection submissions yet. Accept an open collection opportunity to submit work.</div>`;
             return;
         }
         body.innerHTML = dataCollectorSubmissionsState.map(item => {
@@ -3695,7 +6776,7 @@ async function loadDataCollectorSubmissions() {
             return `<div class="grid grid-cols-4">
                 <div class="p-4 ${statusClass} uppercase text-[10px]">${escapeHtml(statusLabel)}</div>
                 <div class="p-4 text-zinc-300">${escapeHtml(item.submission_type || "Unclassified")}</div>
-                <div class="p-4 text-zinc-500">${escapeHtml(item.project_id || "—")}</div>
+                <div class="p-4 text-zinc-500">${escapeHtml((dataCollectorOpportunitiesState.find(opportunity => String(opportunity.id) === String(item.opportunity_id || item.project_id))?.title) || item.opportunity_id || item.project_id || "—")}</div>
                 <div class="p-4 text-zinc-600 font-mono text-[10px]">${escapeHtml(formatAdminDate(item.updated_at || item.created_at) || "—")}</div>
             </div>`;
         }).join("");
@@ -4238,50 +7319,45 @@ function renderPipelineProjects(
 
 
                 card.className =
-                    "bg-[#080808] border border-zinc-800 p-6 rounded-2xl";
+                    `kelyvo-pipeline-card kelyvo-pipeline-${escapeHtml(modality)}`;
 
 
                 card.innerHTML = `
-                    <span class="text-[9px] uppercase tracking-widest text-zinc-300">
-                        ${escapeHtml(
-                            modality.toUpperCase()
-                        )}
-                        Pipeline
-                    </span>
+                    <div class="kelyvo-pipeline-accent" aria-hidden="true"></div>
 
-                    <h3 class="text-base text-white mt-4">
-                        ${escapeHtml(
-                            values[0]
-                        )}
+                    <div class="kelyvo-pipeline-topline">
+                        <span class="kelyvo-pipeline-icon" aria-hidden="true">
+                            ${modality === "image" ? "IMG" : modality === "audio" ? "AUD" : modality === "video" ? "VID" : modality === "text" ? "TXT" : "ANN"}
+                        </span>
+                        <span class="kelyvo-pipeline-type">
+                            ${escapeHtml(modality.toUpperCase())}
+                            PIPELINE
+                        </span>
+                    </div>
+
+                    <h3 class="kelyvo-pipeline-title">
+                        ${escapeHtml(values[0])}
                     </h3>
 
-                    <p class="text-xs text-zinc-400 mt-2">
-                        ${escapeHtml(
-                            values[1]
-                        )}
+                    <p class="kelyvo-pipeline-description">
+                        ${escapeHtml(values[1])}
                     </p>
 
-                    <div class="mt-4 text-[10px] font-mono text-zinc-600">
-                        Project #
-                        ${escapeHtml(
-                            project.id
-                        )}
-                        ·
-                        ${escapeHtml(
-                            project.task_count ?? 0
-                        )}
-                        tasks
+                    <div class="kelyvo-pipeline-meta">
+                        <span>PROJECT #${escapeHtml(project.id)}</span>
+                        <span class="kelyvo-pipeline-meta-dot">•</span>
+                        <span>${escapeHtml(project.task_count ?? 0)} TASKS</span>
                     </div>
 
                     <button
-                        class="w-full bg-white text-black text-xs uppercase py-2.5 rounded-lg mt-5"
+                        class="kelyvo-pipeline-start"
+                        type="button"
                     >
-                        Start
-                        ${escapeHtml(
+                        <span>Start ${escapeHtml(
                             modality.charAt(0).toUpperCase() +
                             modality.slice(1)
-                        )}
-                        Task
+                        )} Task</span>
+                        <span class="kelyvo-pipeline-arrow" aria-hidden="true">↗</span>
                     </button>
                 `;
 
@@ -5744,8 +8820,6 @@ function closeTaskWorkspace() {
 /* ============================================================
    CONTRIBUTOR SUBMISSIONS
 ============================================================ */
-
-
 
 
 /* ============================================================
@@ -9588,6 +12662,567 @@ window.addEventListener(
 
 </script>
 
+
+
+<div id="kelyvo-support-modal" class="kelyvo-support-modal" role="dialog" aria-modal="true" aria-labelledby="kelyvo-support-title">
+    <div class="kelyvo-support-dialog">
+        <div class="p-5 border-b border-zinc-800 flex items-start justify-between gap-4">
+            <div>
+                <div class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">Direct to Admin</div>
+                <h2 id="kelyvo-support-title" class="text-xl font-light mt-2">KELYVO Support</h2>
+                <p class="text-xs text-zinc-500 mt-1">Tell us what went wrong. You can attach a screenshot.</p>
+            </div>
+            <button type="button" onclick="kelyvoCloseSupport()" class="border border-zinc-800 rounded-lg px-3 py-2 text-xs uppercase">Close</button>
+        </div>
+        <form onsubmit="kelyvoSubmitSupport(event)" class="p-5">
+            <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Problem</label>
+            <textarea id="kelyvo-support-message" required maxlength="4000" placeholder="Describe the problem..."></textarea>
+            <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mt-4 mb-2">Screenshot</label>
+            <input id="kelyvo-support-attachment" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+            <div id="kelyvo-support-status" class="kelyvo-support-status mt-3"></div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="kelyvoCloseSupport()" class="border border-zinc-800 rounded-lg px-4 py-2.5 text-xs uppercase">Cancel</button>
+                <button type="submit" class="bg-white text-black rounded-lg px-5 py-2.5 text-xs uppercase tracking-wider">Send to Admin</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="kelyvo-notify-modal" class="kelyvo-notify-modal" role="dialog" aria-modal="true">
+    <div class="kelyvo-flyout">
+        <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+            <div>
+                <div class="text-sm">Notifications</div>
+                <div class="text-[10px] text-zinc-500 mt-1">Important workspace events.</div>
+            </div>
+            <button type="button" onclick="kelyvoCloseNotifications()" class="text-zinc-500">✕</button>
+        </div>
+        <div id="kelyvo-notification-list">
+            <div class="p-6 text-xs text-zinc-500">No new notifications.</div>
+        </div>
+    </div>
+</div>
+
+        </div>
+    </div>
+</div>
+
+
+<script id="kelyvo-v16-full-ui-js">
+(function () {
+    const PAGED_TARGETS = [
+        {id:"admin-workforce-users-body", labels:["All","Contributors","Data Collectors","QA","Admins"], terms:["","contributor","data collector","qa","admin"]},
+        {id:"admin-reservations-body", labels:["All","Active","Expired"], terms:["","active","expired"]},
+        {id:"admin-users-body", labels:["All","Active","Suspended"], terms:["","active","suspended"]},
+        {id:"admin-projects-body", labels:["All","Active","Draft","Archived"], terms:["","active","draft","archived"]},
+        {id:"admin-recent-body", labels:["Latest","Passed","Returned","Cancelled"], terms:["","passed","returned","cancelled"]},
+        {id:"admin-interest-pool-body", labels:["All"], terms:[""]},
+        {id:"admin-collection-opportunities-body", labels:["All","Open","Accepted","Closed"], terms:["","open","accepted","closed"]},
+        {id:"admin-table-body", labels:["All","Pending QA","Returned","Passed"], terms:["","pending qa","failed","passed"]},
+        {id:"qa-data-collection-queue-body", labels:["All","Pending","Approved","Rejected"], terms:["","pending","approved","rejected"]},
+        {id:"contributor-submissions-container", labels:["All","Passed","Pending QA","Returned"], terms:["","qa passed","pending qa","returned"]},
+        {id:"pipeline-container", labels:["All","Active"], terms:["","active"]},
+        {id:"data-collector-opportunities-body", labels:["All","Open","Accepted","Closed"], terms:["","open","accepted","closed"]},
+        {id:"data-collector-submissions-body", labels:["All","Pending","Approved","Rejected"], terms:["","pending","approved","rejected"]}
+    ];
+
+    function kelyvoThemeIsLight() {
+        return document.documentElement.getAttribute("data-kelyvo-theme") === "light";
+    }
+
+    window.kelyvoToggleTheme = function () {
+        const light = !kelyvoThemeIsLight();
+        document.documentElement.setAttribute("data-kelyvo-theme", light ? "light" : "dark");
+        document.body.classList.toggle("kelyvo-light", light);
+        localStorage.setItem("kelyvo_theme", light ? "light" : "dark");
+        kelyvoRefreshThemeButton();
+    };
+
+    function kelyvoRefreshThemeButton() {
+        const light = kelyvoThemeIsLight();
+        const icon = document.getElementById("kelyvo-theme-icon");
+        const text = document.getElementById("kelyvo-theme-text");
+        if (icon) icon.textContent = light ? "☀" : "☾";
+        if (text) text.textContent = light ? "Light" : "Dark";
+    }
+
+    function kelyvoApplySavedTheme() {
+        const saved = localStorage.getItem("kelyvo_theme") || "dark";
+        document.documentElement.setAttribute("data-kelyvo-theme", saved);
+        document.body.classList.toggle("kelyvo-light", saved === "light");
+        kelyvoRefreshThemeButton();
+    }
+
+    window.kelyvoOpenSupport = function () {
+        const modal = document.getElementById("kelyvo-support-modal");
+        if (modal) modal.classList.add("open");
+        const input = document.getElementById("kelyvo-support-message");
+        if (input) setTimeout(() => input.focus(), 60);
+    };
+    window.kelyvoCloseSupport = function () {
+        const modal = document.getElementById("kelyvo-support-modal");
+        if (modal) modal.classList.remove("open");
+        const status = document.getElementById("kelyvo-support-status");
+        if (status) status.textContent = "";
+    };
+
+    window.kelyvoSubmitSupport = async function (event) {
+        event.preventDefault();
+        const status = document.getElementById("kelyvo-support-status");
+        const message = document.getElementById("kelyvo-support-message");
+        const attachment = document.getElementById("kelyvo-support-attachment");
+        if (!message || !message.value.trim()) return;
+
+        const formData = new FormData();
+        formData.append("message", message.value.trim());
+        if (attachment && attachment.files && attachment.files[0]) {
+            formData.append("attachment", attachment.files[0]);
+        }
+
+        if (status) {
+            status.textContent = "Sending to Admin...";
+            status.className = "kelyvo-support-status mt-3 text-amber-400";
+        }
+
+        try {
+            const response = await fetch("/api/support/tickets", {
+                method: "POST",
+                body: formData,
+                credentials: "same-origin"
+            });
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error((data && (data.detail || data.message)) || "Could not send support request.");
+            }
+
+            message.value = "";
+            if (attachment) attachment.value = "";
+            if (status) {
+                status.textContent = "Sent to Admin. Ticket created successfully.";
+                status.className = "kelyvo-support-status mt-3 text-emerald-400";
+            }
+            setTimeout(kelyvoCloseSupport, 1200);
+        } catch (error) {
+            if (status) {
+                status.textContent = error.message || "Could not send support request.";
+                status.className = "kelyvo-support-status mt-3 text-red-400";
+            }
+        }
+    };
+
+    window.kelyvoOpenNotifications = function () {
+        const modal = document.getElementById("kelyvo-notify-modal");
+        if (modal) modal.classList.add("open");
+    };
+    window.kelyvoCloseNotifications = function () {
+        const modal = document.getElementById("kelyvo-notify-modal");
+        if (modal) modal.classList.remove("open");
+    };
+
+    window.kelyvoOpenSearch = function () {
+        const modal = document.getElementById("kelyvo-search-modal");
+        if (modal) modal.classList.add("open");
+        const input = document.getElementById("kelyvo-search-input");
+        if (input) setTimeout(() => input.focus(), 60);
+    };
+
+    window.kelyvoRunSearch = function () {
+        const input = document.getElementById("kelyvo-search-input");
+        const results = document.getElementById("kelyvo-search-results");
+        if (!input || !results) return;
+
+        const q = input.value.trim().toLowerCase();
+        if (!q) {
+            results.innerHTML = '<div class="p-6 text-xs text-zinc-500">Type to search visible workspace content.</div>';
+            return;
+        }
+
+        const candidates = Array.from(document.querySelectorAll("h1,h2,h3,h4,button,p,td,.text-sm,.text-base"))
+            .filter(el => !el.closest("#kelyvo-search-modal") && !el.closest("#kelyvo-support-modal"));
+
+        const seen = new Set();
+        const matches = [];
+        candidates.forEach(el => {
+            const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+            if (!text || text.length > 180) return;
+            if (text.toLowerCase().includes(q) && !seen.has(text)) {
+                seen.add(text);
+                matches.push(text);
+            }
+        });
+
+        if (!matches.length) {
+            results.innerHTML = '<div class="p-6 text-xs text-zinc-500">No visible matches.</div>';
+            return;
+        }
+
+        results.innerHTML = matches.slice(0, 20).map(text =>
+            `<div class="kelyvo-search-hit">${kelyvoEscape(text)}</div>`
+        ).join("");
+    };
+
+    function kelyvoEscape(value) {
+        return String(value).replace(/[&<>"']/g, ch => ({
+            "&":"&amp;",
+            "<":"&lt;",
+            ">":"&gt;",
+            '"':"&quot;",
+            "'":"&#039;"
+        }[ch]));
+    }
+
+    function kelyvoSetupHeaderControls(role) {
+        ["kelyvo-header-search","kelyvo-header-notifications","kelyvo-theme-toggle","kelyvo-support-open"].forEach(id => {
+            const node = document.getElementById(id);
+            if (node) node.hidden = false;
+        });
+
+        const supportLabel = document.getElementById("kelyvo-support-label");
+        if (supportLabel) {
+            supportLabel.textContent = role === "admin" ? "Support Inbox" : "Support";
+        }
+        kelyvoRefreshThemeButton();
+    }
+
+    function kelyvoBuildRoleNav(role) {
+        const nav = document.getElementById("kelyvo-v16-role-nav");
+        const holder = document.getElementById("kelyvo-v16-nav-items");
+        if (!nav || !holder) return;
+
+        const configs = {
+            admin: [
+                ["Control Center","admin-ops-section"],
+                ["Workforce","admin-workforce-section"],
+                ["Collectors","admin-data-collector-review-section"],
+                ["Opportunities","admin-data-collection-opportunities-section"],
+                ["Activity","admin-recent-activity-anchor"],
+                ["Support","admin-support-section"]
+            ],
+            qa: [
+                ["Review Queue","admin-section"],
+                ["Collection QA","qa-data-collection-queue"],
+                ["Latest Activity","admin-section"]
+            ],
+            contributor: [
+                ["Overview","dashboard-section"],
+                ["Profile","contributor-profile-card"],
+                ["Submissions","contributor-submissions-container"],
+                ["Pipelines","pipeline-container"]
+            ],
+            data_collector: [
+                ["Overview","data-collector-section"],
+                ["Profile","data-collector-profile-form"],
+                ["Opportunities","data-collector-opportunities-body"],
+                ["Collections","data-collector-submissions-body"]
+            ]
+        };
+
+        const items = configs[role] || configs.contributor;
+        holder.innerHTML = items.map(([label, id], index) =>
+            `<button type="button" class="kelyvo-nav-btn ${index === 0 ? "active" : ""}" data-target="${id}">${kelyvoEscape(label)}</button>`
+        ).join("");
+
+        holder.querySelectorAll(".kelyvo-nav-btn").forEach(button => {
+            button.addEventListener("click", () => {
+                holder.querySelectorAll(".kelyvo-nav-btn").forEach(btn => btn.classList.remove("active"));
+                button.classList.add("active");
+                const target = document.getElementById(button.dataset.target);
+                if (target) {
+                    target.scrollIntoView({behavior:"smooth", block:"start"});
+                }
+            });
+        });
+
+        nav.classList.add("visible");
+    }
+
+    function kelyvoRoleAccent(role) {
+        const accents = {
+            admin: ["#d4af37","rgba(212,175,55,.12)","rgba(212,175,55,.34)"],
+            qa: ["#8b7cf6","rgba(139,124,246,.12)","rgba(139,124,246,.34)"],
+            contributor: ["#34d399","rgba(52,211,153,.11)","rgba(52,211,153,.32)"],
+            data_collector: ["#fb923c","rgba(251,146,60,.11)","rgba(251,146,60,.32)"]
+        };
+        const values = accents[role] || accents.contributor;
+        document.documentElement.style.setProperty("--k-role-accent", values[0]);
+        document.documentElement.style.setProperty("--k-role-soft", values[1]);
+        document.documentElement.style.setProperty("--k-role-border", values[2]);
+        document.body.setAttribute("data-kelyvo-role", role || "");
+    }
+
+    function kelyvoMakeViewBar(config, container, refreshFn) {
+        if (!container || container.dataset.kelyvoViewBarReady === "1") return;
+        container.dataset.kelyvoViewBarReady = "1";
+
+        const bar = document.createElement("div");
+        bar.className = "kelyvo-viewbar";
+        bar.innerHTML =
+            `<span class="kelyvo-viewbar-label">View</span>` +
+            config.labels.map((label, i) =>
+                `<button type="button" class="kelyvo-view-btn ${i===0 ? "active":""}" data-filter-index="${i}">${kelyvoEscape(label)}</button>`
+            ).join("");
+
+        container.parentElement.insertBefore(bar, container);
+
+        bar.querySelectorAll(".kelyvo-view-btn").forEach(button => {
+            button.addEventListener("click", () => {
+                bar.querySelectorAll(".kelyvo-view-btn").forEach(btn => btn.classList.remove("active"));
+                button.classList.add("active");
+                container.dataset.kelyvoFilter = config.terms[Number(button.dataset.filterIndex)] || "";
+                refreshFn();
+            });
+        });
+    }
+
+    function kelyvoGetItems(container) {
+        return Array.from(container.children).filter(el => !el.classList.contains("kelyvo-pagination"));
+    }
+
+    function kelyvoRefreshPager(state) {
+        const items = kelyvoGetItems(state.container);
+        const filter = (state.container.dataset.kelyvoFilter || "").trim().toLowerCase();
+
+        const filtered = items.filter(item => {
+            if (!filter) return true;
+            const text = (item.textContent || "").toLowerCase();
+            return text.includes(filter);
+        });
+
+        const pageSize = 10;
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        state.page = Math.min(state.page, totalPages);
+        state.page = Math.max(1, state.page);
+
+        const start = (state.page - 1) * pageSize;
+        const end = start + pageSize;
+
+        items.forEach(item => {
+            item.style.display = "none";
+        });
+        filtered.slice(start, end).forEach(item => {
+            item.style.display = "";
+        });
+
+        if (!state.pager) {
+            state.pager = document.createElement("div");
+            state.pager.className = "kelyvo-pager";
+            container.parentElement.insertBefore(state.pager, container.nextSibling);
+        }
+
+        const from = filtered.length ? start + 1 : 0;
+        const to = Math.min(end, filtered.length);
+
+        state.pager.innerHTML = `
+            <span>Showing ${from}-${to} of ${filtered.length}</span>
+            <span class="kelyvo-pager-group">
+                <button class="kelyvo-page-btn" data-page="${state.page - 1}" ${state.page <= 1 ? "disabled":""}>Prev</button>
+                <button class="kelyvo-page-btn active">${state.page}/${totalPages}</button>
+                <button class="kelyvo-page-btn" data-page="${state.page + 1}" ${state.page >= totalPages ? "disabled":""}>Next</button>
+            </span>
+        `;
+
+        state.pager.querySelectorAll("[data-page]").forEach(btn => {
+            btn.addEventListener("click", () => {
+                if (btn.disabled) return;
+                state.page = Number(btn.dataset.page);
+                kelyvoRefreshPager(state);
+            });
+        });
+    }
+
+    function kelyvoInstallPager(config) {
+        const container = document.getElementById(config.id);
+        if (!container || container.dataset.kelyvoPagerReady === "1") return;
+
+        container.dataset.kelyvoPagerReady = "1";
+        const state = {container, page:1, pager:null};
+
+        kelyvoMakeViewBar(config, container, () => {
+            state.page = 1;
+            kelyvoRefreshPager(state);
+        });
+
+        const observer = new MutationObserver(() => {
+            window.requestAnimationFrame(() => kelyvoRefreshPager(state));
+        });
+        observer.observe(container, {childList:true});
+
+        kelyvoRefreshPager(state);
+    }
+
+    function kelyvoInstallListEnhancements() {
+        PAGED_TARGETS.forEach(kelyvoInstallPager);
+    }
+
+    window.kelyvoInstallListEnhancements = kelyvoInstallListEnhancements;
+
+    function kelyvoCloseFlyouts(event) {
+        if (event.target.id === "kelyvo-search-modal") {
+            event.target.classList.remove("open");
+        }
+        if (event.target.id === "kelyvo-notify-modal") {
+            event.target.classList.remove("open");
+        }
+        if (event.target.id === "kelyvo-support-modal") {
+            event.target.classList.remove("open");
+        }
+    }
+
+    document.addEventListener("click", kelyvoCloseFlyouts);
+
+    // Wrap the existing role renderer without modifying the existing workflow logic.
+    if (typeof initializeAuthenticatedUI === "function" && !window.__kelyvoV16Wrapped) {
+        const originalInitializeAuthenticatedUI = initializeAuthenticatedUI;
+        initializeAuthenticatedUI = function (user) {
+            kelyvoRoleAccent(user && user.role);
+            kelyvoSetupHeaderControls(user && user.role);
+            kelyvoBuildRoleNav(user && user.role);
+            const result = originalInitializeAuthenticatedUI(user);
+            window.setTimeout(kelyvoInstallListEnhancements, 0);
+
+            if (user && user.role === "admin" && typeof loadAdminSupportTickets === "function") {
+                window.setTimeout(loadAdminSupportTickets, 0);
+            }
+
+            return result;
+        };
+        window.__kelyvoV16Wrapped = true;
+    }
+
+    window.addEventListener("load", () => {
+        kelyvoApplySavedTheme();
+        window.setTimeout(kelyvoInstallListEnhancements, 800);
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+            event.preventDefault();
+            kelyvoOpenSearch();
+        }
+        if (event.key === "Escape") {
+            kelyvoCloseSupport();
+            kelyvoCloseNotifications();
+            const search = document.getElementById("kelyvo-search-modal");
+            if (search) search.classList.remove("open");
+        }
+    });
+
+    // Admin support inbox.
+    window.loadAdminSupportTickets = async function () {
+        const list = document.getElementById("admin-support-list");
+        const count = document.getElementById("admin-support-open-count");
+        if (!list) return;
+
+        try {
+            const response = await fetch("/api/admin/support/tickets?status=open", {
+                credentials:"same-origin"
+            });
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                throw new Error((data && data.detail) || "Unable to load support tickets.");
+            }
+
+            const tickets = Array.isArray(data && data.tickets) ? data.tickets : [];
+            if (count) count.textContent = `${tickets.length} open`;
+
+            if (!tickets.length) {
+                list.innerHTML = '<div class="p-8 text-center text-zinc-600 text-xs">No open support tickets.</div>';
+                return;
+            }
+
+            list.innerHTML = tickets.map(ticket => `
+                <article class="kelyvo-ticket">
+                    <div class="kelyvo-ticket-meta">
+                        <span>${kelyvoEscape(ticket.role)}</span>
+                        <span>•</span>
+                        <span>${kelyvoEscape(ticket.email)}</span>
+                        <span>•</span>
+                        <span>${kelyvoEscape(ticket.created_at || "")}</span>
+                    </div>
+                    <div class="kelyvo-ticket-message">${kelyvoEscape(ticket.message)}</div>
+                    <div class="kelyvo-ticket-actions">
+                        ${ticket.attachment_url ? `<a class="kelyvo-ticket-action" href="${ticket.attachment_url}" target="_blank" rel="noopener">View Screenshot</a>` : ""}
+                        <button type="button" class="kelyvo-ticket-action" onclick="kelyvoResolveTicket('${ticket.id}')">Mark Resolved</button>
+                    </div>
+                </article>
+            `).join("");
+        } catch (error) {
+            list.innerHTML = `<div class="p-8 text-center text-red-400 text-xs">${kelyvoEscape(error.message || "Unable to load support tickets.")}</div>`;
+        }
+    };
+
+    window.kelyvoResolveTicket = async function (ticketId) {
+        try {
+            const response = await fetch(`/api/admin/support/tickets/${encodeURIComponent(ticketId)}`, {
+                method:"PATCH",
+                credentials:"same-origin",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({status:"resolved"})
+            });
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error((data && data.detail) || "Unable to resolve support ticket.");
+            }
+            await loadAdminSupportTickets();
+        } catch (error) {
+            alert(error.message || "Unable to resolve support ticket.");
+        }
+    };
+})();
+</script>
+
+
+<script id="kelyvo-v17-visual-polish-js">
+(function () {
+    // Legacy V17 list decoration intentionally disabled. The V16 pager remains
+    // the single list-control system so duplicate "Showing latest" bars cannot return.
+    function removeLegacyListBars() {
+        document.querySelectorAll('.kelyvo-v17-list-actions').forEach(function (node) { node.remove(); });
+        document.querySelectorAll('[class*="showing-latest"], [id*="showing-latest"], [id*="latest-count"]').forEach(function (node) { node.remove(); });
+        document.querySelectorAll('body *').forEach(function (node) {
+            if (!(node instanceof HTMLElement) || node.children.length > 0) return;
+            var text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+            if (/^Showing latest \d+ of \d+$/i.test(text)) {
+                var parent = node.parentElement;
+                if (parent && parent.children.length <= 2) parent.remove();
+                else node.remove();
+            }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', removeLegacyListBars);
+    window.addEventListener('load', removeLegacyListBars);
+    new MutationObserver(function () {
+        window.requestAnimationFrame(removeLegacyListBars);
+    }).observe(document.body, {childList:true, subtree:true});
+})();
+</script>
+
+
+<script id="kelyvo-v18-enterprise-ui-js">
+(function () {
+    function v18RemoveDuplicateCollectorViewBar() {
+        const section = document.getElementById("admin-data-collector-review-section");
+        if (!section) return;
+        section.querySelectorAll(".kelyvo-viewbar").forEach(function (bar) {
+            bar.remove();
+        });
+    }
+
+    function v18Refresh() {
+        v18RemoveDuplicateCollectorViewBar();
+        document.documentElement.setAttribute("data-kelyvo-ui-version", "v18");
+    }
+
+    document.addEventListener("DOMContentLoaded", v18Refresh);
+    window.addEventListener("load", v18Refresh);
+
+    const observer = new MutationObserver(function () {
+        window.requestAnimationFrame(v18RemoveDuplicateCollectorViewBar);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
 
 </body>
 </html>

@@ -1231,6 +1231,13 @@ class DataCollectionSubmission(Base):
         foreign_keys=[qa_reviewer_id]
     )
 
+    assets = relationship(
+        "DataCollectionSubmissionAsset",
+        back_populates="submission",
+        cascade="all, delete-orphan",
+        order_by="DataCollectionSubmissionAsset.created_at.asc()"
+    )
+
     __table_args__ = (
         Index(
             "ix_data_collection_submissions_collector_status",
@@ -1241,6 +1248,112 @@ class DataCollectionSubmission(Base):
             "ix_data_collection_submissions_project_status",
             "project_id",
             "status"
+        ),
+    )
+
+
+# ============================================================
+# DATA COLLECTION SUBMISSION ASSET
+# ============================================================
+
+class DataCollectionSubmissionAsset(Base):
+    """
+    Storage-agnostic record for a file attached to a data-collection submission.
+
+    This model stores metadata and a provider-specific storage reference. It does
+    not assume Google Cloud Storage, S3, local disk, or any other provider.
+    """
+
+    __tablename__ = "data_collection_submission_assets"
+
+    id = Column(
+        String,
+        primary_key=True,
+        default=generate_uuid
+    )
+
+    submission_id = Column(
+        String,
+        ForeignKey("data_collection_submissions.id"),
+        nullable=False,
+        index=True
+    )
+
+    original_filename = Column(
+        String,
+        nullable=False
+    )
+
+    stored_filename = Column(
+        String,
+        nullable=False
+    )
+
+    storage_provider = Column(
+        String,
+        nullable=False,
+        default="local",
+        index=True
+    )
+
+    storage_reference = Column(
+        Text,
+        nullable=False
+    )
+
+    mime_type = Column(
+        String,
+        nullable=True,
+        index=True
+    )
+
+    size_bytes = Column(
+        Integer,
+        nullable=True
+    )
+
+    checksum_sha256 = Column(
+        String,
+        nullable=True,
+        index=True
+    )
+
+    status = Column(
+        String,
+        nullable=False,
+        default="active",
+        index=True
+    )
+
+    uploaded_by_user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        index=True
+    )
+
+    submission = relationship(
+        "DataCollectionSubmission",
+        back_populates="assets"
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_data_collection_submission_assets_submission_status",
+            "submission_id",
+            "status"
+        ),
+        Index(
+            "ix_data_collection_submission_assets_uploader_created",
+            "uploaded_by_user_id",
+            "created_at"
         ),
     )
 
@@ -2504,6 +2617,99 @@ class AuditLog(Base):
         ),
         Index(
             "ix_audit_logs_user_created",
+            "user_id",
+            "created_at"
+        ),
+    )
+
+# ============================================================
+# SUPPORT TICKETS
+# ============================================================
+
+class SupportTicket(Base):
+    """
+    User support requests routed directly into the KELYVO admin
+    operations workspace. Attachments remain storage-provider
+    agnostic and use the existing storage service.
+    """
+    __tablename__ = "support_tickets"
+
+    id = Column(
+        String,
+        primary_key=True,
+        default=generate_uuid
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+
+    role = Column(
+        String,
+        nullable=False,
+        index=True
+    )
+
+    email_snapshot = Column(
+        String,
+        nullable=False
+    )
+
+    message = Column(
+        Text,
+        nullable=False
+    )
+
+    attachment_path = Column(
+        Text,
+        nullable=True
+    )
+
+    attachment_name = Column(
+        String,
+        nullable=True
+    )
+
+    attachment_mime_type = Column(
+        String,
+        nullable=True
+    )
+
+    status = Column(
+        String,
+        nullable=False,
+        default="open",
+        index=True
+    )
+
+    admin_notes = Column(
+        Text,
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        index=True
+    )
+
+    resolved_at = Column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_support_tickets_status_created",
+            "status",
+            "created_at"
+        ),
+        Index(
+            "ix_support_tickets_user_created",
             "user_id",
             "created_at"
         ),
