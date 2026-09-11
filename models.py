@@ -1246,6 +1246,184 @@ class DataCollectionSubmission(Base):
 
 
 # ============================================================
+# DATA COLLECTION OPPORTUNITY
+# ============================================================
+
+class DataCollectionOpportunity(Base):
+    """
+    Generic collection opportunity definition.
+
+    This deliberately contains requirements rather than a fixed collection
+    template. Real project-specific upload/collection instructions can be
+    attached later without changing the workforce layer.
+    """
+
+    __tablename__ = "data_collection_opportunities"
+
+    id = Column(
+        String,
+        primary_key=True,
+        default=generate_uuid
+    )
+
+    title = Column(
+        String,
+        nullable=False,
+        index=True
+    )
+
+    description = Column(
+        Text,
+        nullable=True
+    )
+
+    required_languages = Column(
+        Text,
+        nullable=True
+    )
+
+    required_capabilities = Column(
+        Text,
+        nullable=True
+    )
+
+    required_devices = Column(
+        Text,
+        nullable=True
+    )
+
+    required_environments = Column(
+        Text,
+        nullable=True
+    )
+
+    collectors_needed = Column(
+        Integer,
+        nullable=False,
+        default=1
+    )
+
+    status = Column(
+        String,
+        nullable=False,
+        default="open",
+        index=True
+    )
+
+    created_by_user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now
+    )
+
+    created_by_user = relationship(
+        "User",
+        foreign_keys=[created_by_user_id]
+    )
+
+    claims = relationship(
+        "DataCollectionOpportunityClaim",
+        back_populates="opportunity",
+        cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_data_collection_opportunities_status_created",
+            "status",
+            "created_at"
+        ),
+    )
+
+
+# ============================================================
+# DATA COLLECTION OPPORTUNITY CLAIM
+# ============================================================
+
+class DataCollectionOpportunityClaim(Base):
+    """Collector acceptance of an available collection opportunity."""
+
+    __tablename__ = "data_collection_opportunity_claims"
+
+    id = Column(
+        String,
+        primary_key=True,
+        default=generate_uuid
+    )
+
+    opportunity_id = Column(
+        String,
+        ForeignKey("data_collection_opportunities.id"),
+        nullable=False,
+        index=True
+    )
+
+    collector_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+
+    status = Column(
+        String,
+        nullable=False,
+        default="accepted",
+        index=True
+    )
+
+    claimed_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now
+    )
+
+    opportunity = relationship(
+        "DataCollectionOpportunity",
+        back_populates="claims"
+    )
+
+    collector = relationship(
+        "User",
+        foreign_keys=[collector_id]
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "opportunity_id",
+            "collector_id",
+            name="uq_data_collection_opportunity_claim"
+        ),
+        Index(
+            "ix_data_collection_opportunity_claims_collector_status",
+            "collector_id",
+            "status"
+        ),
+    )
+
+
+# ============================================================
 # SKILL
 # ============================================================
 

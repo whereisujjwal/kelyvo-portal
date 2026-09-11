@@ -5201,12 +5201,25 @@ def get_data_collector_summary(
         )
         .count()
     )
+    open_opportunity_count = (
+        db.query(models.DataCollectionOpportunity)
+        .filter(models.DataCollectionOpportunity.status == "open")
+        .count()
+    )
+    active_assignment_count = (
+        db.query(models.DataCollectionOpportunityClaim)
+        .filter(
+            models.DataCollectionOpportunityClaim.collector_id == int(user_id),
+            models.DataCollectionOpportunityClaim.status == "accepted",
+        )
+        .count()
+    )
 
     return {
         "status": "success",
         "profile_status": str(profile.onboarding_status or "pending") if profile is not None else "pending",
-        "opportunities": 0,
-        "active_assignments": 0,
+        "opportunities": open_opportunity_count if profile is not None and str(profile.onboarding_status or "pending").lower() == "approved" else 0,
+        "active_assignments": active_assignment_count,
         "submissions_pending": pending_count,
         "submissions_approved": approved_count,
     }
@@ -5558,6 +5571,338 @@ async def review_qa_data_collection_submission(
             collector_email=collector.email if collector else None,
         ),
         "message": "Collection submission approved." if action == "approve" else "Collection submission rejected.",
+    }
+
+
+# ============================================================
+# DATA COLLECTION OPPORTUNITY MANAGEMENT
+# ============================================================
+
+DATA_COLLECTION_OPPORTUNITY_STATUSES = {"draft", "open", "closed"}
+
+
+def _json_list_or_empty(value):
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    except Exception:
+        pass
+    return _split_csv(value)
+
+
+def _normalize_requirement_list(value, max_items=50):
+    if isinstance(value, list):
+        raw = value
+    else:
+        raw = str(value or "").split(",")
+    result = []
+    seen = set()
+    for item in raw:
+        text_value = str(item or "").strip()
+        if not text_value:
+            continue
+        key = text_value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(text_value)
+        if len(result) >= max_items:
+            break
+    return result
+
+
+def _data_collection_opportunity_payload(db: Session, opportunity, collector_id=None):
+    claim_query = db.query(models.DataCollectionOpportunityClaim).filter(
+        models.DataCollectionOpportunityClaim.opportunity_id == str(opportunity.id)
+    )
+    claims = claim_query.all()
+    accepted_claims = [row for row in claims if str(row.status or "").lower() == "accepted"]
+    collector_claim = None
+    if collector_id is not None:
+        collector_claim = next(
+            (row for row in claims if int(row.collector_id) == int(collector_id)),
+            None,
+        )
+
+    return {
+        "id": str(opportunity.id),
+        "title": str(opportunity.title or ""),
+        "description": str(opportunity.description or ""),
+        "required_languages": _json_list_or_empty(opportunity.required_languages),
+        "required_capabilities": _json_list_or_empty(opportunity.required_capabilities),
+        "required_devices": _json_list_or_empty(opportunity.required_devices),
+        "required_environments": _json_list_or_empty(opportunity.required_environments),
+        "collectors_needed": int(opportunity.collectors_needed or 1),
+        "collectors_claimed": len(accepted_claims),
+        "status": str(opportunity.status or "open"),
+        "claimed_by_current_collector": bool(collector_claim and str(collector_claim.status or "").lower() == "accepted"),
+        "current_claim_status": str(collector_claim.status) if collector_claim else None,
+        "created_by_user_id": int(opportunity.created_by_user_id),
+        "created_at": opportunity.created_at.isoformat() if opportunity.created_at else None,
+        "updated_at": opportunity.updated_at.isoformat() if opportunity.updated_at else None,
+    }
+
+
+@app.get("/api/data-collector/opportunities")
+def list_data_collector_opportunities(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_data_collector_session(request)
+    collector_id = _get_authenticated_user_id(request)
+    if collector_id is None:
+        raise HTTPException(status_code=401, detail="Data Collector session is not authenticated.")
+
+    profile = _get_data_collector_profile(db, int(collector_id))
+    if profile is None or str(profile.onboarding_status or "pending").lower() != "approved":
+        return {"status": "success", "opportunities": []}
+
+    rows = (
+        db.query(models.DataCollectionOpportunity)
+        .filter(models.DataCollectionOpportunity.status == "open")
+        .order_by(models.DataCollectionOpportunity.created_at.desc())
+        .all()
+    )
+    opportunities = []
+    for opportunity in rows:
+        claimed = (
+            db.query(models.DataCollectionOpportunityClaim)
+            .filter(
+                models.DataCollectionOpportunityClaim.opportunity_id == str(opportunity.id),
+                models.DataCollectionOpportunityClaim.collector_id == int(collector_id),
+                models.DataCollectionOpportunityClaim.status == "accepted",
+            )
+            .first()
+        )
+        accepted_count = (
+            db.query(models.DataCollectionOpportunityClaim)
+            .filter(
+                models.DataCollectionOpportunityClaim.opportunity_id == str(opportunity.id),
+                models.DataCollectionOpportunityClaim.status == "accepted",
+            )
+            .count()
+        )
+        if not claimed and accepted_count >= int(opportunity.collectors_needed or 1):
+            continue
+        opportunities.append(_data_collection_opportunity_payload(db, opportunity, collector_id=int(collector_id)))
+
+    return {"status": "success", "opportunities": opportunities}
+
+
+@app.post("/api/data-collector/opportunities/{opportunity_id}/accept")
+def accept_data_collection_opportunity(
+    opportunity_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_data_collector_session(request)
+    collector_id = _get_authenticated_user_id(request)
+    if collector_id is None:
+        raise HTTPException(status_code=401, detail="Data Collector session is not authenticated.")
+
+    profile = _get_data_collector_profile(db, int(collector_id))
+    if profile is None or str(profile.onboarding_status or "pending").lower() != "approved":
+        raise HTTPException(status_code=403, detail="Your Data Collector profile must be approved before accepting collection opportunities.")
+
+    opportunity = (
+        db.query(models.DataCollectionOpportunity)
+        .filter(models.DataCollectionOpportunity.id == str(opportunity_id))
+        .first()
+    )
+    if opportunity is None:
+        raise HTTPException(status_code=404, detail="Collection opportunity not found.")
+    if str(opportunity.status or "open").lower() != "open":
+        raise HTTPException(status_code=400, detail="This collection opportunity is no longer open.")
+
+    existing = (
+        db.query(models.DataCollectionOpportunityClaim)
+        .filter(
+            models.DataCollectionOpportunityClaim.opportunity_id == str(opportunity.id),
+            models.DataCollectionOpportunityClaim.collector_id == int(collector_id),
+        )
+        .first()
+    )
+    if existing is not None and str(existing.status or "").lower() == "accepted":
+        return {"status": "success", "claim": {"id": str(existing.id), "status": "accepted"}, "message": "Opportunity already accepted."}
+
+    accepted_count = (
+        db.query(models.DataCollectionOpportunityClaim)
+        .filter(
+            models.DataCollectionOpportunityClaim.opportunity_id == str(opportunity.id),
+            models.DataCollectionOpportunityClaim.status == "accepted",
+        )
+        .count()
+    )
+    if accepted_count >= int(opportunity.collectors_needed or 1):
+        raise HTTPException(status_code=409, detail="This opportunity has already reached its collector capacity.")
+
+    now = _utc_now()
+    if existing is None:
+        existing = models.DataCollectionOpportunityClaim(
+            opportunity_id=str(opportunity.id),
+            collector_id=int(collector_id),
+            status="accepted",
+            claimed_at=now,
+            updated_at=now,
+        )
+        db.add(existing)
+    else:
+        existing.status = "accepted"
+        existing.claimed_at = now
+        existing.updated_at = now
+
+    db.commit()
+    db.refresh(existing)
+    return {"status": "success", "claim": {"id": str(existing.id), "status": "accepted"}, "message": "Collection opportunity accepted."}
+
+
+@app.get("/api/admin/data-collection-opportunities")
+def list_admin_data_collection_opportunities(
+    request: Request,
+    status: str = "all",
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+    normalized_status = str(status or "all").strip().lower()
+    if normalized_status not in {"all", *DATA_COLLECTION_OPPORTUNITY_STATUSES}:
+        raise HTTPException(status_code=400, detail="Invalid collection opportunity status filter.")
+
+    query = db.query(models.DataCollectionOpportunity)
+    if normalized_status != "all":
+        query = query.filter(models.DataCollectionOpportunity.status == normalized_status)
+    rows = query.order_by(models.DataCollectionOpportunity.created_at.desc()).all()
+    return {
+        "status": "success",
+        "opportunities": [_data_collection_opportunity_payload(db, row) for row in rows],
+    }
+
+
+@app.post("/api/admin/data-collection-opportunities")
+async def create_admin_data_collection_opportunity(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    admin_session = require_admin_session(request)
+    admin_id = _get_authenticated_user_id(request)
+    if admin_id is None:
+        raise HTTPException(status_code=401, detail="Admin session is not authenticated.")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    title = str(payload.get("title") or "").strip()
+    description = str(payload.get("description") or "").strip()
+    status = str(payload.get("status") or "open").strip().lower()
+    if not title:
+        raise HTTPException(status_code=400, detail="Opportunity title is required.")
+    if status not in DATA_COLLECTION_OPPORTUNITY_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid opportunity status.")
+
+    try:
+        collectors_needed = int(payload.get("collectors_needed") or 1)
+    except (TypeError, ValueError):
+        collectors_needed = 1
+    if collectors_needed < 1 or collectors_needed > 100000:
+        raise HTTPException(status_code=400, detail="Collectors needed must be between 1 and 100000.")
+
+    requirements = {
+        "required_languages": _normalize_requirement_list(payload.get("required_languages")),
+        "required_capabilities": _normalize_requirement_list(payload.get("required_capabilities")),
+        "required_devices": _normalize_requirement_list(payload.get("required_devices")),
+        "required_environments": _normalize_requirement_list(payload.get("required_environments")),
+    }
+
+    now = _utc_now()
+    opportunity = models.DataCollectionOpportunity(
+        title=title,
+        description=description or None,
+        required_languages=json.dumps(requirements["required_languages"], ensure_ascii=False),
+        required_capabilities=json.dumps(requirements["required_capabilities"], ensure_ascii=False),
+        required_devices=json.dumps(requirements["required_devices"], ensure_ascii=False),
+        required_environments=json.dumps(requirements["required_environments"], ensure_ascii=False),
+        collectors_needed=collectors_needed,
+        status=status,
+        created_by_user_id=int(admin_id),
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(opportunity)
+    db.commit()
+    db.refresh(opportunity)
+    return {
+        "status": "success",
+        "opportunity": _data_collection_opportunity_payload(db, opportunity),
+        "message": "Collection opportunity created.",
+    }
+
+
+@app.patch("/api/admin/data-collection-opportunities/{opportunity_id}")
+async def update_admin_data_collection_opportunity(
+    opportunity_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+    opportunity = (
+        db.query(models.DataCollectionOpportunity)
+        .filter(models.DataCollectionOpportunity.id == str(opportunity_id))
+        .first()
+    )
+    if opportunity is None:
+        raise HTTPException(status_code=404, detail="Collection opportunity not found.")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    if "status" in payload:
+        status = str(payload.get("status") or "").strip().lower()
+        if status not in DATA_COLLECTION_OPPORTUNITY_STATUSES:
+            raise HTTPException(status_code=400, detail="Invalid opportunity status.")
+        opportunity.status = status
+
+    if "title" in payload:
+        title = str(payload.get("title") or "").strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Opportunity title cannot be empty.")
+        opportunity.title = title
+
+    if "description" in payload:
+        opportunity.description = str(payload.get("description") or "").strip() or None
+
+    if "collectors_needed" in payload:
+        try:
+            collectors_needed = int(payload.get("collectors_needed"))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Collectors needed must be a whole number.")
+        if collectors_needed < 1 or collectors_needed > 100000:
+            raise HTTPException(status_code=400, detail="Collectors needed must be between 1 and 100000.")
+        opportunity.collectors_needed = collectors_needed
+
+    requirement_columns = {
+        "required_languages": "required_languages",
+        "required_capabilities": "required_capabilities",
+        "required_devices": "required_devices",
+        "required_environments": "required_environments",
+    }
+    for payload_key, column_name in requirement_columns.items():
+        if payload_key in payload:
+            normalized = _normalize_requirement_list(payload.get(payload_key))
+            setattr(opportunity, column_name, json.dumps(normalized, ensure_ascii=False))
+
+    opportunity.updated_at = _utc_now()
+    db.commit()
+    db.refresh(opportunity)
+    return {
+        "status": "success",
+        "opportunity": _data_collection_opportunity_payload(db, opportunity),
+        "message": "Collection opportunity updated.",
     }
 
 

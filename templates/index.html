@@ -1461,9 +1461,12 @@ button {
             <span class="kelyvo-pill">Not assigned</span>
         </div>
 
-        <div class="mt-6 border border-dashed border-zinc-800 rounded-xl p-10 text-center">
-            <div class="text-zinc-500 text-sm">No collection opportunities are assigned to this account yet.</div>
-            <div class="text-zinc-700 text-xs mt-2">When KELYVO starts a real collection workflow, approved opportunities will appear here.</div>
+        <div class="mt-6 flex items-center justify-between gap-4">
+            <div id="data-collector-opportunities-message" class="text-xs text-zinc-600">Loading collection opportunities...</div>
+            <button type="button" onclick="loadDataCollectorOpportunities()" class="text-[10px] uppercase border border-zinc-800 rounded-lg px-3 py-2">Refresh</button>
+        </div>
+        <div id="data-collector-opportunities-body" class="mt-4 space-y-3">
+            <div class="border border-dashed border-zinc-800 rounded-xl p-10 text-center text-zinc-600 text-xs">No collection opportunities are assigned to this account yet.</div>
         </div>
     </section>
 
@@ -1698,6 +1701,77 @@ button {
             </div>
         </div>
     </div>
+
+    <section
+        id="admin-data-collection-opportunities-section"
+        class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden"
+    >
+        <div class="px-5 py-4 border-b border-zinc-800 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-5">
+            <div>
+                <div class="text-sm font-medium text-white">Collection Opportunities</div>
+                <div class="text-[10px] text-zinc-600 mt-1">Create flexible collection requirements now. No fixed audio, image or video template is required.</div>
+            </div>
+            <button type="button" onclick="toggleAdminCollectionOpportunityForm()" class="text-xs uppercase border border-zinc-700 px-4 py-2.5 rounded-lg hover:border-zinc-500">Create Opportunity</button>
+        </div>
+
+        <div id="admin-create-collection-opportunity-panel" class="hidden px-5 py-5 border-b border-zinc-800 bg-[#050505]">
+            <form onsubmit="createAdminCollectionOpportunity(event)" class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Opportunity title *</label>
+                        <input id="admin-collection-opportunity-title" required placeholder="e.g. Hindi speech collection pilot" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Collectors needed *</label>
+                        <input id="admin-collection-opportunity-count" type="number" min="1" max="100000" value="1" required class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-zinc-500 mb-2">Description</label>
+                    <textarea id="admin-collection-opportunity-description" rows="4" placeholder="Describe the collection requirement, context and any important instructions. Keep this generic for now." class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm"></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Required languages</label>
+                        <input id="admin-collection-opportunity-languages" placeholder="Hindi, English" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Required capabilities</label>
+                        <input id="admin-collection-opportunity-capabilities" placeholder="Voice Recording, Local Language Recording" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Required devices</label>
+                        <input id="admin-collection-opportunity-devices" placeholder="Android Smartphone, External Microphone" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-zinc-500 mb-2">Required environments</label>
+                        <input id="admin-collection-opportunity-environments" placeholder="Home, Outdoor" class="w-full bg-[#030303] border border-zinc-800 rounded-lg px-4 py-3 text-sm">
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 items-center justify-between">
+                    <div id="admin-create-collection-opportunity-message" class="text-xs font-mono min-h-[18px]"></div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="toggleAdminCollectionOpportunityForm(false)" class="border border-zinc-800 rounded-lg px-5 py-3 text-xs uppercase">Cancel</button>
+                        <button type="submit" class="bg-white text-black rounded-lg px-5 py-3 text-xs uppercase">Create & Open</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="px-5 py-4 border-b border-zinc-800 flex flex-col md:flex-row gap-3">
+            <select id="admin-collection-opportunity-status" onchange="loadAdminCollectionOpportunities()" class="bg-[#030303] border border-zinc-800 rounded-lg px-4 py-2.5 text-xs">
+                <option value="all">All statuses</option>
+                <option value="open">Open</option>
+                <option value="draft">Draft</option>
+                <option value="closed">Closed</option>
+            </select>
+            <button type="button" onclick="loadAdminCollectionOpportunities()" class="border border-zinc-800 rounded-lg px-4 py-2.5 text-xs uppercase">Refresh</button>
+        </div>
+
+        <div id="admin-collection-opportunities-body" class="divide-y divide-zinc-800">
+            <div class="p-8 text-center text-zinc-600 text-xs">Loading collection opportunities...</div>
+        </div>
+    </section>
 
     <section class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
         <div class="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4"><div><div class="text-sm font-medium text-white">Contributor Interest Pools</div><div class="text-[10px] text-zinc-600 mt-1">Filter the contributor database by work interest and language. These are preferences, not qualifications.</div></div><div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto"><select id="admin-interest-pool-interest" onchange="loadAdminInterestPools()" class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[210px]"><option value="all">All work interests</option></select><select id="admin-interest-pool-language" onchange="loadAdminInterestPools()" class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[190px]"><option value="all">All languages</option></select><input id="admin-interest-pool-search" oninput="loadAdminInterestPoolsDebounced()" type="search" placeholder="Search email..." class="bg-[#030303] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs min-w-[190px]"></div></div>
@@ -3159,27 +3233,9 @@ function initializeAuthenticatedUI(user) {
         loadAdminWorkforceUsers();
         loadAdminInterestPools();
         loadAdminDataCollectorReview();
+        loadAdminCollectionOpportunities();
 
-        if (!window.kelyvoAdminOpsRefreshTimer) {
-            window.kelyvoAdminOpsRefreshTimer =
-                setInterval(
-                    function () {
-                        const adminOpsSection =
-                            document.getElementById(
-                                "admin-ops-section"
-                            );
-
-                        if (
-                            adminOpsSection &&
-                            !adminOpsSection.classList.contains("hidden")
-                        ) {
-                            loadAdminOperations();
-                            loadAdminDataCollectorReview();
-                        }
-                    },
-                    2500
-                );
-        }
+        // Automatic dashboard polling removed. Use manual refresh actions.
 
     } else if (user.role === "qa") {
 
@@ -3204,26 +3260,7 @@ function initializeAuthenticatedUI(user) {
         loadAdminQueue();
         loadQADataCollectionQueue();
 
-        if (!window.kelyvoQAQueueRefreshTimer) {
-            window.kelyvoQAQueueRefreshTimer =
-                setInterval(
-                    function () {
-                        const adminSection =
-                            document.getElementById(
-                                "admin-section"
-                            );
-
-                        if (
-                            adminSection &&
-                            !adminSection.classList.contains("hidden")
-                        ) {
-                            loadAdminQueue();
-                            loadQADataCollectionQueue();
-                        }
-                    },
-                    2500
-                );
-        }
+        // Automatic dashboard polling removed. Use manual refresh actions.
 
     } else if (user.role === "data_collector") {
 
@@ -3254,6 +3291,7 @@ function initializeAuthenticatedUI(user) {
         loadDataCollectorSummary();
         loadDataCollectorProfile();
         loadDataCollectorSubmissions();
+        loadDataCollectorOpportunities();
 
     } else {
 
@@ -3281,25 +3319,7 @@ function initializeAuthenticatedUI(user) {
 
         loadContributorSubmissions();
 
-        if (!window.kelyvoContributorQueueRefreshTimer) {
-            window.kelyvoContributorQueueRefreshTimer =
-                setInterval(
-                    function () {
-                        const dashboard =
-                            document.getElementById(
-                                "dashboard-section"
-                            );
-
-                        if (
-                            dashboard &&
-                            !dashboard.classList.contains("hidden")
-                        ) {
-                            loadContributorSubmissions();
-                        }
-                    },
-                    2500
-                );
-        }
+        // Automatic dashboard polling removed. Use manual refresh actions.
 
         loadContributorPreferences(Boolean(localStorage.getItem("kelyvo_show_preferences")));
         loadContributorOwnProfile();
@@ -3569,6 +3589,82 @@ async function loadDataCollectorSummary() {
         setText("dc-stat-approved", data.submissions_approved);
     } catch (error) {
         console.warn("KELYVO Data Collector summary error:", error);
+    }
+}
+
+
+let dataCollectorOpportunitiesState = [];
+
+async function loadDataCollectorOpportunities() {
+    const body = document.getElementById("data-collector-opportunities-body");
+    const message = document.getElementById("data-collector-opportunities-message");
+    if (!body) return;
+    body.innerHTML = `<div class="border border-dashed border-zinc-800 rounded-xl p-10 text-center text-zinc-600 text-xs">Loading collection opportunities...</div>`;
+    try {
+        const response = await fetch("/api/data-collector/opportunities", {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load collection opportunities.");
+        dataCollectorOpportunitiesState = Array.isArray(data.opportunities) ? data.opportunities : [];
+        if (message) message.innerText = dataCollectorOpportunitiesState.length ? `${dataCollectorOpportunitiesState.length} opportunity${dataCollectorOpportunitiesState.length === 1 ? "" : "ies"} available.` : "No open opportunities are available right now.";
+        if (!dataCollectorOpportunitiesState.length) {
+            body.innerHTML = `<div class="border border-dashed border-zinc-800 rounded-xl p-10 text-center text-zinc-600 text-xs">No collection opportunities are assigned to this account yet.<div class="text-zinc-700 mt-2">Approved opportunities will appear here when KELYVO opens collection work.</div></div>`;
+            return;
+        }
+        body.innerHTML = dataCollectorOpportunitiesState.map(item => {
+            const claimed = Boolean(item.claimed_by_current_collector);
+            const languages = (item.required_languages || []).join(", ");
+            const capabilities = (item.required_capabilities || []).join(", ");
+            const devices = (item.required_devices || []).join(", ");
+            const environments = (item.required_environments || []).join(", ");
+            return `<div class="border border-zinc-800 rounded-xl p-5 bg-[#050505]">
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h4 class="text-lg font-light text-white">${escapeHtml(item.title || "Collection Opportunity")}</h4>
+                            <span class="kelyvo-pill text-amber-400">${escapeHtml(item.collectors_claimed || 0)} / ${escapeHtml(item.collectors_needed || 1)} claimed</span>
+                        </div>
+                        <div class="text-xs text-zinc-400 mt-2 whitespace-pre-wrap leading-relaxed">${escapeHtml(item.description || "No additional description.")}</div>
+                    </div>
+                    <div class="shrink-0">
+                        ${claimed ? `<span class="kelyvo-pill text-emerald-400 border-emerald-500/20">Accepted</span>` : `<button type="button" onclick="acceptDataCollectorOpportunity('${escapeHtml(item.id)}')" class="bg-white text-black rounded-lg px-5 py-2.5 text-xs uppercase">Accept Opportunity</button>`}
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
+                    ${requirementsCard("Languages", languages)}
+                    ${requirementsCard("Capabilities", capabilities)}
+                    ${requirementsCard("Devices", devices)}
+                    ${requirementsCard("Environment", environments)}
+                </div>
+            </div>`;
+        }).join("");
+    } catch (error) {
+        if (message) message.innerText = "";
+        body.innerHTML = `<div class="border border-red-900/50 rounded-xl p-8 text-center text-red-400 text-xs">${escapeHtml(error.message || "Could not load collection opportunities.")}</div>`;
+    }
+}
+
+function requirementsCard(label, value) {
+    return `<div class="border border-zinc-800 rounded-lg p-4"><div class="text-[10px] uppercase text-zinc-600 font-mono">${escapeHtml(label)}</div><div class="mt-2 text-xs text-zinc-300">${escapeHtml(value || "No specific requirement")}</div></div>`;
+}
+
+async function acceptDataCollectorOpportunity(opportunityId) {
+    try {
+        const response = await fetch(`/api/data-collector/opportunities/${encodeURIComponent(opportunityId)}/accept`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not accept collection opportunity.");
+        await loadDataCollectorOpportunities();
+        await loadDataCollectorSummary();
+    } catch (error) {
+        window.alert(error.message || "Could not accept collection opportunity.");
     }
 }
 
@@ -6215,6 +6311,126 @@ async function reviewAdminDataCollectorAction(action) {
         }
     }
 }
+
+function toggleAdminCollectionOpportunityForm(force) {
+    const panel = document.getElementById("admin-create-collection-opportunity-panel");
+    if (!panel) return;
+    const show = typeof force === "boolean" ? force : panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", !show);
+    if (!show) {
+        const form = panel.querySelector("form");
+        if (form) form.reset();
+        const count = document.getElementById("admin-collection-opportunity-count");
+        if (count) count.value = "1";
+    }
+}
+
+async function createAdminCollectionOpportunity(event) {
+    event.preventDefault();
+    const message = document.getElementById("admin-create-collection-opportunity-message");
+    if (message) {
+        message.innerText = "Creating opportunity...";
+        message.className = "text-xs font-mono min-h-[18px] text-zinc-400";
+    }
+    const value = id => document.getElementById(id)?.value?.trim() || "";
+    const payload = {
+        title: value("admin-collection-opportunity-title"),
+        description: value("admin-collection-opportunity-description"),
+        collectors_needed: Number(document.getElementById("admin-collection-opportunity-count")?.value || 1),
+        required_languages: value("admin-collection-opportunity-languages"),
+        required_capabilities: value("admin-collection-opportunity-capabilities"),
+        required_devices: value("admin-collection-opportunity-devices"),
+        required_environments: value("admin-collection-opportunity-environments"),
+        status: "open"
+    };
+    try {
+        const response = await fetch("/api/admin/data-collection-opportunities", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not create collection opportunity.");
+        if (message) {
+            message.innerText = "Collection opportunity created.";
+            message.className = "text-xs font-mono min-h-[18px] text-emerald-400";
+        }
+        toggleAdminCollectionOpportunityForm(false);
+        await loadAdminCollectionOpportunities();
+    } catch (error) {
+        if (message) {
+            message.innerText = error.message || "Could not create collection opportunity.";
+            message.className = "text-xs font-mono min-h-[18px] text-red-400";
+        }
+    }
+}
+
+async function loadAdminCollectionOpportunities() {
+    const body = document.getElementById("admin-collection-opportunities-body");
+    if (!body) return;
+    const status = document.getElementById("admin-collection-opportunity-status")?.value || "all";
+    body.innerHTML = `<div class="p-8 text-center text-zinc-600 text-xs">Loading collection opportunities...</div>`;
+    try {
+        const response = await fetch(`/api/admin/data-collection-opportunities?status=${encodeURIComponent(status)}`, {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not load collection opportunities.");
+        const rows = Array.isArray(data.opportunities) ? data.opportunities : [];
+        if (!rows.length) {
+            body.innerHTML = `<div class="p-8 text-center text-zinc-600 text-xs">No collection opportunities match this filter.</div>`;
+            return;
+        }
+        body.innerHTML = rows.map(item => {
+            const statusLabel = String(item.status || "open").replaceAll("_", " ");
+            const statusClass = item.status === "open" ? "text-emerald-400" : item.status === "closed" ? "text-zinc-500" : "text-amber-400";
+            const langs = (item.required_languages || []).join(", ");
+            const caps = (item.required_capabilities || []).join(", ");
+            const devices = (item.required_devices || []).join(", ");
+            const envs = (item.required_environments || []).join(", ");
+            return `<div class="p-5">
+                <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap gap-2 items-center"><div class="text-base text-white">${escapeHtml(item.title || "Untitled Opportunity")}</div><span class="kelyvo-pill ${statusClass}">${escapeHtml(statusLabel)}</span></div>
+                        <div class="text-xs text-zinc-500 mt-2 whitespace-pre-wrap leading-relaxed">${escapeHtml(item.description || "No description")}</div>
+                    </div>
+                    <div class="text-xs text-zinc-400 shrink-0"><span class="text-white">${escapeHtml(item.collectors_claimed || 0)}</span> / ${escapeHtml(item.collectors_needed || 1)} claimed</div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
+                    ${requirementsCard("Languages", langs)}
+                    ${requirementsCard("Capabilities", caps)}
+                    ${requirementsCard("Devices", devices)}
+                    ${requirementsCard("Environment", envs)}
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2 justify-end">
+                    ${item.status === "open" ? `<button type="button" onclick="setAdminCollectionOpportunityStatus('${escapeHtml(item.id)}','closed')" class="border border-red-500/30 text-red-400 rounded-lg px-4 py-2 text-[10px] uppercase">Close Opportunity</button>` : item.status === "closed" ? `<button type="button" onclick="setAdminCollectionOpportunityStatus('${escapeHtml(item.id)}','open')" class="border border-emerald-500/30 text-emerald-400 rounded-lg px-4 py-2 text-[10px] uppercase">Reopen</button>` : `<button type="button" onclick="setAdminCollectionOpportunityStatus('${escapeHtml(item.id)}','open')" class="border border-emerald-500/30 text-emerald-400 rounded-lg px-4 py-2 text-[10px] uppercase">Open</button>`}
+                </div>
+            </div>`;
+        }).join("");
+    } catch (error) {
+        body.innerHTML = `<div class="p-8 text-center text-red-400 text-xs">${escapeHtml(error.message || "Could not load collection opportunities.")}</div>`;
+    }
+}
+
+async function setAdminCollectionOpportunityStatus(opportunityId, status) {
+    try {
+        const response = await fetch(`/api/admin/data-collection-opportunities/${encodeURIComponent(opportunityId)}`, {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.detail || "Could not update collection opportunity.");
+        await loadAdminCollectionOpportunities();
+    } catch (error) {
+        window.alert(error.message || "Could not update collection opportunity.");
+    }
+}
+
 
 async function loadAdminInterestPools() {
     const body = document.getElementById("admin-interest-pool-body");
