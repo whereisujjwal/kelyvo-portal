@@ -6,3 +6,5 @@ venv/
 kelyvo.db
 .kelyvo_task*_legacy_draft_repair_v1.done
 /index.html
+
+kelyvo_storage/

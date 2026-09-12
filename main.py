@@ -378,6 +378,11 @@ def require_portal_session(request: Request, allowed_roles=None):
                 detail="The KELYVO account for this session no longer exists."
             )
 
+        official_admin_changed = _enforce_official_admin_protection(db, user)
+        if official_admin_changed:
+            db.commit()
+            db.refresh(user)
+
         current_role = str(user.role or "").strip().lower()
         if current_role not in {"contributor", "data_collector", "qa", "admin"}:
             raise HTTPException(
@@ -2617,28 +2622,43 @@ def register_user(
             detail="Invalid registration role."
         )
 
-    if requested_role == "admin":
-        configured_admin_code = os.getenv(
-            "KELYVO_ADMIN_REGISTRATION_CODE",
-            ""
-        ).strip()
+    # The official KELYVO Admin email can never be self-registered.
+    # It is a permanently protected control account.
+    if _is_official_admin_email(email):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "This email belongs to KELYVO's official locked Admin account "
+                "and cannot be registered through public signup."
+            )
+        )
 
-        supplied_admin_code = (registration_code or "").strip()
+    supplied_registration_code = (registration_code or "").strip()
 
+    if requested_role == "qa":
         if (
-            not configured_admin_code
-            or not supplied_admin_code
+            not supplied_registration_code
             or not hmac.compare_digest(
-                supplied_admin_code,
-                configured_admin_code
+                supplied_registration_code,
+                KELYVO_QA_REGISTRATION_CODE
             )
         ):
             raise HTTPException(
                 status_code=403,
-                detail=(
-                    "A valid Admin Control registration code "
-                    "is required."
-                )
+                detail="A valid QA registration code is required."
+            )
+
+    elif requested_role == "admin":
+        if (
+            not supplied_registration_code
+            or not hmac.compare_digest(
+                supplied_registration_code,
+                KELYVO_ADMIN_REGISTRATION_CODE
+            )
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="A valid Admin Control registration code is required."
             )
 
     existing_user = (
@@ -2743,6 +2763,11 @@ def login_user(
                 "Invalid email or password"
             )
         )
+
+    official_admin_changed = _enforce_official_admin_protection(db, user)
+    if official_admin_changed:
+        db.commit()
+        db.refresh(user)
 
     membership = _get_user_membership(db, int(user.id))
     if membership is not None and str(membership.status or "active").strip().lower() == "suspended":
@@ -4522,6 +4547,58 @@ def _get_user_membership(db, user_id: int):
 
 def _count_active_admins(db) -> int:
     return db.query(models.User).filter(models.User.role == "admin").count()
+
+
+# ============================================================
+# KELYVO OFFICIAL ADMIN / REGISTRATION CONTROL
+# ============================================================
+# This account is the permanently protected KELYVO control account.
+# Its role and organization membership must remain Admin/active and it
+# cannot be changed, suspended, deleted, or recreated through portal
+# registration/admin-management flows.
+KELYVO_OFFICIAL_ADMIN_EMAIL = "ujjwal.ujs@gmail.com"
+
+# Role-specific self-registration codes.
+KELYVO_QA_REGISTRATION_CODE = os.getenv("KELYVO_QA_REGISTRATION_CODE", "").strip()
+KELYVO_ADMIN_REGISTRATION_CODE = os.getenv("KELYVO_ADMIN_REGISTRATION_CODE", "").strip()
+
+
+def _is_official_admin_email(email: str) -> bool:
+    return normalize_email(email) == KELYVO_OFFICIAL_ADMIN_EMAIL
+
+
+def _enforce_official_admin_protection(db, user) -> bool:
+    """Force the official KELYVO control account to remain Admin and active."""
+    if user is None or not _is_official_admin_email(getattr(user, "email", "")):
+        return False
+
+    changed = False
+
+    if str(user.role or "").strip().lower() != "admin":
+        user.role = "admin"
+        changed = True
+
+    membership = _get_user_membership(db, int(user.id))
+    if membership is None:
+        organization = _get_kelyvo_organization(db)
+        if organization is not None and hasattr(models, "OrganizationMember"):
+            membership = models.OrganizationMember(
+                organization_id=organization.id,
+                user_id=int(user.id),
+                role="admin",
+                status="active",
+            )
+            db.add(membership)
+            changed = True
+    else:
+        if str(membership.role or "").strip().lower() != "admin":
+            membership.role = "admin"
+            changed = True
+        if str(membership.status or "active").strip().lower() != "active":
+            membership.status = "active"
+            changed = True
+
+    return changed
 
 
 def _ensure_contributor_profile(db, user):
@@ -6542,6 +6619,7 @@ def get_admin_workforce_users(request: Request, q: str = "", role: str = "all", 
     users = query.order_by(models.User.id.desc()).all()
     payload = []
     for user in users:
+        official_admin_changed = _enforce_official_admin_protection(db, user)
         membership = _get_user_membership(db, int(user.id))
         role_value = str(user.role or "contributor").strip().lower()
         profile = _ensure_contributor_profile(db, user) if role_value == "contributor" else None
@@ -6570,6 +6648,8 @@ def get_admin_workforce_users(request: Request, q: str = "", role: str = "all", 
             "worker_tier": str(detail_map.get("worker_tier") or "general"),
             "qualification_status": qualification_status,
             "display_name": display_name,
+            "is_official_admin": _is_official_admin_email(user.email),
+            "account_locked": _is_official_admin_email(user.email),
         })
     db.commit()
     return {"status": "success", "users": payload}
@@ -6589,6 +6669,11 @@ async def create_admin_workforce_user(request: Request, db: Session = Depends(ge
         raise HTTPException(status_code=400, detail="Role must be contributor, data_collector, qa, or admin.")
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="A valid email address is required.")
+    if _is_official_admin_email(email):
+        raise HTTPException(
+            status_code=403,
+            detail="The official KELYVO Admin account is permanently protected and cannot be created or replaced here."
+        )
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Initial password must be at least 8 characters.")
     if db.query(models.User).filter(models.User.email == email).first() is not None:
@@ -6613,6 +6698,11 @@ async def update_admin_workforce_user(user_id: int, request: Request, db: Sessio
     user = db.query(models.User).filter(models.User.id == int(user_id)).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found.")
+    if _is_official_admin_email(user.email):
+        raise HTTPException(
+            status_code=403,
+            detail="The official KELYVO Admin account is locked and cannot be modified or suspended."
+        )
     if int(user.id) == _get_authenticated_user_id(request):
         raise HTTPException(status_code=400, detail="Your own Admin account cannot be changed from this screen.")
     try:
@@ -6670,6 +6760,11 @@ async def update_admin_workforce_profile(user_id: int, request: Request, db: Ses
     user = db.query(models.User).filter(models.User.id == int(user_id)).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found.")
+    if _is_official_admin_email(user.email):
+        raise HTTPException(
+            status_code=403,
+            detail="The official KELYVO Admin profile is locked and cannot be edited from workforce controls."
+        )
     if int(user.id) == _get_authenticated_user_id(request):
         raise HTTPException(status_code=400, detail="Your own Admin account cannot be edited as a workforce profile from this screen.")
 

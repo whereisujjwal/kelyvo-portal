@@ -5,3 +5,4 @@ requests==2.31.0
 pydantic==2.6.4
 python-dotenv
 python-multipart==0.0.20
+psycopg2-binary==2.9.9
