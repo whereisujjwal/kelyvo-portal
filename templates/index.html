@@ -3400,6 +3400,320 @@ html[data-kelyvo-theme="light"] *::-webkit-scrollbar-thumb:hover {
 }
 </style>
 
+
+<style id="kelyvo-original-admin-identity">
+/* ============================================================
+   KELYVO ORIGINAL ADMIN IDENTITY
+   Scoped ONLY to the protected ujjwal.ujs@gmail.com account.
+   Visual identity only — backend authorization remains authoritative.
+   ============================================================ */
+
+body.kelyvo-original-admin {
+    --og-gold: #d8b36a;
+    --og-gold-bright: #f0d49a;
+    --og-gold-soft: rgba(216,179,106,.10);
+    --og-gold-border: rgba(216,179,106,.30);
+    --og-ink: #080807;
+    --og-surface: #10100e;
+    --og-surface-2: #151411;
+    --og-border: rgba(232,218,190,.13);
+    --og-text: #f5f0e6;
+    --og-muted: #a9a092;
+
+    background:
+        radial-gradient(circle at 50% -12%, rgba(216,179,106,.105), transparent 31%),
+        radial-gradient(circle at 100% 16%, rgba(216,179,106,.035), transparent 25%),
+        linear-gradient(180deg, #0a0a09 0%, #080807 100%) !important;
+}
+
+body.kelyvo-original-admin > header,
+body.kelyvo-original-admin header.border-b,
+body.kelyvo-original-admin #kelyvo-v16-role-nav,
+body.kelyvo-original-admin .kelyvo-v16-nav {
+    background:
+        linear-gradient(180deg, rgba(20,19,16,.97), rgba(9,9,8,.94)) !important;
+    border-color: var(--og-gold-border) !important;
+    box-shadow:
+        0 1px 0 rgba(240,212,154,.08),
+        0 14px 42px rgba(0,0,0,.28) !important;
+}
+
+body.kelyvo-original-admin > header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(216,179,106,.58), transparent);
+    pointer-events: none;
+}
+
+body.kelyvo-original-admin > header {
+    position: relative;
+}
+
+body.kelyvo-original-admin header > span:first-child {
+    color: var(--og-text) !important;
+    letter-spacing: .24em !important;
+    text-shadow: 0 0 22px rgba(216,179,106,.08);
+}
+
+body.kelyvo-original-admin header > span:first-child::before {
+    content: "◆";
+    display: inline-block;
+    margin-right: 9px;
+    color: var(--og-gold);
+    font-size: 7px;
+    vertical-align: middle;
+    transform: translateY(-1px);
+}
+
+body.kelyvo-original-admin header > span:first-child > span {
+    color: var(--og-gold) !important;
+}
+
+body.kelyvo-original-admin #user-email-display {
+    color: var(--og-gold-bright) !important;
+    font-family: "Manrope", "Avenir Next", system-ui, sans-serif !important;
+    font-size: 10px !important;
+    font-weight: 650 !important;
+    letter-spacing: .055em !important;
+    padding: 8px 11px !important;
+    border: 1px solid var(--og-gold-border) !important;
+    border-radius: 999px !important;
+    background: linear-gradient(180deg, rgba(216,179,106,.11), rgba(216,179,106,.045)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 5px 24px rgba(216,179,106,.045);
+}
+
+body.kelyvo-original-admin .kelyvo-v16-header-control,
+body.kelyvo-original-admin #kelyvo-header-notifications,
+body.kelyvo-original-admin #kelyvo-theme-toggle,
+body.kelyvo-original-admin #kelyvo-support-open {
+    border-color: var(--og-border) !important;
+    background: rgba(255,248,230,.035) !important;
+}
+
+body.kelyvo-original-admin .kelyvo-v16-header-control:hover,
+body.kelyvo-original-admin #kelyvo-header-notifications:hover,
+body.kelyvo-original-admin #kelyvo-theme-toggle:hover,
+body.kelyvo-original-admin #kelyvo-support-open:hover {
+    border-color: var(--og-gold-border) !important;
+    background: var(--og-gold-soft) !important;
+    color: var(--og-text) !important;
+}
+
+body.kelyvo-original-admin .kelyvo-nav-btn.active,
+body.kelyvo-original-admin .kelyvo-nav-btn[aria-current="page"] {
+    color: var(--og-gold-bright) !important;
+    background: var(--og-gold-soft) !important;
+    border-color: var(--og-gold-border) !important;
+    box-shadow: inset 0 0 0 1px rgba(216,179,106,.025), 0 4px 20px rgba(216,179,106,.035);
+}
+
+body.kelyvo-original-admin .kelyvo-v17-card,
+body.kelyvo-original-admin .kelyvo-card,
+body.kelyvo-original-admin #admin-ops-section,
+body.kelyvo-original-admin #admin-workforce-section,
+body.kelyvo-original-admin #admin-data-collector-review-section,
+body.kelyvo-original-admin #admin-data-collection-opportunities-section,
+body.kelyvo-original-admin #admin-support-section {
+    background:
+        linear-gradient(145deg, #141411 0%, #0e0e0c 100%) !important;
+    border-color: var(--og-border) !important;
+    box-shadow:
+        0 20px 60px rgba(0,0,0,.27),
+        inset 0 1px 0 rgba(255,255,255,.018) !important;
+}
+
+body.kelyvo-original-admin .kelyvo-v17-card:hover,
+body.kelyvo-original-admin .kelyvo-card:hover {
+    border-color: rgba(216,179,106,.23) !important;
+}
+
+body.kelyvo-original-admin #admin-section > div:first-child > div > span,
+body.kelyvo-original-admin .kelyvo-page-heading .kelyvo-eyebrow {
+    color: var(--og-gold-bright) !important;
+    background: var(--og-gold-soft) !important;
+    border-color: var(--og-gold-border) !important;
+}
+
+body.kelyvo-original-admin .qa-queue-tab:hover,
+body.kelyvo-original-admin #admin-section .grid > button:hover {
+    border-color: var(--og-gold-border) !important;
+    background:
+        linear-gradient(145deg, rgba(216,179,106,.085), rgba(216,179,106,.025)) !important;
+}
+
+body.kelyvo-original-admin input:focus,
+body.kelyvo-original-admin select:focus,
+body.kelyvo-original-admin textarea:focus {
+    border-color: rgba(216,179,106,.42) !important;
+    box-shadow: 0 0 0 3px rgba(216,179,106,.08) !important;
+}
+
+body.kelyvo-original-admin .kelyvo-original-admin-row {
+    background:
+        linear-gradient(90deg, rgba(216,179,106,.075), rgba(216,179,106,.018) 55%, transparent) !important;
+    box-shadow: inset 2px 0 0 rgba(216,179,106,.58);
+}
+
+body.kelyvo-original-admin .kelyvo-original-admin-row:hover {
+    background:
+        linear-gradient(90deg, rgba(216,179,106,.105), rgba(216,179,106,.028) 60%, transparent) !important;
+}
+
+body.kelyvo-original-admin .kelyvo-original-admin-email {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--og-gold-bright) !important;
+    font-weight: 700 !important;
+    letter-spacing: .01em;
+}
+
+body.kelyvo-original-admin .kelyvo-original-admin-email::before {
+    content: "◆";
+    color: var(--og-gold);
+    font-size: 6px;
+}
+
+body.kelyvo-original-admin .kelyvo-original-admin-badge {
+    display: inline-flex;
+    margin-top: 7px;
+    padding: 3px 7px;
+    border: 1px solid rgba(216,179,106,.27);
+    border-radius: 999px;
+    background: rgba(216,179,106,.075);
+    color: var(--og-gold);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    line-height: 1;
+}
+
+body.kelyvo-original-admin .kelyvo-original-admin-control {
+    min-width: 118px;
+    opacity: .72;
+    cursor: not-allowed !important;
+    background: #11110f !important;
+    color: var(--og-gold-bright) !important;
+    border: 1px solid rgba(216,179,106,.23) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+body.kelyvo-original-admin .kelyvo-original-admin-status {
+    color: var(--og-gold-bright) !important;
+    font-weight: 700 !important;
+    letter-spacing: .08em;
+}
+
+body.kelyvo-original-admin .kelyvo-original-admin-lock-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid rgba(216,179,106,.25);
+    border-radius: 8px;
+    background: rgba(216,179,106,.065);
+    color: var(--og-gold);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+}
+
+body.kelyvo-original-admin .kelyvo-submit-success-overlay {
+    background:
+        radial-gradient(circle at center, rgba(216,179,106,.10), rgba(0,0,0,.96));
+}
+
+body.kelyvo-original-admin .kelyvo-submit-success-ring {
+    border-color: rgba(216,179,106,.30);
+    box-shadow:
+        0 0 65px rgba(216,179,106,.10),
+        inset 0 0 26px rgba(216,179,106,.035);
+}
+
+body.kelyvo-original-admin .kelyvo-submit-success-orbit {
+    border-color: rgba(216,179,106,.18);
+}
+
+body.kelyvo-original-admin .kelyvo-submit-success-orbit::before,
+body.kelyvo-original-admin .kelyvo-submit-success-orbit::after,
+body.kelyvo-original-admin .kelyvo-submit-success-progress span {
+    background: var(--og-gold-bright);
+}
+
+body.kelyvo-original-admin .kelyvo-submit-success-check {
+    filter: drop-shadow(0 0 12px rgba(216,179,106,.55));
+}
+
+body.kelyvo-original-admin .kelyvo-submit-success-kicker,
+body.kelyvo-original-admin .kelyvo-submit-success-subtitle {
+    color: rgba(240,212,154,.52);
+}
+
+/* The official identity remains distinct in light mode too. */
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin {
+    --og-gold: #9a6b21;
+    --og-gold-bright: #7d5416;
+    --og-gold-soft: rgba(154,107,33,.075);
+    --og-gold-border: rgba(154,107,33,.25);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(213,184,139,.19), transparent 30%),
+        radial-gradient(circle at 92% 5%, rgba(196,169,127,.13), transparent 25%),
+        linear-gradient(180deg, #f9f4eb 0%, #f1e8dc 100%) !important;
+}
+
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin > header,
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin header.border-b,
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin #kelyvo-v16-role-nav {
+    background: rgba(249,245,238,.94) !important;
+    border-color: var(--og-gold-border) !important;
+    box-shadow: 0 10px 32px rgba(89,63,31,.055) !important;
+}
+
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin header > span:first-child {
+    color: #211d17 !important;
+}
+
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin header > span:first-child > span {
+    color: var(--og-gold-bright) !important;
+}
+
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-v17-card,
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-card,
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin #admin-ops-section,
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin #admin-workforce-section,
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin #admin-data-collector-review-section,
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin #admin-data-collection-opportunities-section,
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin #admin-support-section {
+    background: linear-gradient(145deg, #fffaf1, #f8efe2) !important;
+    border-color: #dfd0bc !important;
+    box-shadow: 0 20px 55px rgba(91,68,39,.075) !important;
+}
+
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admin-row {
+    background:
+        linear-gradient(90deg, rgba(154,107,33,.085), rgba(154,107,33,.018) 60%, transparent) !important;
+    box-shadow: inset 2px 0 0 rgba(154,107,33,.45);
+}
+
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admin-control {
+    background: #f7efe3 !important;
+    color: var(--og-gold-bright) !important;
+    border-color: rgba(154,107,33,.25) !important;
+}
+
+html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admin-lock-control {
+    background: rgba(154,107,33,.065);
+    color: var(--og-gold-bright);
+    border-color: rgba(154,107,33,.23);
+}
+</style>
+
 </head>
 
 <body class="bg-darkbg text-gray-100 min-h-screen">
@@ -6189,10 +6503,22 @@ function initializeAuthenticatedUI(user) {
     );
 
 
-    document.getElementById(
+    const userEmailDisplay = document.getElementById(
         "user-email-display"
-    ).innerText =
-        user.email;
+    );
+
+    if (userEmailDisplay) {
+        userEmailDisplay.innerText = user.email;
+    }
+
+    // Dedicated visual identity for the original protected KELYVO Admin.
+    // This does not grant or enforce permissions; backend controls remain
+    // authoritative.
+    const normalizedAuthenticatedEmail = String(user.email || "").trim().toLowerCase();
+    document.body.classList.toggle(
+        "kelyvo-original-admin",
+        normalizedAuthenticatedEmail === "ujjwal.ujs@gmail.com"
+    );
 
     // Reset workspace visibility so switching accounts in the same browser
     // can never leave another role's controls visible.
@@ -9128,11 +9454,27 @@ function renderAdminWorkforceUsers(users) {
         const role = String(user.role || "contributor").toLowerCase();
         const status = String(user.status || "active").toLowerCase();
         const isSelf = String(user.email || "").toLowerCase() === currentEmail;
-        const statusClass = status === "active" ? "text-emerald-400" : "text-red-400";
+        const isOfficialAdmin = Boolean(
+            user.is_official_admin ||
+            user.account_locked ||
+            String(user.email || "").trim().toLowerCase() === "ujjwal.ujs@gmail.com"
+        );
+        const statusClass = isOfficialAdmin
+            ? "kelyvo-original-admin-status"
+            : (status === "active" ? "text-emerald-400" : "text-red-400");
         const row = document.createElement("tr");
+        if (isOfficialAdmin) {
+            row.classList.add("kelyvo-original-admin-row");
+        }
         row.innerHTML = `
-            <td class="p-4"><div class="text-white">${escapeHtml(user.email || "Unknown")}</div><div class="text-[10px] text-zinc-600 mt-1">ID #${escapeHtml(user.id ?? "—")}</div></td>
-            <td class="p-4"><select onchange="changeAdminUserRole(${Number(user.id)}, this.value)" class="bg-[#030303] border border-zinc-800 rounded-md px-2 py-1.5 text-[10px] uppercase" ${isSelf ? "disabled" : ""}>
+            <td class="p-4">
+                <div class="${isOfficialAdmin ? "kelyvo-original-admin-email" : "text-white"}">
+                    ${escapeHtml(user.email || "Unknown")}
+                </div>
+                <div class="text-[10px] text-zinc-600 mt-1">ID #${escapeHtml(user.id ?? "—")}</div>
+                ${isOfficialAdmin ? '<div class="kelyvo-original-admin-badge">ORIGINAL ADMIN · LOCKED</div>' : ""}
+            </td>
+            <td class="p-4"><select onchange="changeAdminUserRole(${Number(user.id)}, this.value)" class="${isOfficialAdmin ? "kelyvo-original-admin-control" : "bg-[#030303] border border-zinc-800"} rounded-md px-2 py-1.5 text-[10px] uppercase" ${isSelf || isOfficialAdmin ? "disabled" : ""}>
                 <option value="contributor" ${role === "contributor" ? "selected" : ""}>Contributor</option>
                 <option value="data_collector" ${role === "data_collector" ? "selected" : ""}>Data Collector</option>
                 <option value="qa" ${role === "qa" ? "selected" : ""}>QA</option>
@@ -9145,7 +9487,10 @@ function renderAdminWorkforceUsers(users) {
             <td class="p-4 text-right">
                 <div class="flex justify-end items-center gap-2">
                     <button type="button" onclick="openAdminWorkforceProfile(${Number(user.id)})" class="border border-zinc-700 rounded-md px-3 py-1.5 text-[10px] uppercase hover:border-zinc-500 transition">Profile</button>
-                    <button type="button" onclick="toggleAdminUserStatus(${Number(user.id)}, '${status}')" class="border border-zinc-800 rounded-md px-3 py-1.5 text-[10px] uppercase ${isSelf ? "opacity-30 cursor-not-allowed" : ""}" ${isSelf ? "disabled" : ""}>${status === "active" ? "Suspend" : "Activate"}</button>
+                    ${isOfficialAdmin
+                        ? '<span class="kelyvo-original-admin-lock-control">Protected</span>'
+                        : `<button type="button" onclick="toggleAdminUserStatus(${Number(user.id)}, '${status}')" class="border border-zinc-800 rounded-md px-3 py-1.5 text-[10px] uppercase ${isSelf ? "opacity-30 cursor-not-allowed" : ""}" ${isSelf ? "disabled" : ""}>${status === "active" ? "Suspend" : "Activate"}</button>`
+                    }
                 </div>
             </td>`;
         tbody.appendChild(row);
