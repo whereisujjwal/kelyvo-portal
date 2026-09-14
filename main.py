@@ -363,7 +363,12 @@ KELYVO_SESSION_SECRET = os.getenv("KELYVO_SESSION_SECRET", "").strip()
 
 if not KELYVO_SESSION_SECRET:
     KELYVO_SESSION_SECRET = hashlib.sha256(
-        (os.getenv("LABEL_STUDIO_API_TOKEN") or "kelyvo-local-session").encode("utf-8")
+        (
+            os.getenv("LABEL_STUDIO_LEGACY_TOKEN")
+            or os.getenv("LABEL_STUDIO_API_KEY")
+            or os.getenv("LABEL_STUDIO_API_TOKEN")
+            or "kelyvo-local-session"
+        ).encode("utf-8")
     ).hexdigest()
 
 
@@ -643,6 +648,13 @@ LABEL_STUDIO_URL = os.getenv(
     "LABEL_STUDIO_URL",
     "http://localhost:8080"
 ).rstrip("/")
+
+# Production Render uses the Label Studio legacy API token.
+# Local development can continue using the existing Personal Access Token.
+LABEL_STUDIO_LEGACY_TOKEN = (
+    os.getenv("LABEL_STUDIO_LEGACY_TOKEN")
+    or os.getenv("LABEL_STUDIO_API_KEY")
+)
 
 LABEL_STUDIO_REFRESH_TOKEN = os.getenv(
     "LABEL_STUDIO_API_TOKEN"
@@ -2296,6 +2308,13 @@ def _get_requeued_tasks_for_contributor(
 
 
 def get_label_studio_access_token() -> str:
+    """
+    Get a short-lived Label Studio access token from the configured
+    Personal Access Token.
+
+    This fallback is retained for local development. Production Render
+    authentication uses LABEL_STUDIO_LEGACY_TOKEN directly.
+    """
     if not LABEL_STUDIO_REFRESH_TOKEN:
         raise HTTPException(
             status_code=500,
@@ -2356,18 +2375,36 @@ def label_studio_request(
     endpoint: str,
     **kwargs
 ):
-    access_token = (
-        get_label_studio_access_token()
-    )
+    """
+    Make an authenticated request to Label Studio.
+
+    Production Render:
+        Authorization: Token <legacy token>
+
+    Local development:
+        Authorization: Bearer <short-lived JWT>
+        obtained from the existing Personal Access Token.
+    """
 
     headers = kwargs.pop(
         "headers",
         {}
     )
 
-    headers["Authorization"] = (
-        f"Bearer {access_token}"
-    )
+    if LABEL_STUDIO_LEGACY_TOKEN:
+        # Label Studio legacy API keys use the Token scheme.
+        headers["Authorization"] = (
+            f"Token {LABEL_STUDIO_LEGACY_TOKEN}"
+        )
+    else:
+        # Preserve the existing local PAT/JWT flow.
+        access_token = (
+            get_label_studio_access_token()
+        )
+
+        headers["Authorization"] = (
+            f"Bearer {access_token}"
+        )
 
     if "timeout" not in kwargs:
         kwargs["timeout"] = 15
