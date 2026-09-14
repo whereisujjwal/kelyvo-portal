@@ -2555,15 +2555,20 @@ def _create_label_studio_browser_session():
             )
         )
 
+    # /api/current-user/whoami is an API endpoint and expects an API-token
+    # Authorization header. A Django browser session cookie alone is not
+    # sufficient for that endpoint, so do not use it to validate the browser
+    # session. Instead, request the normal Label Studio home page with the
+    # session cookie and follow redirects. A valid browser session should stay
+    # out of /user/login.
     try:
-        whoami = session.get(
-            f"{LABEL_STUDIO_URL}/api/current-user/whoami",
+        browser_home = session.get(
+            f"{LABEL_STUDIO_URL}/",
             headers={
-                "X-CSRFToken": session.cookies.get("csrftoken", ""),
                 "Referer": LABEL_STUDIO_URL + "/",
             },
             timeout=15,
-            allow_redirects=False,
+            allow_redirects=True,
         )
     except requests.RequestException:
         raise HTTPException(
@@ -2573,7 +2578,11 @@ def _create_label_studio_browser_session():
             )
         )
 
-    if whoami.status_code != 200:
+    final_path = urlparse(browser_home.url).path.lower()
+    if (
+        browser_home.status_code >= 400
+        or final_path.rstrip("/").endswith("/user/login")
+    ):
         raise HTTPException(
             status_code=502,
             detail=(
