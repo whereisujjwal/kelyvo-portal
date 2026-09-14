@@ -28,6 +28,64 @@ models.Base.metadata.create_all(bind=engine)
 
 
 # ============================================================
+# KELYVO TASK SUBMISSION ATTEMPT SCHEMA MIGRATION
+# ============================================================
+# TaskSubmission is an existing table in the production database.
+# SQLAlchemy's create_all() does not alter an existing table, so the new
+# attempt_number field needs a small idempotent ALTER TABLE migration.
+# This works for the current local SQLite database and the production
+# PostgreSQL database without rebuilding or deleting any existing data.
+
+def _ensure_task_submission_attempt_number_column():
+    try:
+        columns = {
+            column["name"]
+            for column in inspect(engine).get_columns("task_submissions")
+        }
+    except Exception:
+        return
+
+    if "attempt_number" in columns:
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "UPDATE task_submissions "
+                        "SET attempt_number = 1 "
+                        "WHERE attempt_number IS NULL"
+                    )
+                )
+        except Exception:
+            pass
+        return
+
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE task_submissions "
+                    "ADD COLUMN attempt_number INTEGER NOT NULL DEFAULT 1"
+                )
+            )
+    except Exception:
+        # A concurrent process may have added the column between the
+        # inspection above and the ALTER TABLE. Re-check before surfacing
+        # an error so startup remains safely idempotent.
+        try:
+            columns = {
+                column["name"]
+                for column in inspect(engine).get_columns("task_submissions")
+            }
+            if "attempt_number" not in columns:
+                raise
+        except Exception:
+            raise
+
+
+_ensure_task_submission_attempt_number_column()
+
+
+# ============================================================
 # WORKFORCE PROFILE DETAIL STORE
 # ============================================================
 # The current enterprise models already contain ContributorProfile, skills and
@@ -2146,8 +2204,12 @@ def _get_requeued_tasks_for_contributor(
     contributor_user_id=None,
 ):
     """
-    Return recently/previously failed canonical KELYVO tasks that have been
-    reset to an unlabeled state and are therefore eligible for reassignment.
+    Return only FINAL/second-attempt failed canonical KELYVO tasks that have
+    been reset to an unlabeled state and are therefore eligible for reassignment.
+
+    A first-attempt FAILED task is NOT a shared-pool task: it belongs to the
+    original contributor for their one allowed revision. Only a second-attempt
+    failure is final and may be offered to other contributors.
 
     The original contributor (and anyone else who previously failed the exact
     task) is excluded. Requeued tasks are returned before untouched tasks.
@@ -2157,6 +2219,7 @@ def _get_requeued_tasks_for_contributor(
         .filter(
             models.TaskSubmission.task_type == task_type,
             models.TaskSubmission.status == "FAILED",
+            models.TaskSubmission.attempt_number >= 2,
         )
         .order_by(models.TaskSubmission.id.desc())
         .all()
@@ -3946,9 +4009,16 @@ def submit_task(
         )
 
     if revision_submission:
-        # Reuse the same KELYVO submission row. This keeps one durable QA record
-        # for the task while increasing the enterprise attempt number when the
-        # revised annotation is persisted below.
+        # Reuse the same KELYVO submission row. The first QA return consumes
+        # the first attempt; this resubmission is therefore attempt 2.
+        current_attempt = int(revision_submission.attempt_number or 1)
+        if current_attempt >= 2:
+            raise HTTPException(
+                status_code=409,
+                detail="This submission has already used its second attempt and cannot be resubmitted."
+            )
+
+        revision_submission.attempt_number = 2
         revision_submission.status = "PENDING_QA"
         revision_submission.reviewer_notes = None
         revision_submission.submitted_at = _utc_now()
@@ -3983,6 +4053,7 @@ def submit_task(
             "tasks_today": user.tasks_today,
             "tasks_week": user.tasks_week,
             "revision": True,
+            "attempt_number": int(revision_submission.attempt_number or 2),
             "submission_id": revision_submission.id,
         }
 
@@ -4047,6 +4118,7 @@ def submit_task(
         task_type=task_type,
         task_title=task_title,
         status="PENDING_QA",
+        attempt_number=1,
         reviewer_notes=None
     )
 
@@ -7135,6 +7207,8 @@ def get_admin_submissions(
                 sub.task_title,
             "status":
                 sub.status,
+            "attempt_number":
+                int(sub.attempt_number or 1),
             "reviewer_notes":
                 sub.reviewer_notes
         })
@@ -7255,6 +7329,8 @@ def get_contributor_submissions(
                 sub.task_title,
             "status":
                 sub.status,
+            "attempt_number":
+                int(sub.attempt_number or 1),
             "reviewer_notes":
                 sub.reviewer_notes,
             "submitted_at":
@@ -7430,6 +7506,7 @@ def get_qa_review_task(
             "task_type": task_type,
             "task_title": submission.task_title,
             "status": submission.status,
+            "attempt_number": int(submission.attempt_number or 1),
             "reviewer_notes": submission.reviewer_notes,
         },
         "task": task,
@@ -7480,6 +7557,14 @@ def start_contributor_revision(
         raise HTTPException(
             status_code=409,
             detail="This task is not currently awaiting revision."
+        )
+
+    # A contributor receives exactly one revision opportunity. A second QA
+    # failure is final and must never reopen the task for a third attempt.
+    if int(submission.attempt_number or 1) >= 2:
+        raise HTTPException(
+            status_code=409,
+            detail="This task has already used its second attempt and cannot be returned for another revision."
         )
 
     # QA-returned tasks follow a true revision workflow. The original
@@ -7667,10 +7752,12 @@ def review_task(
             detail="Submission not found"
         )
 
+    # QA has exactly two decisions. PENDING_QA is an internal workflow state,
+    # not a reviewer action. This prevents a QA client from manually putting a
+    # submission back into the queue.
     allowed_decisions = {
         "PASSED",
-        "FAILED",
-        "PENDING_QA"
+        "FAILED"
     }
 
     decision = (
@@ -7686,15 +7773,27 @@ def review_task(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Invalid decision. "
-                "Use PASSED, FAILED, "
-                "or PENDING_QA."
+                "Invalid decision. Use PASSED or FAILED."
             )
         )
 
     previous_status = (
         sub.status
     )
+
+    if previous_status != "PENDING_QA":
+        raise HTTPException(
+            status_code=409,
+            detail="This submission is no longer waiting for QA review."
+        )
+
+    attempt_number = int(sub.attempt_number or 1)
+
+    if attempt_number not in (1, 2):
+        raise HTTPException(
+            status_code=409,
+            detail="This submission has an invalid QA attempt number."
+        )
 
     if decision == "FAILED":
         task_type = str(sub.task_type or "").strip().lower()
@@ -7705,19 +7804,22 @@ def review_task(
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "This KELYVO submission cannot be returned for revision "
-                    "because its task metadata is incomplete."
+                    "This KELYVO submission cannot be failed because its task "
+                    "metadata is incomplete."
                 )
             )
 
-        # Preserve the submitted Label Studio annotation/draft. The original
-        # contributor will reopen this exact task through
-        # /api/contributor/revision-task, correct the work, and submit it
-        # again. submit_task() will then reuse this same TaskSubmission record
-        # and move it back to PENDING_QA.
-        #
-        # Intentionally do not call _reset_failed_label_studio_task_to_pool().
-        pass
+        if attempt_number == 2:
+            # Second QA failure is FINAL. Remove the contributor's annotation
+            # and drafts from Label Studio so the exact task becomes clean pool
+            # work again. The existing requeue picker then offers it to other
+            # contributors while excluding everyone who previously failed it.
+            _reset_failed_label_studio_task_to_pool(
+                int(project_id),
+                int(task_id),
+            )
+        # Attempt 1 intentionally keeps the annotation/draft so the original
+        # contributor can reopen it for the one allowed revision.
 
     sub.status = decision
     sub.reviewer_notes = notes.strip()
@@ -7745,12 +7847,38 @@ def review_task(
                 canonical_task.status = {
                     "PASSED": "passed",
                     "FAILED": "failed",
-                    "PENDING_QA": "submitted",
                 }.get(
                     decision,
                     canonical_task.status,
                 )
                 canonical_task.is_locked = False
+
+                # Keep the newer enterprise Submission record synchronized with
+                # the live TaskSubmission QA workflow. In particular, marking
+                # attempt 1 as failed allows the next contributor resubmission
+                # to advance the enterprise attempt counter to 2.
+                if hasattr(models, "Submission"):
+                    enterprise_submission = (
+                        db.query(models.Submission)
+                        .filter(
+                            models.Submission.task_id == canonical_task.id,
+                            models.Submission.contributor_id == int(sub.user_id),
+                        )
+                        .order_by(
+                            models.Submission.submitted_at.desc()
+                        )
+                        .first()
+                    )
+
+                    if enterprise_submission is not None:
+                        enterprise_submission.status = {
+                            "PASSED": "passed",
+                            "FAILED": "failed",
+                        }.get(
+                            decision,
+                            enterprise_submission.status,
+                        )
+                        enterprise_submission.updated_at = _utc_now()
     except Exception:
         pass
 
@@ -7762,9 +7890,8 @@ def review_task(
         sub.contributor.tasks_passed_qa += 1
         sub.contributor.earnings += 500.0
 
-    # FAILED is an audited result for the original contributor. The
-    # contributor receives an explicit revision action and can reopen the
-    # existing task, correct it, and submit it back into QA.
+    # FAILED on attempt 1 is a revision request. FAILED on attempt 2 is final
+    # and the task has already been reset to the shared contributor pool.
 
     db.commit()
 

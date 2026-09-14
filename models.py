@@ -148,6 +148,16 @@ class TaskSubmission(Base):
         default="PENDING_QA"
     )
 
+    # KELYVO QA workflow attempt counter.
+    # 1 = first contributor submission; 2 = one allowed revision.
+    # A second QA failure is final and returns the task to the contributor pool.
+    attempt_number = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1"
+    )
+
     reviewer_notes = Column(
         String,
         nullable=True

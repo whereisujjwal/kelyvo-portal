@@ -3714,442 +3714,6 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
 }
 </style>
 
-
-<style id="kelyvo-admin-operations-refinement">
-/* ============================================================
-   KELYVO ADMIN OPERATIONS — OPEN ENTERPRISE LAYOUT
-   ============================================================ */
-
-#admin-ops-section.hidden {
-    display: none !important;
-}
-
-#admin-ops-section:not(.hidden) {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 30px !important;
-    padding-bottom: 48px !important;
-}
-
-#admin-ops-section > * {
-    margin-top: 0 !important;
-}
-
-#admin-ops-section > div:first-child {
-    padding: 28px 2px 30px !important;
-    margin-bottom: 0 !important;
-    border-bottom: 1px solid var(--portal-border) !important;
-}
-
-#admin-ops-section > div:first-child h2 {
-    margin-top: 14px !important;
-    font-size: clamp(30px, 3vw, 42px) !important;
-    line-height: 1.08 !important;
-    font-weight: 520 !important;
-    letter-spacing: -.035em !important;
-}
-
-#admin-ops-section > div:first-child p {
-    margin-top: 12px !important;
-    max-width: 760px !important;
-    font-size: 14px !important;
-    line-height: 1.65 !important;
-}
-
-#admin-ops-section > div:first-child > button {
-    min-height: 44px !important;
-    padding: 11px 17px !important;
-}
-
-#admin-support-section,
-#admin-workforce-section,
-#admin-data-collector-review-section,
-#admin-data-collection-opportunities-section {
-    border-radius: 20px !important;
-    box-shadow: 0 18px 60px rgba(0,0,0,.20) !important;
-}
-
-#admin-support-section > div:first-child,
-#admin-workforce-section > div:first-child,
-#admin-data-collector-review-section > div:first-child {
-    padding: 22px 24px !important;
-}
-
-#admin-ops-section .grid.grid-cols-2.md\:grid-cols-4 {
-    gap: 18px !important;
-}
-
-#admin-ops-section .grid.grid-cols-2.md\:grid-cols-4 > div {
-    min-height: 132px !important;
-    padding: 25px 24px !important;
-    border-radius: 16px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-}
-
-#admin-ops-section .grid.grid-cols-2.md\:grid-cols-4 > div > div:last-child {
-    margin-top: 12px !important;
-    font-size: 28px !important;
-    line-height: 1 !important;
-}
-
-#admin-recent-activity-panel {
-    border-radius: 20px !important;
-}
-
-#admin-recent-activity-panel > div:first-child {
-    padding: 22px 24px !important;
-}
-
-#admin-recent-activity-panel .kelyvo-admin-recent-scroll {
-    max-height: 430px !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    scrollbar-gutter: stable;
-    background: var(--portal-surface) !important;
-}
-
-#admin-recent-activity-panel table {
-    table-layout: fixed !important;
-}
-
-#admin-recent-activity-panel th,
-#admin-recent-activity-panel td {
-    padding: 15px 20px !important;
-    vertical-align: middle !important;
-}
-
-#admin-recent-activity-panel th {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 2 !important;
-    background: var(--portal-surface-2) !important;
-    backdrop-filter: blur(10px);
-}
-
-#admin-recent-activity-panel td {
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif !important;
-    font-size: 12px !important;
-    line-height: 1.45 !important;
-    color: var(--portal-text-soft) !important;
-}
-
-#admin-recent-activity-panel td:nth-child(1) { width: 11%; }
-#admin-recent-activity-panel td:nth-child(2) { width: 31%; }
-#admin-recent-activity-panel td:nth-child(3) { width: 42%; }
-#admin-recent-activity-panel td:nth-child(4) { width: 16%; }
-
-#admin-recent-activity-panel td:nth-child(2),
-#admin-recent-activity-panel td:nth-child(3) {
-    overflow-wrap: anywhere;
-}
-
-#admin-workforce-section > div:nth-child(2) {
-    padding: 18px 24px !important;
-}
-
-#admin-workforce-section > div:nth-child(3) {
-    max-height: 480px !important;
-    overflow: auto !important;
-}
-
-#admin-workforce-section table,
-#admin-data-collector-review-section table,
-#admin-interest-pool-body {
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif !important;
-}
-
-#admin-workforce-users-body,
-#admin-data-collector-review-body {
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif !important;
-}
-
-#admin-workforce-section th,
-#admin-data-collector-review-section th {
-    padding: 14px 16px !important;
-    font-size: 10px !important;
-}
-
-#admin-workforce-section td,
-#admin-data-collector-review-section td {
-    padding: 16px !important;
-    font-size: 12px !important;
-    line-height: 1.45 !important;
-}
-
-#admin-workforce-section td:first-child,
-#admin-data-collector-review-section td:first-child {
-    font-weight: 500 !important;
-}
-
-#admin-data-collector-review-section > div:nth-child(2) {
-    max-height: 500px !important;
-    overflow: auto !important;
-}
-
-#admin-data-collector-review-body td:nth-child(2),
-#admin-data-collector-review-body td:nth-child(3),
-#admin-data-collector-review-body td:nth-child(4) {
-    color: var(--portal-text-soft) !important;
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif !important;
-    font-size: 12px !important;
-    line-height: 1.5 !important;
-}
-
-#admin-ops-section .text-zinc-600,
-#admin-ops-section .text-zinc-500 {
-    letter-spacing: .01em !important;
-}
-
-#admin-ops-section .font-mono:not(
-    .text-\[10px\]
-) {
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif !important;
-}
-
-/* Keep genuine technical labels compact, but stop using monospace for human data. */
-#admin-workforce-users-body .text-\[10px\],
-#admin-data-collector-review-body .text-\[10px\],
-#admin-recent-activity-panel .text-\[10px\] {
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif !important;
-}
-
-/* Official admin identity: every admin can see that the account is protected.
-   Only the official account itself sees its earnings amount. */
-.kelyvo-official-earnings-hidden {
-    color: var(--portal-subtle) !important;
-    font-size: 11px !important;
-}
-
-body.kelyvo-original-admin #admin-workforce-section .kelyvo-original-admin-row {
-    background:
-        linear-gradient(90deg, rgba(216,179,106,.055), transparent 58%) !important;
-}
-
-body.kelyvo-original-admin #admin-workforce-section .kelyvo-original-admin-row td {
-    border-top-color: rgba(216,179,106,.16) !important;
-    border-bottom-color: rgba(216,179,106,.16) !important;
-}
-
-@media (max-width: 900px) {
-    #admin-ops-section {
-        gap: 24px !important;
-    }
-
-    #admin-ops-section .grid.grid-cols-2.md\:grid-cols-4 {
-        gap: 12px !important;
-    }
-
-    #admin-ops-section .grid.grid-cols-2.md\:grid-cols-4 > div {
-        min-height: 116px !important;
-        padding: 20px !important;
-    }
-
-    #admin-recent-activity-panel .kelyvo-admin-recent-scroll {
-        max-height: 360px !important;
-    }
-}
-
-@media (max-width: 640px) {
-    #admin-ops-section > div:first-child {
-        padding: 20px 0 24px !important;
-    }
-
-    #admin-ops-section .grid.grid-cols-2.md\:grid-cols-4 > div {
-        min-height: 104px !important;
-        padding: 17px !important;
-    }
-
-    #admin-ops-section .grid.grid-cols-2.md\:grid-cols-4 > div > div:last-child {
-        font-size: 24px !important;
-    }
-
-    #admin-recent-activity-panel th,
-    #admin-recent-activity-panel td {
-        padding: 13px 14px !important;
-    }
-}
-</style>
-
-<style id="kelyvo-original-admin-global-visibility">
-/* The protected official-admin identity is visible to every Admin,
-   not only to the official account itself. */
-#admin-workforce-section .kelyvo-original-admin-row {
-    background:
-        linear-gradient(90deg, rgba(216,179,106,.065), rgba(216,179,106,.016) 58%, transparent) !important;
-    box-shadow: inset 2px 0 0 rgba(216,179,106,.58) !important;
-}
-
-#admin-workforce-section .kelyvo-original-admin-row:hover {
-    background:
-        linear-gradient(90deg, rgba(216,179,106,.095), rgba(216,179,106,.025) 62%, transparent) !important;
-}
-
-#admin-workforce-section .kelyvo-original-admin-email {
-    display: inline-flex !important;
-    align-items: center;
-    gap: 7px;
-    color: #f0d49a !important;
-    font-weight: 700 !important;
-    letter-spacing: .01em;
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif !important;
-}
-
-#admin-workforce-section .kelyvo-original-admin-email::before {
-    content: "◆";
-    color: #d8b36a;
-    font-size: 6px;
-}
-
-#admin-workforce-section .kelyvo-original-admin-badge {
-    display: inline-flex !important;
-    margin-top: 7px;
-    padding: 3px 8px;
-    border: 1px solid rgba(216,179,106,.28);
-    border-radius: 999px;
-    background: rgba(216,179,106,.075);
-    color: #d8b36a !important;
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif !important;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: .10em;
-    text-transform: uppercase;
-}
-
-#admin-workforce-section .kelyvo-original-admin-control,
-#admin-workforce-section .kelyvo-original-admin-lock-control {
-    border-color: rgba(216,179,106,.30) !important;
-    background: rgba(216,179,106,.045) !important;
-    color: #d8b36a !important;
-}
-
-#admin-workforce-section .kelyvo-original-admin-status {
-    color: #d8b36a !important;
-    font-weight: 650 !important;
-}
-
-html[data-kelyvo-theme="light"] #admin-workforce-section .kelyvo-original-admin-row {
-    background:
-        linear-gradient(90deg, rgba(178,122,27,.09), rgba(178,122,27,.025) 58%, transparent) !important;
-    box-shadow: inset 2px 0 0 rgba(178,122,27,.48) !important;
-}
-
-html[data-kelyvo-theme="light"] #admin-workforce-section .kelyvo-original-admin-email {
-    color: #8a5d0d !important;
-}
-
-html[data-kelyvo-theme="light"] #admin-workforce-section .kelyvo-original-admin-badge,
-html[data-kelyvo-theme="light"] #admin-workforce-section .kelyvo-original-admin-control,
-html[data-kelyvo-theme="light"] #admin-workforce-section .kelyvo-original-admin-lock-control,
-html[data-kelyvo-theme="light"] #admin-workforce-section .kelyvo-original-admin-status {
-    color: #8a5d0d !important;
-}
-</style>
-
-
-<style id="kelyvo-auth-visibility-guard">
-/* ============================================================
-   AUTH VISIBILITY GUARD
-   Never allow presentation CSS to expose protected workspaces.
-   ============================================================ */
-#admin-ops-section.hidden,
-#admin-section.hidden,
-#data-collector-section.hidden,
-#dashboard-section.hidden {
-    display: none !important;
-}
-
-#admin-ops-section.hidden > *,
-#admin-section.hidden > *,
-#data-collector-section.hidden > *,
-#dashboard-section.hidden > * {
-    visibility: hidden !important;
-}
-</style>
-
-
-<style id="kelyvo-support-refinement">
-.kelyvo-support-upload {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-    padding: 10px;
-    border: 1px solid var(--portal-border);
-    border-radius: 12px;
-    background: rgba(255,255,255,.018);
-}
-
-.kelyvo-support-upload input[type="file"] {
-    width: 100%;
-    min-height: 40px;
-    color: var(--portal-text-soft);
-    font-family: "Avenir Next", "Inter", "Helvetica Neue", Arial, sans-serif;
-}
-
-.kelyvo-support-file-name {
-    min-height: 18px;
-    font-size: 11px;
-    line-height: 1.45;
-    color: var(--portal-muted);
-    overflow-wrap: anywhere;
-}
-
-.kelyvo-support-preview {
-    margin-top: 12px;
-    padding: 10px;
-    border: 1px solid var(--portal-border);
-    border-radius: 12px;
-    background: rgba(0,0,0,.18);
-}
-
-.kelyvo-support-preview img {
-    display: block;
-    width: 100%;
-    max-height: 260px;
-    object-fit: contain;
-    border-radius: 8px;
-}
-
-html[data-kelyvo-theme="light"] .kelyvo-support-upload,
-html[data-kelyvo-theme="light"] .kelyvo-support-preview {
-    background: rgba(84,59,34,.025);
-}
-</style>
-
-
-<style id="kelyvo-admin-support-inbox-refinement">
-.kelyvo-support-filter {
-    border: 1px solid var(--portal-border, #292929);
-    background: transparent;
-    color: var(--portal-muted, #8f8f8f);
-    border-radius: 999px;
-    padding: 7px 11px;
-    font-size: 10px;
-    line-height: 1;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-}
-.kelyvo-support-filter:hover,
-.kelyvo-support-filter.active {
-    color: var(--portal-text, #f5f5f5);
-    border-color: rgba(212,175,55,.42);
-    background: rgba(212,175,55,.08);
-}
-.kelyvo-support-role-badge {
-    font-size: 9px;
-    letter-spacing: .09em;
-    border: 1px solid var(--portal-border, #292929);
-    border-radius: 999px;
-    padding: 4px 7px;
-}
-.kelyvo-support-role-badge.qa { color: #b7a9ff; border-color: rgba(139,124,246,.35); background: rgba(139,124,246,.08); }
-.kelyvo-support-role-badge.contributor { color: #7ee7c1; border-color: rgba(52,211,153,.32); background: rgba(52,211,153,.07); }
-.kelyvo-support-role-badge.collector { color: #ffb37b; border-color: rgba(251,146,60,.32); background: rgba(251,146,60,.07); }
-.kelyvo-support-role-badge.admin { color: #e6c76a; border-color: rgba(212,175,55,.34); background: rgba(212,175,55,.08); }
-.kelyvo-ticket-attachment-name { margin-top: 10px; font-size: 10px; color: var(--portal-muted, #777); }
-</style>
-
 </head>
 
 <body class="bg-darkbg text-gray-100 min-h-screen">
@@ -4409,8 +3973,7 @@ html[data-kelyvo-theme="light"] .kelyvo-support-preview {
         >
 
             <label
-                id="registration-code-label"
-                class="block text-[10px] uppercase text-zinc-300 mb-2 tracking-wide"
+                class="block text-[10px] uppercase text-zinc-400 mb-2"
             >
                 Admin Registration Code
             </label>
@@ -5288,21 +4851,15 @@ html[data-kelyvo-theme="light"] .kelyvo-support-preview {
     <div id="admin-ops-error" class="hidden p-4 border border-red-900/60 bg-red-950/20 rounded-xl text-xs text-red-300 font-mono"></div>
 
 <section id="admin-support-section" class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
-    <div class="px-5 py-5 border-b border-zinc-800 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+    <div class="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
             <div class="text-sm font-medium text-white">Support Inbox</div>
-            <div class="text-[10px] text-zinc-600 mt-1">Every support request from Contributors, QA and Data Collectors is routed here.</div>
+            <div class="text-[10px] text-zinc-600 mt-1">User-reported issues and screenshots routed directly to Admin.</div>
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex gap-2 items-center">
             <span id="admin-support-open-count" class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">0 open</span>
             <button type="button" onclick="loadAdminSupportTickets()" class="text-xs uppercase border border-zinc-800 px-4 py-2.5 rounded-lg">Refresh</button>
         </div>
-    </div>
-    <div class="px-5 py-3 border-b border-zinc-800/80 flex flex-wrap gap-2" id="admin-support-filters">
-        <button type="button" class="kelyvo-support-filter active" data-role="all" onclick="setAdminSupportFilter('all')">All Open</button>
-        <button type="button" class="kelyvo-support-filter" data-role="qa" onclick="setAdminSupportFilter('qa')">QA</button>
-        <button type="button" class="kelyvo-support-filter" data-role="contributor" onclick="setAdminSupportFilter('contributor')">Contributors</button>
-        <button type="button" class="kelyvo-support-filter" data-role="data_collector" onclick="setAdminSupportFilter('data_collector')">Data Collectors</button>
     </div>
     <div id="admin-support-list" class="kelyvo-admin-support-list">
         <div class="p-8 text-center text-zinc-600 text-xs">No support tickets loaded.</div>
@@ -5406,7 +4963,7 @@ html[data-kelyvo-theme="light"] .kelyvo-support-preview {
                         <th class="p-4">User</th><th class="p-4">Role</th><th class="p-4">Status</th><th class="p-4">Today</th><th class="p-4">QA Passed</th><th class="p-4">Earnings</th><th class="p-4 text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="admin-workforce-users-body" class="text-xs divide-y divide-zinc-800"></tbody>
+                <tbody id="admin-workforce-users-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
             </table>
         </div>
     </section>
@@ -5453,7 +5010,7 @@ html[data-kelyvo-theme="light"] .kelyvo-support-preview {
                         <th class="p-4 text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="admin-data-collector-review-body" class="text-xs divide-y divide-zinc-800"></tbody>
+                <tbody id="admin-data-collector-review-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
             </table>
         </div>
     </section>
@@ -5617,15 +5174,12 @@ html[data-kelyvo-theme="light"] .kelyvo-support-preview {
         </div>
     </div>
 
-    <div id="admin-recent-activity-panel" class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
-        <div class="px-6 py-5 border-b border-zinc-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-                <div class="text-sm font-medium text-white">Recent Workflow Activity</div>
-                <div class="text-[10px] text-zinc-600 mt-1">Latest submitted records across the platform.</div>
-            </div>
-            <div class="text-[10px] uppercase tracking-widest text-zinc-600">Scrollable activity log</div>
+    <div class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-zinc-800">
+            <div class="text-sm font-medium text-white">Recent Workflow Activity</div>
+            <div class="text-[10px] text-zinc-600 mt-1">Latest submitted records across the platform.</div>
         </div>
-        <div class="kelyvo-admin-recent-scroll">
+        <div class="overflow-auto">
             <table class="w-full text-left">
                 <thead>
                     <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
@@ -6279,6 +5833,19 @@ html[data-kelyvo-theme="light"] .kelyvo-support-preview {
 
 
                     <div
+                        id="qa-second-attempt-warning"
+                        class="hidden border border-red-800/70 bg-red-950/30 rounded-xl p-5"
+                    >
+                        <div class="text-[10px] uppercase tracking-widest text-red-300 font-semibold">
+                            SECOND ATTEMPT — FINAL QA
+                        </div>
+                        <div class="text-xs text-red-200/80 mt-2 leading-relaxed">
+                            This task has already been returned once. This is the final QA review. You cannot return it to the contributor again. Choose Pass QA or Fail QA.
+                        </div>
+                    </div>
+
+
+                    <div
                         class="bg-[#030303] border border-zinc-800 rounded-xl p-5"
                     >
 
@@ -6586,7 +6153,7 @@ async function restoreActiveTaskSession() {
  */
 
 const LABEL_STUDIO_URL =
-    "http://127.0.0.1:8080";
+    window.location.origin;
 
 
 /* ============================================================
@@ -6759,21 +6326,6 @@ function updateRegistrationCodeVisibility() {
     const requiresRegistrationCode =
         roleSelect.value === "admin" ||
         roleSelect.value === "qa";
-
-    const registrationLabel =
-        document.getElementById("registration-code-label");
-
-    if (registrationLabel) {
-        registrationLabel.innerText =
-            roleSelect.value === "qa"
-                ? "QA Registration Code"
-                : "Admin Registration Code";
-    }
-
-    registrationCode.placeholder =
-        roleSelect.value === "qa"
-            ? "Enter QA registration code"
-            : "Enter admin registration code";
 
     if (requiresRegistrationCode) {
         registrationCodeContainer.classList.remove(
@@ -9921,13 +9473,6 @@ function renderAdminWorkforceUsers(users) {
             user.account_locked ||
             String(user.email || "").trim().toLowerCase() === "ujjwal.ujs@gmail.com"
         );
-        const isCurrentOfficialAdmin =
-            isOfficialAdmin &&
-            String(currentEmail || "").trim().toLowerCase() === "ujjwal.ujs@gmail.com";
-        const earningsDisplay =
-            isOfficialAdmin && !isCurrentOfficialAdmin
-                ? "—"
-                : `₹${Number(user.earnings ?? 0).toFixed(2)}`;
         const statusClass = isOfficialAdmin
             ? "kelyvo-original-admin-status"
             : (status === "active" ? "text-emerald-400" : "text-red-400");
@@ -9952,9 +9497,7 @@ function renderAdminWorkforceUsers(users) {
             <td class="p-4 ${statusClass} uppercase">${escapeHtml(status)}</td>
             <td class="p-4 text-zinc-300">${escapeHtml(user.tasks_today ?? 0)}</td>
             <td class="p-4 text-zinc-300">${escapeHtml(user.tasks_passed_qa ?? 0)}</td>
-            <td class="p-4 text-zinc-300 ${isOfficialAdmin && !isCurrentOfficialAdmin ? "kelyvo-official-earnings-hidden" : ""}">
-                ${earningsDisplay}
-            </td>
+            <td class="p-4 text-zinc-300">₹${Number(user.earnings ?? 0).toFixed(2)}</td>
             <td class="p-4 text-right">
                 <div class="flex justify-end items-center gap-2">
                     <button type="button" onclick="openAdminWorkforceProfile(${Number(user.id)})" class="border border-zinc-700 rounded-md px-3 py-1.5 text-[10px] uppercase hover:border-zinc-500 transition">Profile</button>
@@ -10596,6 +10139,10 @@ async function loadAdminQueue() {
                             submission.status ||
                             "PENDING_QA"
                         ).trim().toUpperCase(),
+                        attempt_number: Number(
+                            submission.attempt_number ||
+                            1
+                        ),
                         contributor_email:
                             submission.contributor_email ||
                             submission.email ||
@@ -10889,6 +10436,16 @@ function renderAdminQueue(
                     "PENDING_QA"
                 ).toUpperCase();
 
+            const attemptNumber =
+                Number(
+                    submission.attempt_number ||
+                    1
+                );
+
+            const isSecondAttempt =
+                normalizedStatus === "PENDING_QA" &&
+                attemptNumber === 2;
+
             let statusClass =
                 "text-amber-400";
 
@@ -10904,6 +10461,19 @@ function renderAdminQueue(
             ) {
                 statusClass =
                     "text-red-400";
+            } else if (
+                isSecondAttempt
+            ) {
+                statusClass =
+                    "text-red-300 font-semibold";
+            }
+
+            if (isSecondAttempt) {
+                row.className =
+                    "bg-red-950/35 border-y border-red-800/70 text-red-50";
+            } else {
+                row.className =
+                    "hover:bg-zinc-900/50";
             }
 
             const actionLabel =
@@ -10940,19 +10510,26 @@ function renderAdminQueue(
                         )}
                     </div>
 
-                    <div class="text-[10px] text-zinc-600 mt-1">
+                    <div class="text-[10px] mt-1 ${isSecondAttempt ? "text-red-300 font-semibold" : "text-zinc-600"}">
                         ${escapeHtml(
                             String(
                                 submission.task_type ||
                                 ""
                             ).toUpperCase()
                         )}
+                        ${
+                            isSecondAttempt
+                                ? ` · SECOND ATTEMPT`
+                                : ""
+                        }
                     </div>
                 </td>
 
                 <td class="p-5 ${statusClass}">
                     ${escapeHtml(
-                        normalizedStatus
+                        isSecondAttempt
+                            ? "SECOND ATTEMPT"
+                            : normalizedStatus
                     )}
                 </td>
 
@@ -11174,6 +10751,36 @@ function renderQAReview(
             "PENDING_QA"
         ).toUpperCase() ===
         "PENDING_QA";
+
+    const attemptNumber =
+        Number(
+            submission.attempt_number ||
+            1
+        );
+
+    const secondAttemptWarning =
+        document.getElementById(
+            "qa-second-attempt-warning"
+        );
+
+    if (secondAttemptWarning) {
+        secondAttemptWarning.classList.toggle(
+            "hidden",
+            !(isPending && attemptNumber === 2)
+        );
+    }
+
+    const returnButton =
+        document.getElementById(
+            "qa-return-button"
+        );
+
+    if (returnButton) {
+        returnButton.innerText =
+            attemptNumber === 2
+                ? "Fail QA"
+                : "Return for Revision";
+    }
 
     document.getElementById(
         "qa-pass-button"
@@ -12440,6 +12047,12 @@ async function submitQAReview(
             ? notesElement.value.trim()
             : "";
 
+    const attemptNumber =
+        Number(
+            activeQAReview.submission.attempt_number ||
+            1
+        );
+
     if (
         normalizedDecision ===
         "FAILED" &&
@@ -12447,7 +12060,9 @@ async function submitQAReview(
     ) {
 
         alert(
-            "Add reviewer notes before returning this task for revision."
+            attemptNumber === 2
+                ? "Add reviewer notes before failing this task."
+                : "Add reviewer notes before returning this task for revision."
         );
 
         return;
@@ -12457,7 +12072,9 @@ async function submitQAReview(
         confirm(
             normalizedDecision === "PASSED"
                 ? "Pass this submission through QA?"
-                : "Return this task to the contributor for revision?"
+                : (attemptNumber === 2
+                    ? "Fail this task as the final QA decision and return it to the contributor pool?"
+                    : "Return this task to the contributor for revision?")
         );
 
     if (!confirmation) {
@@ -12468,7 +12085,9 @@ async function submitQAReview(
         normalizedDecision ===
         "PASSED"
             ? "Approving QA Review..."
-            : "Returning Task for Revision..."
+            : (attemptNumber === 2
+                ? "Failing Task and Returning It to the Pool..."
+                : "Returning Task for Revision...")
     );
 
     try {
@@ -13202,8 +12821,14 @@ async function loadContributorSubmissions() {
                 ).toUpperCase() ===
                 "FAILED";
 
+            const attemptNumber =
+                Number(
+                    submission.attempt_number ||
+                    1
+                );
+
             const revisionAction =
-                isFailed
+                isFailed && attemptNumber === 1
                     ? `
                         <button
                             type="button"
@@ -13263,6 +12888,21 @@ async function loadContributorSubmissions() {
                                 submission.task_id ||
                                 "—"
                             )}
+                        </span>
+                    </div>
+
+                    <div class="flex justify-between gap-4">
+                        <span class="text-zinc-600">
+                            Attempt
+                        </span>
+
+                        <span class="text-zinc-400 kelyvo-mono text-right">
+                            ${escapeHtml(
+                                Number(
+                                    submission.attempt_number ||
+                                    1
+                                )
+                            )} / 2
                         </span>
                     </div>
 
@@ -13486,43 +13126,17 @@ window.addEventListener(
             <div>
                 <div class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">Direct to Admin</div>
                 <h2 id="kelyvo-support-title" class="text-xl font-light mt-2">KELYVO Support</h2>
-                <p id="kelyvo-support-description" class="text-xs text-zinc-500 mt-1">
-                    Tell us what went wrong. You can attach a screenshot.
-                </p>
+                <p class="text-xs text-zinc-500 mt-1">Tell us what went wrong. You can attach a screenshot.</p>
             </div>
             <button type="button" onclick="kelyvoCloseSupport()" class="border border-zinc-800 rounded-lg px-3 py-2 text-xs uppercase">Close</button>
         </div>
-
         <form onsubmit="kelyvoSubmitSupport(event)" class="p-5">
             <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Problem</label>
-            <textarea
-                id="kelyvo-support-message"
-                required
-                maxlength="4000"
-                placeholder="Describe the problem..."
-            ></textarea>
-
-            <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mt-5 mb-2">Screenshot <span class="normal-case tracking-normal text-zinc-600">(optional)</span></label>
-
-            <div class="kelyvo-support-upload">
-                <input
-                    id="kelyvo-support-attachment"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    onchange="kelyvoSupportFileChanged(event)"
-                >
-                <div id="kelyvo-support-file-name" class="kelyvo-support-file-name">
-                    No screenshot selected
-                </div>
-            </div>
-
-            <div id="kelyvo-support-preview" class="kelyvo-support-preview hidden">
-                <img id="kelyvo-support-preview-image" alt="Selected screenshot preview">
-            </div>
-
+            <textarea id="kelyvo-support-message" required maxlength="4000" placeholder="Describe the problem..."></textarea>
+            <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mt-4 mb-2">Screenshot</label>
+            <input id="kelyvo-support-attachment" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
             <div id="kelyvo-support-status" class="kelyvo-support-status mt-3"></div>
-
-            <div class="flex justify-end gap-2 mt-5">
+            <div class="flex justify-end gap-2 mt-4">
                 <button type="button" onclick="kelyvoCloseSupport()" class="border border-zinc-800 rounded-lg px-4 py-2.5 text-xs uppercase">Cancel</button>
                 <button type="submit" class="bg-white text-black rounded-lg px-5 py-2.5 text-xs uppercase tracking-wider">Send to Admin</button>
             </div>
@@ -13595,99 +13209,26 @@ window.addEventListener(
         kelyvoRefreshThemeButton();
     }
 
-    function kelyvoSupportRole() {
-        const role =
-            String(
-                localStorage.getItem("kelyvo_user_role") ||
-                localStorage.getItem("kelyvo_role") ||
-                ""
-            ).trim().toLowerCase();
-
-        return role || "user";
+    function kelyvoResetSupportStatus() {
+        const status = document.getElementById("kelyvo-support-status");
+        if (!status) return;
+        status.textContent = "";
+        status.className = "kelyvo-support-status mt-3";
     }
-
-    function kelyvoRefreshSupportCopy() {
-        const description = document.getElementById("kelyvo-support-description");
-        const message = document.getElementById("kelyvo-support-message");
-        const role = kelyvoSupportRole();
-
-        const copy = {
-            contributor: {
-                description: "Tell us what went wrong with your task. You can attach a screenshot.",
-                placeholder: "Describe the task problem..."
-            },
-            qa: {
-                description: "Tell us what went wrong with your QA work. You can attach a screenshot.",
-                placeholder: "Describe the QA problem..."
-            },
-            data_collector: {
-                description: "Tell us what went wrong with your collection work. You can attach a screenshot.",
-                placeholder: "Describe the collection problem..."
-            },
-            admin: {
-                description: "Send an internal support note. You can attach a screenshot.",
-                placeholder: "Describe the issue..."
-            }
-        };
-
-        const selected = copy[role] || {
-            description: "Tell us what went wrong. You can attach a screenshot.",
-            placeholder: "Describe the problem..."
-        };
-
-        if (description) description.textContent = selected.description;
-        if (message) message.placeholder = selected.placeholder;
-    }
-
-    window.kelyvoSupportFileChanged = function (event) {
-        const input = document.getElementById("kelyvo-support-attachment");
-        const fileName = document.getElementById("kelyvo-support-file-name");
-        const preview = document.getElementById("kelyvo-support-preview");
-        const previewImage = document.getElementById("kelyvo-support-preview-image");
-
-        const file = input && input.files && input.files[0];
-
-        if (!file) {
-            if (fileName) fileName.textContent = "No screenshot selected";
-            if (preview) preview.classList.add("hidden");
-            if (previewImage) previewImage.removeAttribute("src");
-            return;
-        }
-
-        if (fileName) {
-            const sizeMb = file.size / (1024 * 1024);
-            fileName.textContent =
-                `${file.name} · ${sizeMb < 1 ? `${Math.max(1, Math.round(file.size / 1024))} KB` : `${sizeMb.toFixed(1)} MB`}`;
-        }
-
-        if (preview && previewImage && file.type.startsWith("image/")) {
-            const reader = new FileReader();
-            reader.onload = function () {
-                previewImage.src = reader.result;
-                preview.classList.remove("hidden");
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
     window.kelyvoOpenSupport = function () {
-        kelyvoRefreshSupportCopy();
         const modal = document.getElementById("kelyvo-support-modal");
+        // Always start a new Support session with a clean status area.
+        kelyvoResetSupportStatus();
         if (modal) modal.classList.add("open");
         const input = document.getElementById("kelyvo-support-message");
         if (input) setTimeout(() => input.focus(), 60);
     };
+
     window.kelyvoCloseSupport = function () {
         const modal = document.getElementById("kelyvo-support-modal");
         if (modal) modal.classList.remove("open");
-        const status = document.getElementById("kelyvo-support-status");
-        if (status) status.textContent = "";
-        const preview = document.getElementById("kelyvo-support-preview");
-        const previewImage = document.getElementById("kelyvo-support-preview-image");
-        const fileName = document.getElementById("kelyvo-support-file-name");
-        if (preview) preview.classList.add("hidden");
-        if (previewImage) previewImage.removeAttribute("src");
-        if (fileName) fileName.textContent = "No screenshot selected";
+        kelyvoResetSupportStatus();
     };
 
     window.kelyvoSubmitSupport = async function (event) {
@@ -14031,85 +13572,15 @@ window.addEventListener(
         }
     });
 
-    // Admin support inbox — one source of truth for every supported role.
-    let kelyvoAdminSupportTickets = [];
-    let kelyvoAdminSupportFilter = "all";
-
-    function kelyvoNormalizeSupportRole(role) {
-        const value = String(role || "").trim().toLowerCase();
-        if (value === "data-collector" || value === "datacollector") return "data_collector";
-        return value;
-    }
-
-    function kelyvoSupportRoleLabel(role) {
-        const value = kelyvoNormalizeSupportRole(role);
-        if (value === "qa") return "QA";
-        if (value === "contributor") return "CONTRIBUTOR";
-        if (value === "data_collector") return "DATA COLLECTOR";
-        if (value === "admin") return "ADMIN";
-        return value.toUpperCase() || "USER";
-    }
-
-    function renderAdminSupportTickets() {
+    // Admin support inbox.
+    window.loadAdminSupportTickets = async function () {
         const list = document.getElementById("admin-support-list");
         const count = document.getElementById("admin-support-open-count");
         if (!list) return;
 
-        const tickets = Array.isArray(kelyvoAdminSupportTickets) ? kelyvoAdminSupportTickets : [];
-        const filtered = kelyvoAdminSupportFilter === "all"
-            ? tickets
-            : tickets.filter(ticket => kelyvoNormalizeSupportRole(ticket.role) === kelyvoAdminSupportFilter);
-
-        if (count) count.textContent = `${tickets.length} open`;
-
-        document.querySelectorAll("#admin-support-filters .kelyvo-support-filter").forEach(button => {
-            button.classList.toggle("active", button.dataset.role === kelyvoAdminSupportFilter);
-        });
-
-        if (!filtered.length) {
-            const label = kelyvoAdminSupportFilter === "all"
-                ? "No open support tickets."
-                : `No open ${kelyvoSupportRoleLabel(kelyvoAdminSupportFilter).toLowerCase()} support tickets.`;
-            list.innerHTML = `<div class="p-10 text-center text-zinc-600 text-xs">${kelyvoEscape(label)}</div>`;
-            return;
-        }
-
-        list.innerHTML = filtered.map(ticket => {
-            const role = kelyvoNormalizeSupportRole(ticket.role);
-            const roleClass = role === "qa" ? "qa" : role === "contributor" ? "contributor" : role === "data_collector" ? "collector" : "admin";
-            return `
-                <article class="kelyvo-ticket">
-                    <div class="kelyvo-ticket-meta">
-                        <span class="kelyvo-support-role-badge ${roleClass}">${kelyvoEscape(kelyvoSupportRoleLabel(role))}</span>
-                        <span>•</span>
-                        <span>${kelyvoEscape(ticket.email)}</span>
-                        <span>•</span>
-                        <span>${kelyvoEscape(ticket.created_at || "")}</span>
-                    </div>
-                    <div class="kelyvo-ticket-message">${kelyvoEscape(ticket.message)}</div>
-                    ${ticket.attachment_name ? `<div class="kelyvo-ticket-attachment-name">Screenshot · ${kelyvoEscape(ticket.attachment_name)}</div>` : ""}
-                    <div class="kelyvo-ticket-actions">
-                        ${ticket.attachment_url ? `<a class="kelyvo-ticket-action" href="${ticket.attachment_url}" target="_blank" rel="noopener">View Screenshot</a>` : ""}
-                        <button type="button" class="kelyvo-ticket-action" onclick="kelyvoResolveTicket('${String(ticket.id).replace(/'/g, "\\'")}')">Mark Resolved</button>
-                    </div>
-                </article>
-            `;
-        }).join("");
-    }
-
-    window.setAdminSupportFilter = function (role) {
-        kelyvoAdminSupportFilter = kelyvoNormalizeSupportRole(role) || "all";
-        renderAdminSupportTickets();
-    };
-
-    window.loadAdminSupportTickets = async function () {
-        const list = document.getElementById("admin-support-list");
-        if (!list) return;
-
         try {
             const response = await fetch("/api/admin/support/tickets?status=open", {
-                credentials: "same-origin",
-                cache: "no-store"
+                credentials:"same-origin"
             });
             const data = await response.json().catch(() => null);
 
@@ -14117,9 +13588,30 @@ window.addEventListener(
                 throw new Error((data && data.detail) || "Unable to load support tickets.");
             }
 
-            // The backend returns ALL open tickets here; role is only a display filter.
-            kelyvoAdminSupportTickets = Array.isArray(data && data.tickets) ? data.tickets : [];
-            renderAdminSupportTickets();
+            const tickets = Array.isArray(data && data.tickets) ? data.tickets : [];
+            if (count) count.textContent = `${tickets.length} open`;
+
+            if (!tickets.length) {
+                list.innerHTML = '<div class="p-8 text-center text-zinc-600 text-xs">No open support tickets.</div>';
+                return;
+            }
+
+            list.innerHTML = tickets.map(ticket => `
+                <article class="kelyvo-ticket">
+                    <div class="kelyvo-ticket-meta">
+                        <span>${kelyvoEscape(ticket.role)}</span>
+                        <span>•</span>
+                        <span>${kelyvoEscape(ticket.email)}</span>
+                        <span>•</span>
+                        <span>${kelyvoEscape(ticket.created_at || "")}</span>
+                    </div>
+                    <div class="kelyvo-ticket-message">${kelyvoEscape(ticket.message)}</div>
+                    <div class="kelyvo-ticket-actions">
+                        ${ticket.attachment_url ? `<a class="kelyvo-ticket-action" href="${ticket.attachment_url}" target="_blank" rel="noopener">View Screenshot</a>` : ""}
+                        <button type="button" class="kelyvo-ticket-action" onclick="kelyvoResolveTicket('${ticket.id}')">Mark Resolved</button>
+                    </div>
+                </article>
+            `).join("");
         } catch (error) {
             list.innerHTML = `<div class="p-8 text-center text-red-400 text-xs">${kelyvoEscape(error.message || "Unable to load support tickets.")}</div>`;
         }
@@ -14128,10 +13620,10 @@ window.addEventListener(
     window.kelyvoResolveTicket = async function (ticketId) {
         try {
             const response = await fetch(`/api/admin/support/tickets/${encodeURIComponent(ticketId)}`, {
-                method: "PATCH",
-                credentials: "same-origin",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "resolved" })
+                method:"PATCH",
+                credentials:"same-origin",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({status:"resolved"})
             });
             const data = await response.json().catch(() => null);
             if (!response.ok) {
@@ -14142,7 +13634,6 @@ window.addEventListener(
             alert(error.message || "Unable to resolve support ticket.");
         }
     };
-
 })();
 </script>
 
