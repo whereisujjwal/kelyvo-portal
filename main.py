@@ -2728,11 +2728,88 @@ def label_studio_browser_request(
     **kwargs
 ):
     """
-    Request a native Label Studio HTML/browser resource with a server-side
-    Django session. API requests continue through label_studio_request().
+    Request a native Label Studio browser resource server-side.
 
-    If the cached Django session has expired, recreate it once and retry.
-    Never expose Label Studio's login page to the contributor.
+    Preferred authentication is Label Studio's Personal Access Token (PAT)
+    exchanged for a short-lived JWT access token and sent as a Bearer token.
+    The token never reaches the contributor's browser. If native web routes do
+    not accept JWT authentication, fall back to the existing server-side
+    Django-session implementation.
+    """
+    url = f"{LABEL_STUDIO_URL}{endpoint}"
+    headers = dict(kwargs.pop("headers", {}) or {})
+    if "timeout" not in kwargs:
+        kwargs["timeout"] = 15
+
+    # PAT/JWT is the preferred path when LABEL_STUDIO_API_TOKEN is configured.
+    # This uses the same refresh-token exchange already used by KELYVO's REST
+    # authentication code, but keeps the resulting access token server-side.
+    if LABEL_STUDIO_REFRESH_TOKEN:
+        try:
+            access_token = get_label_studio_access_token()
+            bearer_headers = dict(headers)
+            bearer_headers["Authorization"] = f"Bearer {access_token}"
+            logger.warning(
+                "LS_BROWSER_AUTH using_bearer endpoint=%s",
+                endpoint,
+            )
+            response = requests.request(
+                method,
+                url,
+                headers=bearer_headers,
+                allow_redirects=True,
+                **kwargs,
+            )
+
+            login_response = (
+                _response_was_redirected_to_label_studio_login(response)
+                or _label_studio_login_page_looks_like_login(response.text)
+            )
+
+            logger.warning(
+                "LS_BROWSER_AUTH bearer_result endpoint=%s status=%s final_path=%s login_page=%s",
+                endpoint,
+                response.status_code,
+                urlparse(getattr(response, "url", "") or "").path,
+                login_response,
+            )
+
+            if response.status_code < 400 and not login_response:
+                return response
+
+            logger.warning(
+                "LS_BROWSER_AUTH bearer_not_accepted endpoint=%s; using_django_session_fallback=true",
+                endpoint,
+            )
+        except HTTPException as exc:
+            logger.warning(
+                "LS_BROWSER_AUTH bearer_setup_failed endpoint=%s status=%s; using_django_session_fallback=true",
+                endpoint,
+                getattr(exc, "status_code", None),
+            )
+        except requests.RequestException as exc:
+            logger.warning(
+                "LS_BROWSER_AUTH bearer_request_failed endpoint=%s error=%s; using_django_session_fallback=true",
+                endpoint,
+                exc,
+            )
+
+    return label_studio_browser_request_session_fallback(
+        method,
+        endpoint,
+        headers=headers,
+        **kwargs,
+    )
+
+
+def label_studio_browser_request_session_fallback(
+    method: str,
+    endpoint: str,
+    **kwargs
+):
+    """
+    Legacy fallback: request a native Label Studio resource with a server-side
+    Django session. The preferred production path is PAT/JWT Bearer auth.
     """
     global _LABEL_STUDIO_BROWSER_SESSION
 
