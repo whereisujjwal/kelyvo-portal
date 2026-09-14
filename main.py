@@ -660,6 +660,22 @@ LABEL_STUDIO_REFRESH_TOKEN = os.getenv(
     "LABEL_STUDIO_API_TOKEN"
 )
 
+# Label Studio API tokens authenticate API requests, but they do not create
+# a Django browser session for the Label Studio web application. KELYVO
+# therefore uses a dedicated Label Studio login only on the server side to
+# obtain the browser session needed to render the native labeling UI.
+# Contributors never see or enter these credentials.
+LABEL_STUDIO_LOGIN_EMAIL = (
+    os.getenv("LABEL_STUDIO_LOGIN_EMAIL")
+    or os.getenv("LABEL_STUDIO_USERNAME")
+)
+LABEL_STUDIO_LOGIN_PASSWORD = os.getenv(
+    "LABEL_STUDIO_LOGIN_PASSWORD"
+)
+
+_LABEL_STUDIO_BROWSER_SESSION = None
+_LABEL_STUDIO_BROWSER_SESSION_LOCK = threading.Lock()
+
 
 PROJECT_MAPPING = {
     "video": 6,
@@ -2429,6 +2445,218 @@ def label_studio_request(
                 "with Label Studio."
             )
         )
+
+    return response
+
+
+def _create_label_studio_browser_session():
+    """
+    Create a server-side Django browser session for Label Studio.
+
+    Label Studio's legacy/PAT API tokens authenticate REST requests, but they
+    are intentionally different from the cookie session used by the native
+    web UI. KELYVO keeps that distinction: API calls continue to use the
+    configured API token while the native workspace is fetched through a
+    short-lived server-side login session.
+    """
+    if not LABEL_STUDIO_LOGIN_EMAIL or not LABEL_STUDIO_LOGIN_PASSWORD:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Label Studio browser authentication is not configured. "
+                "Set LABEL_STUDIO_LOGIN_EMAIL and "
+                "LABEL_STUDIO_LOGIN_PASSWORD on KELYVO."
+            )
+        )
+
+    session = requests.Session()
+    login_url = f"{LABEL_STUDIO_URL}/user/login"
+
+    try:
+        login_page = session.get(
+            login_url,
+            timeout=15,
+            allow_redirects=True,
+        )
+    except requests.RequestException:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Unable to connect to Label Studio for browser authentication."
+            )
+        )
+
+    if login_page.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio login page could not be loaded."
+            )
+        )
+
+    csrf_token = session.cookies.get("csrftoken")
+    if not csrf_token:
+        csrf_match = re.search(
+            r'name=[\"\']csrfmiddlewaretoken[\"\']\s+'
+            r'value=[\"\']([^\"\']+)[\"\']',
+            login_page.text,
+            flags=re.IGNORECASE,
+        )
+        csrf_token = csrf_match.group(1) if csrf_match else None
+
+    if not csrf_token:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio did not provide a CSRF token for browser authentication."
+            )
+        )
+
+    login_data = {
+        "csrfmiddlewaretoken": csrf_token,
+        "email": LABEL_STUDIO_LOGIN_EMAIL,
+        "password": LABEL_STUDIO_LOGIN_PASSWORD,
+    }
+
+    try:
+        login_response = session.post(
+            login_url,
+            data=login_data,
+            headers={
+                "Referer": login_url,
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            timeout=15,
+            allow_redirects=True,
+        )
+    except requests.RequestException:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Unable to complete Label Studio browser authentication."
+            )
+        )
+
+    if login_response.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio browser authentication failed. "
+                "Check the configured Label Studio login credentials."
+            )
+        )
+
+    if not session.cookies.get("sessionid"):
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio did not create a browser session. "
+                "Check the configured Label Studio login credentials."
+            )
+        )
+
+    try:
+        whoami = session.get(
+            f"{LABEL_STUDIO_URL}/api/current-user/whoami",
+            headers={
+                "X-CSRFToken": session.cookies.get("csrftoken", ""),
+                "Referer": LABEL_STUDIO_URL + "/",
+            },
+            timeout=15,
+            allow_redirects=False,
+        )
+    except requests.RequestException:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Unable to verify the Label Studio browser session."
+            )
+        )
+
+    if whoami.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio browser authentication could not be verified."
+            )
+        )
+
+    return session
+
+
+def _get_label_studio_browser_session():
+    """Return the cached Label Studio browser session, creating it if needed."""
+    global _LABEL_STUDIO_BROWSER_SESSION
+
+    with _LABEL_STUDIO_BROWSER_SESSION_LOCK:
+        if _LABEL_STUDIO_BROWSER_SESSION is None:
+            _LABEL_STUDIO_BROWSER_SESSION = (
+                _create_label_studio_browser_session()
+            )
+
+        return _LABEL_STUDIO_BROWSER_SESSION
+
+
+def label_studio_browser_request(
+    method: str,
+    endpoint: str,
+    **kwargs
+):
+    """
+    Make a request to Label Studio using KELYVO's server-side browser session.
+
+    This is used only for native Label Studio HTML/browser resources. API
+    requests continue through label_studio_request() and use the API token.
+    """
+    global _LABEL_STUDIO_BROWSER_SESSION
+
+    session = _get_label_studio_browser_session()
+    url = f"{LABEL_STUDIO_URL}{endpoint}"
+
+    headers = kwargs.pop("headers", {})
+    if "timeout" not in kwargs:
+        kwargs["timeout"] = 15
+
+    try:
+        response = session.request(
+            method,
+            url,
+            headers=headers,
+            **kwargs
+        )
+    except requests.RequestException:
+        with _LABEL_STUDIO_BROWSER_SESSION_LOCK:
+            _LABEL_STUDIO_BROWSER_SESSION = None
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Unable to communicate with Label Studio browser session."
+            )
+        )
+
+    # If the Django session expired or was invalidated, recreate it once and
+    # retry the same request. Do not expose the Label Studio login page to the
+    # contributor.
+    if response.status_code in {301, 302, 303, 307, 308}:
+        location = response.headers.get("location", "")
+        if "/user/login" in location:
+            with _LABEL_STUDIO_BROWSER_SESSION_LOCK:
+                _LABEL_STUDIO_BROWSER_SESSION = None
+            session = _get_label_studio_browser_session()
+            try:
+                response = session.request(
+                    method,
+                    url,
+                    headers=headers,
+                    **kwargs
+                )
+            except requests.RequestException:
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "Unable to communicate with Label Studio browser session."
+                    )
+                )
 
     return response
 
@@ -8741,7 +8969,11 @@ def contributor_label_studio_native_workspace(
             detail="This project is not available in contributor mode."
         )
 
-    page_response = label_studio_request(
+    # The native Label Studio page requires a Django browser session. API
+    # tokens alone authenticate REST calls and will otherwise return the
+    # Label Studio login page. KELYVO creates that session server-side and
+    # keeps the contributor inside the KELYVO-origin workspace.
+    page_response = label_studio_browser_request(
         "GET",
         f"/projects/{int(project_id)}/data",
         params={
@@ -9365,6 +9597,133 @@ def label_studio_service_worker():
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             "Service-Worker-Allowed": "/",
         },
+    )
+
+
+
+# Label Studio 1.23.0 has a few root-scoped browser requests that are emitted
+# by the native web application even when the page itself is being served
+# through KELYVO. In particular, /heidi-tips is a known root-path request in
+# Label Studio 1.22/1.23, and the native client may also POST to /__lsa/.
+# Proxy these exact routes so they cannot fall through to KELYVO's 404 handler.
+@app.get("/heidi-tips")
+def label_studio_heidi_tips_proxy():
+    response = label_studio_browser_request(
+        "GET",
+        "/heidi-tips"
+    )
+
+    headers = {}
+    for name in (
+        "content-type",
+        "cache-control",
+        "etag",
+        "last-modified",
+    ):
+        value = response.headers.get(name)
+        if value:
+            headers[name] = value
+
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=headers,
+    )
+
+
+@app.api_route(
+    "/__lsa/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+)
+def label_studio_lsa_proxy(
+    request: Request,
+    path: str,
+):
+    endpoint = "/__lsa"
+    clean_path = (path or "").lstrip("/")
+    if clean_path:
+        endpoint += "/" + clean_path
+
+    body = None
+    if request.method not in {"GET", "HEAD"}:
+        body = request.body
+
+    # FastAPI exposes request.body() as an awaitable, so this route is kept
+    # synchronous by reading the ASGI body through the request scope only when
+    # Label Studio actually sends a body. The common __lsa request is small and
+    # can safely be forwarded from the raw ASGI receive channel below.
+    import asyncio
+
+    try:
+        body = asyncio.run(request.body()) if body is None else body
+    except RuntimeError:
+        # If an event loop is already active, fall back to an empty body. The
+        # __lsa endpoint is telemetry and must never block the labeling UI.
+        body = b""
+
+    query = request.query_params.multi_items()
+    headers = {}
+    content_type = request.headers.get("content-type")
+    if content_type:
+        headers["Content-Type"] = content_type
+
+    response = label_studio_browser_request(
+        request.method,
+        endpoint,
+        params=query,
+        data=body,
+        headers=headers,
+    )
+
+    response_headers = {}
+    for name in (
+        "content-type",
+        "cache-control",
+        "etag",
+        "last-modified",
+    ):
+        value = response.headers.get(name)
+        if value:
+            response_headers[name] = value
+
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=response_headers,
+    )
+
+
+@app.api_route(
+    "/user/login",
+    methods=["GET", "POST"],
+)
+@app.api_route(
+    "/user/login/",
+    methods=["GET", "POST"],
+)
+def label_studio_browser_login_bridge(request: Request):
+    """
+    Keep an authenticated Label Studio browser session from falling back to
+    the native Label Studio login page inside the KELYVO iframe.
+
+    Contributors are not given Label Studio credentials. If the native client
+    nevertheless navigates to this route, reuse KELYVO's server-side session
+    and send the browser back to the assigned workspace root.
+    """
+    session = _get_label_studio_browser_session()
+
+    if request.method == "GET":
+        return RedirectResponse(
+            url="/",
+            status_code=303,
+        )
+
+    # A native login POST should never be necessary for contributors because
+    # KELYVO already authenticated the server-side Label Studio session. Do not
+    # forward contributor-entered credentials to Label Studio.
+    return RedirectResponse(
+        url="/",
+        status_code=303,
     )
 
 
