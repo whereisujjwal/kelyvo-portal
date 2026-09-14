@@ -9214,6 +9214,225 @@ def health_check():
     }
 
 
+# ============================================================
+# SUPPORT CENTER
+# ============================================================
+
+@app.post("/api/support/tickets")
+async def create_support_ticket(
+    request: Request,
+    message: str = Form(...),
+    attachment: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    # Support is available to every authenticated KELYVO portal role.
+    # Deliberately do not call any contributor-task/Label Studio reservation
+    # guard here: support must remain usable even when a contributor has no
+    # active task.
+    require_portal_session(
+        request,
+        {"contributor", "qa", "data_collector", "admin"},
+    )
+    user_id = _get_authenticated_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found.")
+
+    normalized_message = (message or "").strip()
+    if not normalized_message:
+        raise HTTPException(status_code=400, detail="Support message cannot be empty.")
+
+    ticket = models.SupportTicket(
+        user_id=user.id,
+        role=str(user.role or "contributor"),
+        email_snapshot=str(user.email or ""),
+        message=normalized_message,
+        status="open",
+    )
+    db.add(ticket)
+    db.commit()
+    db.refresh(ticket)
+
+    if attachment and attachment.filename:
+        try:
+            allowed_types = {
+                "image/png",
+                "image/jpeg",
+                "image/webp",
+                "image/gif",
+            }
+
+            if attachment.content_type not in allowed_types:
+                db.delete(ticket)
+                db.commit()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Support attachments must be PNG, JPG, WEBP or GIF images."
+                )
+
+            result = storage_provider.save_file(
+                attachment,
+                folder=f"support/{ticket.id}"
+            )
+
+            ticket.attachment_path = result.get("path")
+            ticket.attachment_name = attachment.filename
+            ticket.attachment_mime_type = attachment.content_type
+            db.commit()
+        finally:
+            try:
+                await attachment.close()
+            except Exception:
+                pass
+
+    return {
+        "status": "success",
+        "ticket": {
+            "id": ticket.id,
+            "status": ticket.status,
+            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+            "has_attachment": bool(ticket.attachment_path),
+        },
+    }
+
+
+@app.get("/api/admin/support/tickets")
+def list_admin_support_tickets(
+    request: Request,
+    status: str = "open",
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+
+    normalized_status = (status or "open").strip().lower()
+    query = db.query(models.SupportTicket)
+
+    if normalized_status in {"open", "resolved"}:
+        query = query.filter(
+            models.SupportTicket.status == normalized_status
+        )
+
+    rows = (
+        query
+        .order_by(
+            models.SupportTicket.created_at.desc()
+        )
+        .limit(250)
+        .all()
+    )
+
+    return {
+        "status": "success",
+        "tickets": [
+            {
+                "id": row.id,
+                "email": row.email_snapshot,
+                "role": row.role,
+                "message": row.message,
+                "status": row.status,
+                "admin_notes": row.admin_notes,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
+                "attachment_name": row.attachment_name,
+                "attachment_url": (
+                    f"/api/admin/support/tickets/{row.id}/attachment"
+                    if row.attachment_path
+                    else None
+                ),
+            }
+            for row in rows
+        ],
+    }
+
+
+@app.patch("/api/admin/support/tickets/{ticket_id}")
+async def update_admin_support_ticket(
+    ticket_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+
+    payload = await request.json()
+    requested_status = str(payload.get("status") or "").strip().lower()
+    admin_notes = str(payload.get("admin_notes") or "").strip()
+
+    if requested_status not in {"open", "resolved"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Support ticket status must be open or resolved."
+        )
+
+    ticket = (
+        db.query(models.SupportTicket)
+        .filter(models.SupportTicket.id == ticket_id)
+        .first()
+    )
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Support ticket not found.")
+
+    ticket.status = requested_status
+    ticket.admin_notes = admin_notes or ticket.admin_notes
+
+    if requested_status == "resolved":
+        ticket.resolved_at = datetime.now(timezone.utc)
+    else:
+        ticket.resolved_at = None
+
+    db.commit()
+    db.refresh(ticket)
+
+    return {
+        "status": "success",
+        "ticket": {
+            "id": ticket.id,
+            "status": ticket.status,
+            "admin_notes": ticket.admin_notes,
+            "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
+        },
+    }
+
+
+@app.get("/api/admin/support/tickets/{ticket_id}/attachment")
+def get_admin_support_attachment(
+    ticket_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin_session(request)
+
+    ticket = (
+        db.query(models.SupportTicket)
+        .filter(models.SupportTicket.id == ticket_id)
+        .first()
+    )
+
+    if not ticket or not ticket.attachment_path:
+        raise HTTPException(status_code=404, detail="Attachment not found.")
+
+    file_path = os.path.abspath(ticket.attachment_path)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Attachment file is unavailable.")
+
+    with open(file_path, "rb") as handle:
+        content = handle.read()
+
+    return Response(
+        content=content,
+        media_type=ticket.attachment_mime_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="{ticket.attachment_name or "attachment"}"'
+            )
+        },
+    )
+
+
 @app.api_route(
     "/api/{path:path}",
     methods=[
@@ -9897,212 +10116,3 @@ threading.Thread(
 ).start()
 
 
-# ============================================================
-# SUPPORT CENTER
-# ============================================================
-
-@app.post("/api/support/tickets")
-async def create_support_ticket(
-    request: Request,
-    message: str = Form(...),
-    attachment: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db),
-):
-    user_id = _get_authenticated_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Authentication required.")
-
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found.")
-
-    normalized_message = (message or "").strip()
-    if not normalized_message:
-        raise HTTPException(status_code=400, detail="Support message cannot be empty.")
-
-    ticket = models.SupportTicket(
-        user_id=user.id,
-        role=str(user.role or "contributor"),
-        email_snapshot=str(user.email or ""),
-        message=normalized_message,
-        status="open",
-    )
-    db.add(ticket)
-    db.commit()
-    db.refresh(ticket)
-
-    if attachment and attachment.filename:
-        try:
-            allowed_types = {
-                "image/png",
-                "image/jpeg",
-                "image/webp",
-                "image/gif",
-            }
-
-            if attachment.content_type not in allowed_types:
-                db.delete(ticket)
-                db.commit()
-                raise HTTPException(
-                    status_code=400,
-                    detail="Support attachments must be PNG, JPG, WEBP or GIF images."
-                )
-
-            result = storage_provider.save_file(
-                attachment,
-                folder=f"support/{ticket.id}"
-            )
-
-            ticket.attachment_path = result.get("path")
-            ticket.attachment_name = attachment.filename
-            ticket.attachment_mime_type = attachment.content_type
-            db.commit()
-        finally:
-            try:
-                await attachment.close()
-            except Exception:
-                pass
-
-    return {
-        "status": "success",
-        "ticket": {
-            "id": ticket.id,
-            "status": ticket.status,
-            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
-            "has_attachment": bool(ticket.attachment_path),
-        },
-    }
-
-
-@app.get("/api/admin/support/tickets")
-def list_admin_support_tickets(
-    request: Request,
-    status: str = "open",
-    db: Session = Depends(get_db),
-):
-    require_admin_session(request)
-
-    normalized_status = (status or "open").strip().lower()
-    query = db.query(models.SupportTicket)
-
-    if normalized_status in {"open", "resolved"}:
-        query = query.filter(
-            models.SupportTicket.status == normalized_status
-        )
-
-    rows = (
-        query
-        .order_by(
-            models.SupportTicket.created_at.desc()
-        )
-        .limit(250)
-        .all()
-    )
-
-    return {
-        "status": "success",
-        "tickets": [
-            {
-                "id": row.id,
-                "email": row.email_snapshot,
-                "role": row.role,
-                "message": row.message,
-                "status": row.status,
-                "admin_notes": row.admin_notes,
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
-                "attachment_name": row.attachment_name,
-                "attachment_url": (
-                    f"/api/admin/support/tickets/{row.id}/attachment"
-                    if row.attachment_path
-                    else None
-                ),
-            }
-            for row in rows
-        ],
-    }
-
-
-@app.patch("/api/admin/support/tickets/{ticket_id}")
-async def update_admin_support_ticket(
-    ticket_id: str,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    require_admin_session(request)
-
-    payload = await request.json()
-    requested_status = str(payload.get("status") or "").strip().lower()
-    admin_notes = str(payload.get("admin_notes") or "").strip()
-
-    if requested_status not in {"open", "resolved"}:
-        raise HTTPException(
-            status_code=400,
-            detail="Support ticket status must be open or resolved."
-        )
-
-    ticket = (
-        db.query(models.SupportTicket)
-        .filter(models.SupportTicket.id == ticket_id)
-        .first()
-    )
-
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Support ticket not found.")
-
-    ticket.status = requested_status
-    ticket.admin_notes = admin_notes or ticket.admin_notes
-
-    if requested_status == "resolved":
-        ticket.resolved_at = datetime.now(timezone.utc)
-    else:
-        ticket.resolved_at = None
-
-    db.commit()
-    db.refresh(ticket)
-
-    return {
-        "status": "success",
-        "ticket": {
-            "id": ticket.id,
-            "status": ticket.status,
-            "admin_notes": ticket.admin_notes,
-            "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
-        },
-    }
-
-
-@app.get("/api/admin/support/tickets/{ticket_id}/attachment")
-def get_admin_support_attachment(
-    ticket_id: str,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    require_admin_session(request)
-
-    ticket = (
-        db.query(models.SupportTicket)
-        .filter(models.SupportTicket.id == ticket_id)
-        .first()
-    )
-
-    if not ticket or not ticket.attachment_path:
-        raise HTTPException(status_code=404, detail="Attachment not found.")
-
-    file_path = os.path.abspath(ticket.attachment_path)
-
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Attachment file is unavailable.")
-
-    with open(file_path, "rb") as handle:
-        content = handle.read()
-
-    return Response(
-        content=content,
-        media_type=ticket.attachment_mime_type or "application/octet-stream",
-        headers={
-            "Content-Disposition": (
-                f'inline; filename="{ticket.attachment_name or "attachment"}"'
-            )
-        },
-    )
