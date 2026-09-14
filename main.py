@@ -5,9 +5,10 @@ import os
 import re
 import time
 import threading
+import logging
 from datetime import datetime, timedelta, timezone
 from base64 import urlsafe_b64decode, urlsafe_b64encode
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote, urlparse
 from typing import Optional
 
 import requests
@@ -22,6 +23,8 @@ from database import SessionLocal, engine
 import models
 from storage_service import storage_provider
 
+
+logger = logging.getLogger("kelyvo.label_studio")
 
 load_dotenv()
 models.Base.metadata.create_all(bind=engine)
@@ -674,6 +677,8 @@ LABEL_STUDIO_LOGIN_PASSWORD = os.getenv(
 )
 
 _LABEL_STUDIO_BROWSER_SESSION = None
+_LABEL_STUDIO_BROWSER_SESSION_CREATED_AT = 0.0
+_LABEL_STUDIO_BROWSER_SESSION_TTL = int(os.getenv("LABEL_STUDIO_BROWSER_SESSION_TTL", "1800"))
 _LABEL_STUDIO_BROWSER_SESSION_LOCK = threading.Lock()
 
 
@@ -2449,15 +2454,43 @@ def label_studio_request(
     return response
 
 
+def _label_studio_login_page_looks_like_login(html: str) -> bool:
+    """Return True when HTML is clearly Label Studio's login page."""
+    if not isinstance(html, str):
+        return False
+
+    lowered = html.lower()
+    if "csrfmiddlewaretoken" not in lowered:
+        return False
+
+    return (
+        'name="email"' in lowered
+        or "name='email'" in lowered
+    ) and (
+        'name="password"' in lowered
+        or "name='password'" in lowered
+    )
+
+
 def _create_label_studio_browser_session():
     """
-    Create a server-side Django browser session for Label Studio.
+    Create a real Django browser session for the configured Label Studio user.
 
-    Label Studio's legacy/PAT API tokens authenticate REST requests, but they
-    are intentionally different from the cookie session used by the native
-    web UI. KELYVO keeps that distinction: API calls continue to use the
-    configured API token while the native workspace is fetched through a
-    short-lived server-side login session.
+    Label Studio deliberately separates API-token authentication from the
+    cookie-based Django session used by its native web application. The API
+    token remains the authentication mechanism for KELYVO's REST proxy. This
+    session exists only on the KELYVO server so the native Label Studio HTML
+    can be fetched without exposing Label Studio credentials to contributors.
+
+    This implementation follows Label Studio's own login form contract:
+      * GET /user/login/ to obtain the CSRF cookie/form token
+      * POST email + password + CSRF token to /user/login/
+      * require the resulting sessionid cookie
+
+    We intentionally do NOT call /api/current-user/whoami or / as a separate
+    authentication test. /whoami is an API-token endpoint, while / can have
+    application-specific redirects. The requested native workspace itself is
+    the authoritative test of whether this browser session works.
     """
     if not LABEL_STUDIO_LOGIN_EMAIL or not LABEL_STUDIO_LOGIN_PASSWORD:
         raise HTTPException(
@@ -2470,7 +2503,7 @@ def _create_label_studio_browser_session():
         )
 
     session = requests.Session()
-    login_url = f"{LABEL_STUDIO_URL}/user/login"
+    login_url = f"{LABEL_STUDIO_URL}/user/login/"
 
     try:
         login_page = session.get(
@@ -2478,7 +2511,8 @@ def _create_label_studio_browser_session():
             timeout=15,
             allow_redirects=True,
         )
-    except requests.RequestException:
+    except requests.RequestException as exc:
+        logger.error("LS_BROWSER_LOGIN_GET request failed: %s", exc)
         raise HTTPException(
             status_code=502,
             detail=(
@@ -2486,25 +2520,39 @@ def _create_label_studio_browser_session():
             )
         )
 
+    logger.info(
+        "LS_BROWSER_LOGIN_GET status=%s final_path=%s cookies=%s",
+        login_page.status_code,
+        urlparse(login_page.url).path,
+        ",".join(sorted(cookie.name for cookie in session.cookies)) or "none",
+    )
+
     if login_page.status_code >= 400:
         raise HTTPException(
             status_code=502,
             detail=(
-                "Label Studio login page could not be loaded."
+                "Label Studio login page could not be loaded "
+                f"(HTTP {login_page.status_code})."
             )
         )
 
     csrf_token = session.cookies.get("csrftoken")
     if not csrf_token:
         csrf_match = re.search(
-            r'name=[\"\']csrfmiddlewaretoken[\"\']\s+'
-            r'value=[\"\']([^\"\']+)[\"\']',
+            r'<input[^>]+name=[\"\']csrfmiddlewaretoken[\"\'][^>]+value=[\"\']([^\"\']+)',
             login_page.text,
             flags=re.IGNORECASE,
         )
+        if not csrf_match:
+            csrf_match = re.search(
+                r'<input[^>]+value=[\"\']([^\"\']+)[\"\'][^>]+name=[\"\']csrfmiddlewaretoken[\"\']',
+                login_page.text,
+                flags=re.IGNORECASE,
+            )
         csrf_token = csrf_match.group(1) if csrf_match else None
 
     if not csrf_token:
+        logger.error("LS_BROWSER_LOGIN_CSRF missing")
         raise HTTPException(
             status_code=502,
             detail=(
@@ -2512,10 +2560,14 @@ def _create_label_studio_browser_session():
             )
         )
 
+    # LoginForm in Label Studio 1.23 expects exactly email/password plus the
+    # optional persist_session field. Supplying the latter keeps the Django
+    # session persistent for the server-side session lifetime.
     login_data = {
         "csrfmiddlewaretoken": csrf_token,
         "email": LABEL_STUDIO_LOGIN_EMAIL,
         "password": LABEL_STUDIO_LOGIN_PASSWORD,
+        "persist_session": "on",
     }
 
     try:
@@ -2529,7 +2581,8 @@ def _create_label_studio_browser_session():
             timeout=15,
             allow_redirects=True,
         )
-    except requests.RequestException:
+    except requests.RequestException as exc:
+        logger.error("LS_BROWSER_LOGIN_POST request failed: %s", exc)
         raise HTTPException(
             status_code=502,
             detail=(
@@ -2537,73 +2590,98 @@ def _create_label_studio_browser_session():
             )
         )
 
+    has_session_cookie = bool(session.cookies.get("sessionid"))
+    final_path = urlparse(login_response.url).path
+    logger.info(
+        "LS_BROWSER_LOGIN_POST status=%s final_path=%s session_cookie=%s history=%s",
+        login_response.status_code,
+        final_path,
+        has_session_cookie,
+        len(login_response.history),
+    )
+
+    # Django can return HTTP 200 for a failed form submission because it
+    # renders the login page again with validation errors. The sessionid cookie
+    # is therefore the reliable success signal here.
     if login_response.status_code >= 400:
         raise HTTPException(
             status_code=502,
             detail=(
-                "Label Studio browser authentication failed. "
-                "Check the configured Label Studio login credentials."
+                "Label Studio browser authentication failed "
+                f"(HTTP {login_response.status_code})."
             )
         )
 
-    if not session.cookies.get("sessionid"):
+    if not has_session_cookie:
         raise HTTPException(
             status_code=502,
             detail=(
                 "Label Studio did not create a browser session. "
-                "Check the configured Label Studio login credentials."
+                "The configured Label Studio login credentials may be invalid."
             )
         )
 
-    # /api/current-user/whoami is an API endpoint and expects an API-token
-    # Authorization header. A Django browser session cookie alone is not
-    # sufficient for that endpoint, so do not use it to validate the browser
-    # session. Instead, request the normal Label Studio home page with the
-    # session cookie and follow redirects. A valid browser session should stay
-    # out of /user/login.
-    try:
-        browser_home = session.get(
-            f"{LABEL_STUDIO_URL}/",
-            headers={
-                "Referer": LABEL_STUDIO_URL + "/",
-            },
-            timeout=15,
-            allow_redirects=True,
+    if _label_studio_login_page_looks_like_login(login_response.text):
+        logger.error(
+            "LS_BROWSER_LOGIN_POST returned login HTML despite session cookie; "
+            "refusing to use the session."
         )
-    except requests.RequestException:
         raise HTTPException(
             status_code=502,
             detail=(
-                "Unable to verify the Label Studio browser session."
+                "Label Studio returned its login page after authentication. "
+                "The configured Label Studio browser credentials could not be verified."
             )
         )
 
-    final_path = urlparse(browser_home.url).path.lower()
-    if (
-        browser_home.status_code >= 400
-        or final_path.rstrip("/").endswith("/user/login")
-    ):
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Label Studio browser authentication could not be verified."
-            )
-        )
-
+    logger.info("LS_BROWSER_SESSION_CREATED session_cookie=true")
     return session
 
 
-def _get_label_studio_browser_session():
-    """Return the cached Label Studio browser session, creating it if needed."""
+def _invalidate_label_studio_browser_session():
     global _LABEL_STUDIO_BROWSER_SESSION
+    global _LABEL_STUDIO_BROWSER_SESSION_CREATED_AT
 
     with _LABEL_STUDIO_BROWSER_SESSION_LOCK:
-        if _LABEL_STUDIO_BROWSER_SESSION is None:
+        _LABEL_STUDIO_BROWSER_SESSION = None
+        _LABEL_STUDIO_BROWSER_SESSION_CREATED_AT = 0.0
+
+
+def _get_label_studio_browser_session():
+    """Return a fresh-enough cached Label Studio Django session."""
+    global _LABEL_STUDIO_BROWSER_SESSION
+    global _LABEL_STUDIO_BROWSER_SESSION_CREATED_AT
+
+    now = time.monotonic()
+
+    with _LABEL_STUDIO_BROWSER_SESSION_LOCK:
+        session_is_fresh = (
+            _LABEL_STUDIO_BROWSER_SESSION is not None
+            and (now - _LABEL_STUDIO_BROWSER_SESSION_CREATED_AT)
+            < max(60, _LABEL_STUDIO_BROWSER_SESSION_TTL)
+        )
+
+        if not session_is_fresh:
             _LABEL_STUDIO_BROWSER_SESSION = (
                 _create_label_studio_browser_session()
             )
+            _LABEL_STUDIO_BROWSER_SESSION_CREATED_AT = now
 
         return _LABEL_STUDIO_BROWSER_SESSION
+
+
+def _response_was_redirected_to_label_studio_login(response) -> bool:
+    """Detect a Django login redirect anywhere in requests' redirect chain."""
+    if response is None:
+        return False
+
+    for redirect in getattr(response, "history", []) or []:
+        location = redirect.headers.get("Location", "")
+        if "/user/login" in location.lower():
+            return True
+
+    final_path = urlparse(getattr(response, "url", "") or "").path.lower()
+    return final_path.rstrip("/").endswith("/user/login")
 
 
 def label_studio_browser_request(
@@ -2612,17 +2690,18 @@ def label_studio_browser_request(
     **kwargs
 ):
     """
-    Make a request to Label Studio using KELYVO's server-side browser session.
+    Request a native Label Studio HTML/browser resource with a server-side
+    Django session. API requests continue through label_studio_request().
 
-    This is used only for native Label Studio HTML/browser resources. API
-    requests continue through label_studio_request() and use the API token.
+    If the cached Django session has expired, recreate it once and retry.
+    Never expose Label Studio's login page to the contributor.
     """
     global _LABEL_STUDIO_BROWSER_SESSION
 
     session = _get_label_studio_browser_session()
     url = f"{LABEL_STUDIO_URL}{endpoint}"
 
-    headers = kwargs.pop("headers", {})
+    headers = dict(kwargs.pop("headers", {}) or {})
     if "timeout" not in kwargs:
         kwargs["timeout"] = 15
 
@@ -2631,11 +2710,17 @@ def label_studio_browser_request(
             method,
             url,
             headers=headers,
+            allow_redirects=True,
             **kwargs
         )
-    except requests.RequestException:
-        with _LABEL_STUDIO_BROWSER_SESSION_LOCK:
-            _LABEL_STUDIO_BROWSER_SESSION = None
+    except requests.RequestException as exc:
+        logger.error(
+            "LS_BROWSER_REQUEST method=%s endpoint=%s request_failed=%s",
+            method,
+            endpoint,
+            exc,
+        )
+        _invalidate_label_studio_browser_session()
         raise HTTPException(
             status_code=502,
             detail=(
@@ -2643,32 +2728,61 @@ def label_studio_browser_request(
             )
         )
 
-    # If the Django session expired or was invalidated, recreate it once and
-    # retry the same request. Do not expose the Label Studio login page to the
-    # contributor.
-    if response.status_code in {301, 302, 303, 307, 308}:
-        location = response.headers.get("location", "")
-        if "/user/login" in location:
-            with _LABEL_STUDIO_BROWSER_SESSION_LOCK:
-                _LABEL_STUDIO_BROWSER_SESSION = None
-            session = _get_label_studio_browser_session()
-            try:
-                response = session.request(
-                    method,
-                    url,
-                    headers=headers,
-                    **kwargs
-                )
-            except requests.RequestException:
-                raise HTTPException(
-                    status_code=502,
-                    detail=(
-                        "Unable to communicate with Label Studio browser session."
-                    )
-                )
+    if _response_was_redirected_to_label_studio_login(response) or _label_studio_login_page_looks_like_login(response.text):
+        logger.warning(
+            "LS_BROWSER_REQUEST session_invalid method=%s endpoint=%s; recreating session",
+            method,
+            endpoint,
+        )
+        _invalidate_label_studio_browser_session()
+        session = _get_label_studio_browser_session()
 
+        try:
+            response = session.request(
+                method,
+                url,
+                headers=headers,
+                allow_redirects=True,
+                **kwargs
+            )
+        except requests.RequestException as exc:
+            logger.error(
+                "LS_BROWSER_REQUEST retry_failed method=%s endpoint=%s error=%s",
+                method,
+                endpoint,
+                exc,
+            )
+            _invalidate_label_studio_browser_session()
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Unable to communicate with Label Studio browser session."
+                )
+            )
+
+        if _response_was_redirected_to_label_studio_login(response) or _label_studio_login_page_looks_like_login(response.text):
+            _invalidate_label_studio_browser_session()
+            logger.error(
+                "LS_BROWSER_REQUEST login_failed_after_retry method=%s endpoint=%s status=%s",
+                method,
+                endpoint,
+                response.status_code,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Label Studio browser authentication could not open the requested resource."
+                )
+            )
+
+    logger.info(
+        "LS_BROWSER_REQUEST method=%s endpoint=%s status=%s final_path=%s",
+        method,
+        endpoint,
+        response.status_code,
+        urlparse(getattr(response, "url", "") or "").path,
+    )
     return response
-
 
 def rewrite_label_studio_media_urls(
     value
@@ -8995,7 +9109,17 @@ def contributor_label_studio_native_workspace(
         raise HTTPException(
             status_code=502,
             detail=(
-                "Label Studio could not open the assigned task workspace."
+                "Label Studio could not open the assigned task workspace "
+                f"(HTTP {page_response.status_code})."
+            )
+        )
+
+    if _label_studio_login_page_looks_like_login(page_response.text):
+        _invalidate_label_studio_browser_session()
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio returned its login page instead of the assigned task workspace."
             )
         )
 
@@ -9644,7 +9768,7 @@ def label_studio_heidi_tips_proxy():
     "/__lsa/{path:path}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
 )
-def label_studio_lsa_proxy(
+async def label_studio_lsa_proxy(
     request: Request,
     path: str,
 ):
@@ -9653,22 +9777,9 @@ def label_studio_lsa_proxy(
     if clean_path:
         endpoint += "/" + clean_path
 
-    body = None
+    body = b""
     if request.method not in {"GET", "HEAD"}:
-        body = request.body
-
-    # FastAPI exposes request.body() as an awaitable, so this route is kept
-    # synchronous by reading the ASGI body through the request scope only when
-    # Label Studio actually sends a body. The common __lsa request is small and
-    # can safely be forwarded from the raw ASGI receive channel below.
-    import asyncio
-
-    try:
-        body = asyncio.run(request.body()) if body is None else body
-    except RuntimeError:
-        # If an event loop is already active, fall back to an empty body. The
-        # __lsa endpoint is telemetry and must never block the labeling UI.
-        body = b""
+        body = await request.body()
 
     query = request.query_params.multi_items()
     headers = {}
