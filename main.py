@@ -2328,67 +2328,308 @@ def _get_requeued_tasks_for_contributor(
     return candidates
 
 
-def get_label_studio_access_token() -> str:
-    """
-    Get a short-lived Label Studio access token from the configured
-    Personal Access Token.
+_LABEL_STUDIO_JWT_REFRESH_TOKEN = None
+_LABEL_STUDIO_JWT_REFRESH_TOKEN_LOCK = threading.Lock()
 
-    This fallback is retained for local development. Production Render
-    authentication uses LABEL_STUDIO_LEGACY_TOKEN directly.
-    """
-    if not LABEL_STUDIO_REFRESH_TOKEN:
+
+def _label_studio_api_headers() -> dict:
+    """Headers for Label Studio's legacy API-token authentication."""
+    if not LABEL_STUDIO_LEGACY_TOKEN:
         raise HTTPException(
             status_code=500,
             detail=(
-                "Label Studio authentication "
-                "is not configured."
-            )
+                "Label Studio legacy API authentication is not configured."
+            ),
         )
+    return {
+        "Authorization": f"Token {LABEL_STUDIO_LEGACY_TOKEN}",
+        "Accept": "application/json",
+    }
+
+
+def _get_label_studio_jwt_settings() -> dict:
+    """Read the active organization's JWT/API-token settings."""
+    try:
+        response = requests.get(
+            f"{LABEL_STUDIO_URL}/api/jwt/settings",
+            headers=_label_studio_api_headers(),
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        logger.error(
+            "LS_JWT_SETTINGS_GET request_failed=%s",
+            exc,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to connect to Label Studio token settings.",
+        )
+
+    if response.status_code != 200:
+        logger.warning(
+            "LS_JWT_SETTINGS_GET status=%s",
+            response.status_code,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio did not allow KELYVO to read its "
+                "JWT/API-token settings."
+            ),
+        )
+
+    try:
+        payload = response.json()
+    except ValueError:
+        raise HTTPException(
+            status_code=502,
+            detail="Label Studio returned invalid JWT settings.",
+        )
+
+    return payload if isinstance(payload, dict) else {}
+
+
+def _ensure_label_studio_jwt_tokens_enabled() -> None:
+    """
+    Enable Label Studio JWT/PAT authentication for the active organization
+    when it is currently disabled.
+
+    This uses the already-configured legacy API token and preserves the
+    organization's existing TTL and legacy-token setting.
+    """
+    settings = _get_label_studio_jwt_settings()
+    if settings.get("api_tokens_enabled") is True:
+        return
+
+    ttl_days = settings.get("api_token_ttl_days", 1)
+    legacy_enabled = settings.get("legacy_api_tokens_enabled", True)
+
+    try:
+        response = requests.post(
+            f"{LABEL_STUDIO_URL}/api/jwt/settings",
+            headers={
+                **_label_studio_api_headers(),
+                "Content-Type": "application/json",
+            },
+            json={
+                "api_token_ttl_days": int(ttl_days),
+                "api_tokens_enabled": True,
+                "legacy_api_tokens_enabled": bool(legacy_enabled),
+            },
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        logger.error(
+            "LS_JWT_SETTINGS_UPDATE request_failed=%s",
+            exc,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to enable Label Studio JWT authentication.",
+        )
+
+    if response.status_code not in {200, 201}:
+        logger.warning(
+            "LS_JWT_SETTINGS_UPDATE status=%s",
+            response.status_code,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio JWT/PAT authentication is disabled and "
+                "could not be enabled with the configured API token."
+            ),
+        )
+
+    logger.warning("LS_JWT_SETTINGS_UPDATE api_tokens_enabled=true")
+
+
+def _get_or_create_label_studio_jwt_refresh_token() -> str:
+    """
+    Obtain the Label Studio Personal Access Token (JWT refresh token) using
+    the existing legacy API key.
+
+    Label Studio exposes /api/token/ specifically for listing/creating JWT
+    refresh tokens while authenticating that endpoint with a legacy token.
+    """
+    global _LABEL_STUDIO_JWT_REFRESH_TOKEN
+
+    with _LABEL_STUDIO_JWT_REFRESH_TOKEN_LOCK:
+        if _LABEL_STUDIO_JWT_REFRESH_TOKEN:
+            return _LABEL_STUDIO_JWT_REFRESH_TOKEN
+
+        if not LABEL_STUDIO_LEGACY_TOKEN:
+            if LABEL_STUDIO_REFRESH_TOKEN:
+                return LABEL_STUDIO_REFRESH_TOKEN
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "Label Studio API authentication is not configured."
+                ),
+            )
+
+        _ensure_label_studio_jwt_tokens_enabled()
+
+        try:
+            response = requests.get(
+                f"{LABEL_STUDIO_URL}/api/token/",
+                headers=_label_studio_api_headers(),
+                timeout=10,
+            )
+        except requests.RequestException as exc:
+            logger.error(
+                "LS_JWT_REFRESH_TOKEN_LIST request_failed=%s",
+                exc,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail="Unable to retrieve the Label Studio JWT token.",
+            )
+
+        refresh_token = None
+
+        if response.status_code == 200:
+            try:
+                tokens = response.json()
+            except ValueError:
+                tokens = []
+
+            if isinstance(tokens, list):
+                for item in tokens:
+                    if isinstance(item, dict) and item.get("token"):
+                        refresh_token = str(item["token"])
+                        break
+
+        if not refresh_token:
+            try:
+                create_response = requests.post(
+                    f"{LABEL_STUDIO_URL}/api/token/",
+                    headers={
+                        **_label_studio_api_headers(),
+                        "Content-Type": "application/json",
+                    },
+                    json={},
+                    timeout=10,
+                )
+            except requests.RequestException as exc:
+                logger.error(
+                    "LS_JWT_REFRESH_TOKEN_CREATE request_failed=%s",
+                    exc,
+                )
+                raise HTTPException(
+                    status_code=502,
+                    detail="Unable to create the Label Studio JWT token.",
+                )
+
+            if create_response.status_code == 201:
+                try:
+                    payload = create_response.json()
+                except ValueError:
+                    payload = {}
+                if isinstance(payload, dict):
+                    refresh_token = payload.get("token")
+
+            elif create_response.status_code == 409:
+                # A token already exists; fetch it again because the API
+                # intentionally does not return an existing token on create.
+                try:
+                    retry_list = requests.get(
+                        f"{LABEL_STUDIO_URL}/api/token/",
+                        headers=_label_studio_api_headers(),
+                        timeout=10,
+                    )
+                except requests.RequestException as exc:
+                    logger.error(
+                        "LS_JWT_REFRESH_TOKEN_RELIST request_failed=%s",
+                        exc,
+                    )
+                    raise HTTPException(
+                        status_code=502,
+                        detail="Unable to retrieve the existing Label Studio JWT token.",
+                    )
+
+                if retry_list.status_code == 200:
+                    try:
+                        tokens = retry_list.json()
+                    except ValueError:
+                        tokens = []
+                    if isinstance(tokens, list):
+                        for item in tokens:
+                            if isinstance(item, dict) and item.get("token"):
+                                refresh_token = str(item["token"])
+                                break
+
+            if not refresh_token:
+                logger.warning(
+                    "LS_JWT_REFRESH_TOKEN_CREATE status=%s",
+                    create_response.status_code,
+                )
+
+        if not refresh_token:
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Label Studio did not provide a usable Personal Access "
+                    "Token for native browser authentication."
+                ),
+            )
+
+        _LABEL_STUDIO_JWT_REFRESH_TOKEN = refresh_token
+        logger.warning("LS_JWT_REFRESH_TOKEN_READY source=label_studio_api")
+        return refresh_token
+
+
+def get_label_studio_access_token() -> str:
+    """
+    Exchange a Label Studio Personal Access Token (JWT refresh token) for
+    the short-lived access token used by Label Studio's JWT middleware.
+    """
+    refresh_token = _get_or_create_label_studio_jwt_refresh_token()
 
     try:
         response = requests.post(
             f"{LABEL_STUDIO_URL}/api/token/refresh",
-            json={
-                "refresh":
-                    LABEL_STUDIO_REFRESH_TOKEN
-            },
+            json={"refresh": refresh_token},
             timeout=10,
         )
-    except requests.RequestException:
+    except requests.RequestException as exc:
+        logger.error(
+            "LS_JWT_ACCESS_TOKEN_REFRESH request_failed=%s",
+            exc,
+        )
         raise HTTPException(
             status_code=502,
-            detail=(
-                "Unable to connect to Label Studio."
-            )
+            detail="Unable to connect to Label Studio token refresh.",
         )
 
     if response.status_code != 200:
+        logger.warning(
+            "LS_JWT_ACCESS_TOKEN_REFRESH status=%s",
+            response.status_code,
+        )
+        # The stored refresh token may have been revoked. Clear it so the
+        # next request can retrieve/create the current token again.
+        global _LABEL_STUDIO_JWT_REFRESH_TOKEN
+        with _LABEL_STUDIO_JWT_REFRESH_TOKEN_LOCK:
+            _LABEL_STUDIO_JWT_REFRESH_TOKEN = None
         raise HTTPException(
             status_code=502,
-            detail=(
-                "Unable to authenticate "
-                "with Label Studio."
-            )
+            detail="Unable to refresh the Label Studio JWT access token.",
         )
 
     try:
-        access_token = (
-            response.json()
-            .get("access")
-        )
-    except ValueError:
+        access_token = response.json().get("access")
+    except (ValueError, AttributeError):
         access_token = None
 
     if not access_token:
         raise HTTPException(
             status_code=502,
-            detail=(
-                "Label Studio did not return "
-                "an access token."
-            )
+            detail="Label Studio did not return a JWT access token.",
         )
 
     return access_token
+
 
 
 def label_studio_request(
@@ -2731,21 +2972,77 @@ def label_studio_browser_request(
     **kwargs
 ):
     """
-    Request a native Label Studio HTML/browser resource with a server-side
-    Django session. API requests continue through label_studio_request().
+    Request a native Label Studio HTML/browser resource.
 
-    If the cached Django session has expired or the requested resource
-    redirects to the Label Studio login page, recreate it once and retry.
-    Never expose Label Studio's login page to the contributor.
+    Preferred authentication is Label Studio's JWT/PAT middleware. The
+    existing legacy API token is used server-side to obtain the JWT refresh
+    token, which is exchanged for a short-lived Bearer access token. This
+    authenticates native Label Studio pages without depending on a Django
+    password/session login.
+
+    The old Django-session implementation remains as a fallback for
+    installations where JWT browser authentication is unavailable.
     """
-    global _LABEL_STUDIO_BROWSER_SESSION
-
-    session = _get_label_studio_browser_session()
     url = f"{LABEL_STUDIO_URL}{endpoint}"
-
     headers = dict(kwargs.pop("headers", {}) or {})
     if "timeout" not in kwargs:
         kwargs["timeout"] = 15
+
+    # Native Label Studio pages can authenticate through the same JWT
+    # middleware used by the web application. Keep the access token entirely
+    # server-side; it is never inserted into the contributor's HTML.
+    try:
+        access_token = get_label_studio_access_token()
+        bearer_headers = dict(headers)
+        bearer_headers["Authorization"] = f"Bearer {access_token}"
+
+        logger.warning(
+            "LS_BROWSER_AUTH jwt_bearer endpoint=%s",
+            endpoint,
+        )
+
+        response = requests.request(
+            method,
+            url,
+            headers=bearer_headers,
+            allow_redirects=True,
+            **kwargs,
+        )
+
+        login_response = (
+            _response_was_redirected_to_label_studio_login(response)
+            or _label_studio_login_page_looks_like_login(
+                getattr(response, "text", "") or ""
+            )
+        )
+
+        logger.warning(
+            "LS_BROWSER_AUTH jwt_result endpoint=%s status=%s final_path=%s login_page=%s",
+            endpoint,
+            response.status_code,
+            urlparse(getattr(response, "url", "") or "").path,
+            login_response,
+        )
+
+        if response.status_code < 400 and not login_response:
+            return response
+
+    except HTTPException as exc:
+        logger.warning(
+            "LS_BROWSER_AUTH jwt_failed endpoint=%s status=%s; using_django_session_fallback=true",
+            endpoint,
+            getattr(exc, "status_code", None),
+        )
+    except requests.RequestException as exc:
+        logger.warning(
+            "LS_BROWSER_AUTH jwt_request_failed endpoint=%s error=%s; using_django_session_fallback=true",
+            endpoint,
+            exc,
+        )
+
+    # Fallback for older Label Studio installations that do not accept JWT
+    # authentication on native web routes.
+    session = _get_label_studio_browser_session()
 
     try:
         response = session.request(
@@ -2753,7 +3050,7 @@ def label_studio_browser_request(
             url,
             headers=headers,
             allow_redirects=True,
-            **kwargs
+            **kwargs,
         )
     except requests.RequestException as exc:
         logger.error(
@@ -2767,10 +3064,15 @@ def label_studio_browser_request(
             status_code=502,
             detail=(
                 "Unable to communicate with Label Studio browser session."
-            )
+            ),
         )
 
-    if _response_was_redirected_to_label_studio_login(response) or _label_studio_login_page_looks_like_login(response.text):
+    if (
+        _response_was_redirected_to_label_studio_login(response)
+        or _label_studio_login_page_looks_like_login(
+            getattr(response, "text", "") or ""
+        )
+    ):
         logger.warning(
             "LS_BROWSER_REQUEST session_invalid method=%s endpoint=%s; recreating session",
             method,
@@ -2785,7 +3087,7 @@ def label_studio_browser_request(
                 url,
                 headers=headers,
                 allow_redirects=True,
-                **kwargs
+                **kwargs,
             )
         except requests.RequestException as exc:
             logger.error(
@@ -2799,10 +3101,15 @@ def label_studio_browser_request(
                 status_code=502,
                 detail=(
                     "Unable to communicate with Label Studio browser session."
-                )
+                ),
             )
 
-        if _response_was_redirected_to_label_studio_login(response) or _label_studio_login_page_looks_like_login(response.text):
+        if (
+            _response_was_redirected_to_label_studio_login(response)
+            or _label_studio_login_page_looks_like_login(
+                getattr(response, "text", "") or ""
+            )
+        ):
             _invalidate_label_studio_browser_session()
             logger.error(
                 "LS_BROWSER_REQUEST login_failed_after_retry method=%s endpoint=%s status=%s",
@@ -2814,7 +3121,7 @@ def label_studio_browser_request(
                 status_code=502,
                 detail=(
                     "Label Studio browser authentication could not open the requested resource."
-                )
+                ),
             )
 
     logger.info(
@@ -2825,6 +3132,7 @@ def label_studio_browser_request(
         urlparse(getattr(response, "url", "") or "").path,
     )
     return response
+
 
 def rewrite_label_studio_media_urls(
     value
