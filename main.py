@@ -2503,11 +2503,15 @@ def _create_label_studio_browser_session():
         )
 
     session = requests.Session()
+    # Include an explicit next target so Label Studio's Django login view
+    # completes the normal browser-login flow instead of rendering the login
+    # form again at the end of the POST.
     login_url = f"{LABEL_STUDIO_URL}/user/login/"
+    login_target_url = f"{login_url}?next=/projects/"
 
     try:
         login_page = session.get(
-            login_url,
+            login_target_url,
             timeout=15,
             allow_redirects=True,
         )
@@ -2570,12 +2574,18 @@ def _create_label_studio_browser_session():
         "persist_session": "on",
     }
 
+    # Keep the same CSRF token in both the form body and the standard
+    # X-CSRFToken header. This matches a normal browser submission and avoids
+    # reverse-proxy/Django combinations that accept the form but fail to
+    # establish the authenticated session correctly.
     try:
         login_response = session.post(
-            login_url,
+            login_target_url,
             data=login_data,
             headers={
-                "Referer": login_url,
+                "Referer": login_target_url,
+                "Origin": LABEL_STUDIO_URL,
+                "X-CSRFToken": csrf_token,
                 "Content-Type": "application/x-www-form-urlencoded",
             },
             timeout=15,
@@ -2621,16 +2631,44 @@ def _create_label_studio_browser_session():
             )
         )
 
-    if _label_studio_login_page_looks_like_login(login_response.text):
-        logger.error(
-            "LS_BROWSER_LOGIN_POST returned login HTML despite session cookie; "
-            "refusing to use the session."
+    # Do not use the POST response HTML itself as the authentication test.
+    # Label Studio/Django can legitimately render the login template during
+    # the redirect chain even after setting the authenticated session cookie.
+    # The authoritative browser-session test is a normal authenticated web
+    # request to /projects/.
+    try:
+        session_check = session.get(
+            f"{LABEL_STUDIO_URL}/projects/",
+            timeout=15,
+            allow_redirects=True,
         )
+    except requests.RequestException as exc:
+        logger.error("LS_BROWSER_SESSION_CHECK request failed: %s", exc)
         raise HTTPException(
             status_code=502,
             detail=(
-                "Label Studio returned its login page after authentication. "
-                "The configured Label Studio browser credentials could not be verified."
+                "Unable to verify the Label Studio browser session."
+            )
+        )
+
+    session_check_login = (
+        _response_was_redirected_to_label_studio_login(session_check)
+        or _label_studio_login_page_looks_like_login(session_check.text)
+    )
+
+    logger.info(
+        "LS_BROWSER_SESSION_CHECK status=%s final_path=%s login_page=%s",
+        session_check.status_code,
+        urlparse(getattr(session_check, "url", "") or "").path,
+        session_check_login,
+    )
+
+    if session_check.status_code >= 400 or session_check_login:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Label Studio browser authentication could not be verified. "
+                "The server-side Label Studio session was not accepted."
             )
         )
 
@@ -2665,7 +2703,7 @@ def _get_label_studio_browser_session():
             _LABEL_STUDIO_BROWSER_SESSION = (
                 _create_label_studio_browser_session()
             )
-            _LABEL_STUDIO_BROWSER_SESSION_CREATED_AT = now
+            _LABEL_STUDIO_BROWSER_SESSION_CREATED_AT = time.monotonic()
 
         return _LABEL_STUDIO_BROWSER_SESSION
 
