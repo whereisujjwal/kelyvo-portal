@@ -4222,6 +4222,119 @@ _KELYVO_MEDIA_CACHE_MAX_BYTES = 6 * 1024 * 1024
 _KELYVO_MEDIA_CACHE_MAX_ITEMS = 8
 
 
+@app.get("/tasks/{task_id}/resolve/")
+def label_studio_task_resolve(
+    request: Request,
+    task_id: int,
+    file: str = "",
+):
+    """Proxy Label Studio's native task-file resolver through KELYVO.
+
+    Label Studio's contributor workspace is served from the KELYVO origin, so
+    relative requests such as /tasks/<id>/resolve/?file=... otherwise land on
+    KELYVO instead of the Label Studio service. Keep this endpoint strictly
+    task-scoped and verify the authenticated contributor owns the requested task
+    before forwarding the file request to Label Studio.
+    """
+    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="A valid contributor session is required.",
+        )
+
+    db = SessionLocal()
+    try:
+        assignment = _get_active_persistent_assignment_fast(
+            db,
+            int(user_id),
+            task_id=int(task_id),
+        )
+        if assignment is None or assignment.task is None:
+            raise HTTPException(
+                status_code=403,
+                detail="This Label Studio task is not currently assigned to this contributor.",
+            )
+
+        project_id = int(assignment.task.external_project_id)
+        assigned_task_id = int(assignment.task.external_task_id)
+    finally:
+        db.close()
+
+    if assigned_task_id != int(task_id):
+        raise HTTPException(
+            status_code=403,
+            detail="This Label Studio task is not currently assigned to this contributor.",
+        )
+
+    if project_id not in PROJECT_MAPPING.values():
+        raise HTTPException(
+            status_code=403,
+            detail="This project is not available in contributor mode.",
+        )
+
+    try:
+        decoded_file = unquote(file or "").strip()
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Label Studio file reference.",
+        )
+
+    if not decoded_file.startswith("/data/upload/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Label Studio file reference.",
+        )
+
+    if (
+        decoded_file.startswith("//")
+        or "://" in decoded_file
+        or "\\x00" in decoded_file
+        or ".." in decoded_file.split("/")
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Label Studio file reference.",
+        )
+
+    response = label_studio_browser_request(
+        "GET",
+        f"/tasks/{int(task_id)}/resolve/",
+        params={"file": decoded_file},
+    )
+
+    if response.status_code >= 400:
+        content = response.content
+        content_type = response.headers.get("content-type", "text/plain")
+        status_code = response.status_code
+        response.close()
+        return Response(
+            content=content,
+            status_code=status_code,
+            media_type=content_type,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    content_type = response.headers.get(
+        "content-type",
+        "application/octet-stream",
+    )
+    content = response.content
+    response.close()
+
+    return Response(
+        content=content,
+        status_code=200,
+        media_type=content_type,
+        headers={
+            "Cache-Control": "private, max-age=60",
+            "Content-Disposition": "inline",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @app.get("/api/label-studio-media")
 def label_studio_media(
     path: str,
