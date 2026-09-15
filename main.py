@@ -10,13 +10,15 @@ from datetime import datetime, timedelta, timezone
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from urllib.parse import quote, unquote, urlparse
 from typing import Optional
+from types import SimpleNamespace
 
 import requests
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
-from sqlalchemy import Table, Column, String, Text, Integer, Float, Boolean, inspect, text
+from sqlalchemy import Table, Column, String, Text, Integer, Float, Boolean, inspect, text, func, case
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from database import SessionLocal, engine
@@ -142,6 +144,34 @@ workforce_profile_versions = Table(
     Column("changed_by_user_id", Integer, nullable=True),
     Column("reason", Text, nullable=True),
     Column("created_at", String, nullable=False),
+)
+
+models.Base.metadata.create_all(bind=engine)
+
+# Live workforce presence is stored separately so existing authentication and
+# workflow models remain backward compatible. QA claims use two database-level
+# unique keys: one per submission and one per QA user.
+workforce_presence = Table(
+    "workforce_presence",
+    models.Base.metadata,
+    Column("user_id", Integer, primary_key=True),
+    Column("role", String, nullable=False),
+    Column("activity_state", String, nullable=False, default="idle"),
+    Column("last_seen_at", String, nullable=False),
+    Column("last_activity_at", String, nullable=False),
+    Column("current_context", Text, nullable=True),
+    Column("current_task_id", Integer, nullable=True),
+    Column("updated_at", String, nullable=False),
+)
+
+qa_task_claims = Table(
+    "qa_task_claims",
+    models.Base.metadata,
+    Column("submission_id", Integer, primary_key=True),
+    Column("qa_user_id", Integer, nullable=False, unique=True),
+    Column("claimed_at", String, nullable=False),
+    Column("last_heartbeat_at", String, nullable=False),
+    Column("expires_at", String, nullable=False),
 )
 
 models.Base.metadata.create_all(bind=engine)
@@ -419,6 +449,143 @@ def read_session_token(request: Request):
     }
 
 
+KELYVO_ACTIVE_TASK_COOKIE = "kelyvo_active_task"
+KELYVO_ACTIVE_TASK_TTL = 60 * 60 * 24
+
+
+def _active_task_signing_value(payload: str) -> str:
+    return hmac.new(
+        KELYVO_SESSION_SECRET.encode("utf-8"),
+        payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def create_active_task_token(email: str, user_id: int, project_id: int, task_id: int) -> str:
+    expires_at = int(time.time()) + KELYVO_ACTIVE_TASK_TTL
+    payload = (
+        f"{normalize_email(email)}|{int(user_id)}|{int(project_id)}|"
+        f"{int(task_id)}|{expires_at}"
+    )
+    signature = _active_task_signing_value(payload)
+    raw = f"{payload}|{signature}".encode("utf-8")
+    return urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def read_active_task_token(request: Request):
+    token = request.cookies.get(KELYVO_ACTIVE_TASK_COOKIE, "")
+    if not token:
+        return None
+    try:
+        padding = "=" * (-len(token) % 4)
+        decoded = urlsafe_b64decode((token + padding).encode("ascii")).decode("utf-8")
+        email, user_id_raw, project_raw, task_raw, expires_raw, signature = decoded.split("|", 5)
+        user_id = int(user_id_raw)
+        project_id = int(project_raw)
+        task_id = int(task_raw)
+        expires_at = int(expires_raw)
+    except Exception:
+        return None
+    if expires_at <= int(time.time()):
+        return None
+    normalized_email = normalize_email(email)
+    payload = f"{normalized_email}|{user_id}|{project_id}|{task_id}|{expires_at}"
+    expected = _active_task_signing_value(payload)
+    if not hmac.compare_digest(signature, expected):
+        return None
+    session = read_session_token(request)
+    if not session or normalize_email(session.get("email", "")) != normalized_email:
+        return None
+    return {
+        "email": normalized_email,
+        "user_id": user_id,
+        "project_id": project_id,
+        "task_id": task_id,
+        "expires_at": expires_at,
+    }
+
+
+def _set_active_task_cookie(response, request: Request, project_id: int, task_id: int, user_id: int):
+    session = read_session_token(request)
+    if not session or not session.get("email"):
+        return response
+    response.set_cookie(
+        KELYVO_ACTIVE_TASK_COOKIE,
+        create_active_task_token(
+            session["email"], int(user_id), int(project_id), int(task_id)
+        ),
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        max_age=KELYVO_ACTIVE_TASK_TTL,
+        path="/",
+    )
+    return response
+
+
+def _clear_active_task_cookie(response):
+    response.delete_cookie(KELYVO_ACTIVE_TASK_COOKIE, path="/")
+    return response
+
+
+def _cache_user_id(email: str, user_id: int):
+    if not email or user_id is None:
+        return
+    with _KELYVO_CACHE_LOCK:
+        _KELYVO_USER_ID_CACHE[normalize_email(email)] = (time.time(), int(user_id))
+
+
+def _get_cached_user_id(email: str):
+    normalized = normalize_email(email)
+    if not normalized:
+        return None
+    with _KELYVO_CACHE_LOCK:
+        item = _KELYVO_USER_ID_CACHE.get(normalized)
+        if not item:
+            return None
+        created_at, user_id = item
+        if time.time() - created_at > _KELYVO_USER_ID_CACHE_TTL_SECONDS:
+            _KELYVO_USER_ID_CACHE.pop(normalized, None)
+            return None
+        return int(user_id)
+
+
+# Short-lived cache for the expensive contributor onboarding eligibility check.
+# The session itself still carries the authenticated role; this cache only avoids
+# repeatedly rebuilding the same profile completion result on every Start Task click.
+_KELYVO_START_ELIGIBILITY_CACHE = {}
+_KELYVO_START_ELIGIBILITY_CACHE_TTL_SECONDS = 30
+
+def _cache_start_eligibility(user_id: int, payload: dict):
+    if user_id is None or not isinstance(payload, dict):
+        return
+    with _KELYVO_CACHE_LOCK:
+        _KELYVO_START_ELIGIBILITY_CACHE[int(user_id)] = (time.time(), dict(payload))
+
+
+def _get_cached_start_eligibility(user_id: int):
+    if user_id is None:
+        return None
+    with _KELYVO_CACHE_LOCK:
+        item = _KELYVO_START_ELIGIBILITY_CACHE.get(int(user_id))
+        if not item:
+            return None
+        created_at, payload = item
+        if time.time() - created_at > _KELYVO_START_ELIGIBILITY_CACHE_TTL_SECONDS:
+            _KELYVO_START_ELIGIBILITY_CACHE.pop(int(user_id), None)
+            return None
+        return dict(payload)
+
+
+def require_contributor_session_fast(request: Request):
+    session = read_session_token(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="A valid KELYVO session is required.")
+    if str(session.get("role") or "").strip().lower() != "contributor":
+        raise HTTPException(status_code=403, detail="Contributor access is required.")
+    return session
+
+
 def require_portal_session(request: Request, allowed_roles=None):
     session = read_session_token(request)
     if not session:
@@ -474,6 +641,120 @@ def require_portal_session(request: Request, allowed_roles=None):
     session = dict(session)
     session["role"] = current_role
     return session
+
+
+PRESENCE_ACTIVE_TIMEOUT_SECONDS = 90
+PRESENCE_OFFLINE_TIMEOUT_SECONDS = 75
+QA_CLAIM_TTL_SECONDS = 1800
+
+def _parse_utc_iso(value):
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+def _presence_status(last_seen_at, last_activity_at, activity_state=None, now=None):
+    now = now or _utc_now()
+    seen = _parse_utc_iso(last_seen_at)
+    activity = _parse_utc_iso(last_activity_at)
+    if seen is None:
+        return "offline"
+    if str(activity_state or "").lower() == "offline":
+        return "offline"
+    if (now - seen).total_seconds() > PRESENCE_OFFLINE_TIMEOUT_SECONDS:
+        return "offline"
+    if activity is not None and str(activity_state or "idle").lower() == "active" and (now - activity).total_seconds() <= PRESENCE_ACTIVE_TIMEOUT_SECONDS:
+        return "active"
+    return "idle"
+
+def _cleanup_expired_qa_claims(db):
+    now = _utc_now()
+    rows = db.execute(qa_task_claims.select()).mappings().all()
+    for row in rows:
+        expires = _parse_utc_iso(row.get("expires_at"))
+        if expires is None or expires <= now:
+            db.execute(qa_task_claims.delete().where(qa_task_claims.c.submission_id == int(row["submission_id"])))
+
+def _get_qa_claim(db, submission_id):
+    return db.execute(qa_task_claims.select().where(qa_task_claims.c.submission_id == int(submission_id))).mappings().first()
+
+def _get_qa_claim_for_user(db, qa_user_id):
+    return db.execute(qa_task_claims.select().where(qa_task_claims.c.qa_user_id == int(qa_user_id))).mappings().first()
+
+def _claim_submission_for_qa(db, submission_id, qa_user_id):
+    _cleanup_expired_qa_claims(db)
+    own = _get_qa_claim_for_user(db, int(qa_user_id))
+    if own is not None:
+        if int(own["submission_id"]) == int(submission_id):
+            return own
+        raise HTTPException(status_code=409, detail="You already have a QA task in review. Finish it before taking another task.")
+    other = _get_qa_claim(db, int(submission_id))
+    if other is not None and int(other["qa_user_id"]) != int(qa_user_id):
+        raise HTTPException(status_code=409, detail="This QA task is already being reviewed by another QA.")
+    now = _utc_now(); expires = now + timedelta(seconds=QA_CLAIM_TTL_SECONDS)
+    try:
+        db.execute(qa_task_claims.insert().values(submission_id=int(submission_id), qa_user_id=int(qa_user_id), claimed_at=now.isoformat(), last_heartbeat_at=now.isoformat(), expires_at=expires.isoformat()))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        own = _get_qa_claim_for_user(db, int(qa_user_id))
+        if own is not None and int(own["submission_id"]) == int(submission_id):
+            return own
+        raise HTTPException(status_code=409, detail="This QA task was just claimed by another QA.")
+    return _get_qa_claim(db, int(submission_id))
+
+def _release_qa_claim(db, submission_id, qa_user_id=None):
+    query = qa_task_claims.delete().where(qa_task_claims.c.submission_id == int(submission_id))
+    if qa_user_id is not None:
+        query = query.where(qa_task_claims.c.qa_user_id == int(qa_user_id))
+    db.execute(query)
+
+def _qa_claim_payload(claim, now=None):
+    if not claim:
+        return None
+    now = now or _utc_now(); expires = _parse_utc_iso(claim.get("expires_at"))
+    return {"qa_user_id": int(claim["qa_user_id"]), "claimed_at": claim.get("claimed_at"), "last_heartbeat_at": claim.get("last_heartbeat_at"), "expires_at": claim.get("expires_at"), "seconds_remaining": max(0, int((expires - now).total_seconds())) if expires else 0}
+
+def _presence_payload_for_user(db, user, now=None):
+    now = now or _utc_now()
+    row = db.execute(workforce_presence.select().where(workforce_presence.c.user_id == int(user.id))).mappings().first()
+    if row is None:
+        return {"status":"offline", "last_seen_at":None, "last_activity_at":None, "current_context":None, "current_task_id":None}
+    return {"status":_presence_status(row.get("last_seen_at"), row.get("last_activity_at"), row.get("activity_state"), now), "last_seen_at":row.get("last_seen_at"), "last_activity_at":row.get("last_activity_at"), "current_context":row.get("current_context") or None, "current_task_id":row.get("current_task_id")}
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@app.post("/api/presence/heartbeat")
+async def presence_heartbeat(request: Request, db: Session = Depends(get_db)):
+    session = require_portal_session(request)
+    user = db.query(models.User).filter(models.User.email == normalize_email(session["email"])).first()
+    if user is None: raise HTTPException(status_code=401, detail="Authenticated user not found.")
+    try: payload = await request.json()
+    except Exception: payload = {}
+    state = str(payload.get("activity_state") or "idle").strip().lower()
+    if state not in {"active", "idle"}: state = "idle"
+    context = str(payload.get("current_context") or "").strip()[:240]
+    task_id = payload.get("current_task_id")
+    try: task_id = int(task_id) if task_id is not None and str(task_id).strip() else None
+    except Exception: task_id = None
+    now = _utc_now()
+    existing = db.execute(workforce_presence.select().where(workforce_presence.c.user_id == int(user.id))).mappings().first()
+    values = {"role":str(user.role or session.get("role") or "contributor").strip().lower(), "activity_state":state, "last_seen_at":now.isoformat(), "last_activity_at":now.isoformat() if state == "active" else (existing.get("last_activity_at") if existing else now.isoformat()), "current_context":context or None, "current_task_id":task_id, "updated_at":now.isoformat()}
+    if existing: db.execute(workforce_presence.update().where(workforce_presence.c.user_id == int(user.id)).values(**values))
+    else: db.execute(workforce_presence.insert().values(user_id=int(user.id), **values))
+    db.commit()
+    return {"status":"success", "presence":_presence_payload_for_user(db, user, now)}
 
 
 def require_contributor_session(request: Request):
@@ -1012,6 +1293,10 @@ def _get_authenticated_user_id(request: Request):
     if not session or not session.get("email"):
         return None
 
+    cached_user_id = _get_cached_user_id(session.get("email"))
+    if cached_user_id is not None:
+        return int(cached_user_id)
+
     db = SessionLocal()
     try:
         user = (
@@ -1019,7 +1304,10 @@ def _get_authenticated_user_id(request: Request):
             .filter(models.User.email == normalize_email(session.get("email", "")))
             .first()
         )
-        return int(user.id) if user else None
+        if user is not None:
+            _cache_user_id(session.get("email"), int(user.id))
+            return int(user.id)
+        return None
     except Exception:
         return None
     finally:
@@ -1216,6 +1504,111 @@ def _cleanup_expired_persistent_task_assignments():
         db.close()
 
 
+
+def _repair_orphaned_reserved_tasks_in_session(
+    db: Session,
+    project_id: int = None,
+):
+    """Repair Task rows marked reserved without a live reserved assignment.
+
+    TaskAssignment is the authoritative reservation record. A Task row may not
+    remain in the reserved state by itself, otherwise a failed/crashed request
+    can permanently hide real Label Studio work from the contributor queue.
+
+    Valid active reservations are left untouched. Orphaned rows are released
+    back to the contributor pool. If the latest assignment is already marked
+    completed, keep the task out of the pool as submitted instead of risking
+    duplicate work.
+    """
+    query = (
+        db.query(models.Task)
+        .filter(
+            models.Task.external_engine == "label_studio",
+            models.Task.status == "reserved",
+        )
+    )
+    if project_id is not None:
+        query = query.filter(
+            models.Task.external_project_id == int(project_id)
+        )
+
+    reserved_tasks = query.all()
+    if not reserved_tasks:
+        return 0
+
+    task_ids = [str(task.id) for task in reserved_tasks if task.id is not None]
+    if not task_ids:
+        return 0
+
+    active_assignment_rows = (
+        db.query(models.TaskAssignment.task_id)
+        .filter(
+            models.TaskAssignment.task_id.in_(task_ids),
+            models.TaskAssignment.status == "reserved",
+        )
+        .all()
+    )
+    active_task_ids = {
+        str(row[0]) for row in active_assignment_rows if row[0] is not None
+    }
+
+    orphan_tasks = [
+        task
+        for task in reserved_tasks
+        if str(task.id) not in active_task_ids
+    ]
+    if not orphan_tasks:
+        return 0
+
+    orphan_task_ids = [str(task.id) for task in orphan_tasks]
+    latest_assignments = (
+        db.query(models.TaskAssignment)
+        .filter(models.TaskAssignment.task_id.in_(orphan_task_ids))
+        .order_by(models.TaskAssignment.assigned_at.desc())
+        .all()
+    )
+
+    latest_by_task_id = {}
+    for assignment in latest_assignments:
+        key = str(assignment.task_id)
+        if key not in latest_by_task_id:
+            latest_by_task_id[key] = assignment
+
+    repaired = 0
+    for task in orphan_tasks:
+        latest = latest_by_task_id.get(str(task.id))
+
+        task.is_locked = False
+        if latest is not None and str(latest.status or "").lower() == "completed":
+            task.status = "submitted"
+        else:
+            task.status = "available"
+
+        repaired += 1
+
+    return repaired
+
+
+def _repair_orphaned_reserved_tasks():
+    """One-shot/background repair for reservation state drift."""
+    db = SessionLocal()
+    try:
+        repaired = _repair_orphaned_reserved_tasks_in_session(db)
+        if repaired:
+            db.commit()
+            logger.warning(
+                "repaired_orphaned_reserved_tasks count=%s",
+                repaired,
+            )
+        return repaired
+    except Exception:
+        db.rollback()
+        logger.exception("orphaned_task_repair_failed")
+        return 0
+    finally:
+        db.close()
+
+
 def _get_active_persistent_assignment(
     db: Session,
     user_id: int,
@@ -1254,7 +1647,17 @@ def _get_active_persistent_assignment(
 
 
 def cleanup_task_assignments():
-    _cleanup_expired_persistent_task_assignments()
+    """Fast-path reservation cleanup for request handling.
+
+    Expired assignments are intentionally NOT cleared synchronously here.
+    Clearing expired Label Studio annotations/drafts requires one or more
+    remote Label Studio requests and was making /api/start-task wait tens of
+    seconds when stale reservations existed. The background expiration worker
+    already performs the full safe cleanup once per minute. Keeping expired
+    reservations conservatively active until that worker runs cannot leak work
+    to another contributor; it only delays re-use of an expired task briefly.
+    """
+    return None
 
 
 def normalize_email(email: str) -> str:
@@ -1330,13 +1733,193 @@ def sync_browser_assignment_for_request(
     )
 
 
+def _get_active_persistent_assignment_fast(
+    db: Session,
+    user_id: int,
+    project_id: int = None,
+    task_id: int = None,
+):
+    """Read an active assignment without running any Label Studio cleanup."""
+    if user_id is None:
+        return None
+
+    query = (
+        db.query(models.TaskAssignment)
+        .options(joinedload(models.TaskAssignment.task))
+        .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+        .filter(
+            models.TaskAssignment.user_id == int(user_id),
+            models.TaskAssignment.status == "reserved",
+        )
+    )
+    if project_id is not None:
+        query = query.filter(models.Task.external_project_id == int(project_id))
+    if task_id is not None:
+        query = query.filter(models.Task.external_task_id == int(task_id))
+
+    rows = query.order_by(models.TaskAssignment.assigned_at.desc()).all()
+    now = _utc_now()
+    for assignment in rows:
+        expires_at = assignment.expires_at
+        if expires_at is None or expires_at > now:
+            return assignment
+    return None
+
+
+def _get_reserved_task_fast(
+    user_id: int,
+    project_id: int,
+):
+    """Get a contributor's active reservation without remote cleanup work."""
+    db = SessionLocal()
+    try:
+        assignment = _get_active_persistent_assignment_fast(
+            db,
+            int(user_id),
+            project_id=int(project_id),
+        )
+        if assignment is None:
+            return None
+        return int(assignment.task.external_task_id)
+    except Exception:
+        db.rollback()
+        return None
+    finally:
+        db.close()
+
+
+def _reserve_task_for_contributor_in_session(
+    db: Session,
+    project_id: int,
+    task_id: int,
+    user_id: int,
+):
+    """Reserve one task inside the caller session without poisoning the request transaction.
+
+    A concurrent contributor can legitimately win the same task between the
+    candidate snapshot and this claim. That race must become a simple
+    ``None``/409 path, not a 500 that aborts the entire Start Task request.
+    A SAVEPOINT isolates that candidate claim so a PostgreSQL integrity error
+    cannot invalidate the rest of the already-open session.
+    """
+    nested = db.begin_nested()
+    try:
+        task = (
+            db.query(models.Task)
+            .filter(
+                models.Task.external_engine == "label_studio",
+                models.Task.external_project_id == int(project_id),
+                models.Task.external_task_id == int(task_id),
+            )
+            .with_for_update()
+            .first()
+        )
+
+        if task is None:
+            nested.rollback()
+            return None
+
+        active_assignment = _get_active_persistent_assignment_fast(
+            db,
+            int(user_id),
+            project_id=int(project_id),
+        )
+        if active_assignment is not None:
+            active_external_id = active_assignment.task.external_task_id
+            if int(active_external_id or 0) != int(task_id):
+                nested.rollback()
+                return int(active_external_id)
+            active_assignment.status = "reserved"
+            active_assignment.released_at = None
+            active_assignment.completed_at = None
+            active_assignment.expires_at = _utc_now() + timedelta(seconds=TASK_ASSIGNMENT_TTL)
+            active_assignment.task.is_locked = True
+            active_assignment.task.status = "reserved"
+            db.flush()
+            nested.commit()
+            return int(task_id)
+
+        if str(task.status or "").lower() != "available" or bool(task.is_locked):
+            nested.rollback()
+            return None
+
+        competing = (
+            db.query(models.TaskAssignment)
+            .filter(
+                models.TaskAssignment.task_id == str(task.id),
+                models.TaskAssignment.status == "reserved",
+            )
+            .with_for_update()
+            .order_by(models.TaskAssignment.assigned_at.desc())
+            .all()
+        )
+
+        now = _utc_now()
+        for assignment in competing:
+            if assignment.expires_at is not None and assignment.expires_at <= now:
+                assignment.status = "expired"
+                assignment.released_at = now
+                assignment.expires_at = now
+                continue
+            if int(assignment.user_id) == int(user_id):
+                assignment.expires_at = now + timedelta(seconds=TASK_ASSIGNMENT_TTL)
+                task.is_locked = True
+                task.status = "reserved"
+                db.flush()
+                nested.commit()
+                return int(task_id)
+            nested.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="This task is already reserved by another contributor.",
+            )
+
+        # TaskAssignment.task_id is a String UUID FK (models.py), while Task.id is
+        # also a UUID string. Keep this value as a string for PostgreSQL type safety.
+        assignment = models.TaskAssignment(
+            task_id=str(task.id),
+            user_id=int(user_id),
+            status="reserved",
+            assigned_at=now,
+            expires_at=now + timedelta(seconds=TASK_ASSIGNMENT_TTL),
+        )
+        db.add(assignment)
+        task.is_locked = True
+        task.status = "reserved"
+        db.flush()
+        nested.commit()
+        return int(task_id)
+    except HTTPException:
+        if nested.is_active:
+            nested.rollback()
+        raise
+    except IntegrityError:
+        if nested.is_active:
+            nested.rollback()
+        logger.warning(
+            "start_task_claim_conflict project_id=%s task_id=%s user_id=%s",
+            project_id, task_id, user_id,
+        )
+        return None
+    except Exception:
+        if nested.is_active:
+            nested.rollback()
+        logger.exception(
+            "start_task_claim_failed project_id=%s task_id=%s user_id=%s",
+            project_id, task_id, user_id,
+        )
+        return None
+
+
 def reserve_task_for_contributor(
     identity: str,
     project_id: int,
     task_id: int,
     user_id: int = None,
+    perform_cleanup: bool = True,
 ):
-    cleanup_task_assignments()
+    if perform_cleanup:
+        cleanup_task_assignments()
 
     if not identity:
         raise HTTPException(
@@ -1366,27 +1949,40 @@ def reserve_task_for_contributor(
         )
 
         if task is None:
-            task_id_uuid = _sync_enterprise_task(
-                project_id=int(project_id),
-                task_id=int(task_id),
-                status="reserved",
+            project = (
+                db.query(models.Project)
+                .filter(
+                    models.Project.external_engine == "label_studio",
+                    models.Project.external_project_id == int(project_id),
+                    models.Project.status == "active",
+                )
+                .first()
             )
-            if task_id_uuid is not None:
-                db.expire_all()
-                task = db.query(models.Task).filter(
-                    models.Task.id == task_id_uuid
-                ).first()
+            if project is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="The Label Studio project could not be registered in KELYVO."
+                )
 
-        if task is None:
-            raise HTTPException(
-                status_code=404,
-                detail="The task could not be registered in KELYVO."
+            task = models.Task(
+                project_id=project.id,
+                task_number=int(task_id),
+                external_task_id=int(task_id),
+                external_engine="label_studio",
+                external_project_id=int(project_id),
+                title=f"{project.modality} task #{int(task_id)}",
+                task_type=project.modality,
+                status="available",
+                priority=0,
+                is_locked=False,
             )
+            db.add(task)
+            db.flush()
 
-        active_assignment = _get_active_persistent_assignment(
-            db,
-            int(user_id),
-            project_id=int(project_id),
+        active_assignment = (
+            _get_active_persistent_assignment(db, int(user_id), project_id=int(project_id))
+            if perform_cleanup
+            else _get_active_persistent_assignment_fast(db, int(user_id), project_id=int(project_id))
         )
 
         if active_assignment is not None:
@@ -1402,7 +1998,7 @@ def reserve_task_for_contributor(
             db.commit()
             return int(task_id)
 
-        task_assignment = (
+        task_assignments = (
             db.query(models.TaskAssignment)
             .options(joinedload(models.TaskAssignment.task))
             .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
@@ -1410,10 +2006,20 @@ def reserve_task_for_contributor(
                 models.TaskAssignment.task_id == task.id,
                 models.TaskAssignment.status == "reserved",
             )
-            .first()
+            .order_by(models.TaskAssignment.assigned_at.desc())
+            .all()
         )
 
-        if task_assignment is not None:
+        now = _utc_now()
+        for task_assignment in task_assignments:
+            if task_assignment.expires_at is not None and task_assignment.expires_at <= now:
+                task_assignment.status = "expired"
+                task_assignment.released_at = now
+                task_assignment.expires_at = now
+                if task_assignment.task is not None:
+                    task_assignment.task.is_locked = False
+                    task_assignment.task.status = "available"
+                continue
             if int(task_assignment.user_id) == int(user_id):
                 task_assignment.task.is_locked = True
                 task_assignment.task.status = "reserved"
@@ -1478,6 +2084,37 @@ def get_reserved_task(
         return None
     finally:
         db.close()
+
+
+def _release_reserved_task_in_session(
+    db: Session,
+    user_id: int,
+    project_id: int,
+    task_id: int,
+    final_task_status: str = "submitted",
+):
+    """Release one exact assignment using an already-open DB session."""
+    assignment = _get_active_persistent_assignment_fast(
+        db,
+        int(user_id),
+        project_id=int(project_id),
+        task_id=int(task_id),
+    )
+    if assignment is None:
+        return False
+
+    now = _utc_now()
+    if final_task_status == "submitted":
+        assignment.status = "completed"
+        assignment.completed_at = now
+    else:
+        assignment.status = "released"
+        assignment.released_at = now
+
+    assignment.expires_at = now
+    assignment.task.is_locked = False
+    assignment.task.status = final_task_status
+    return True
 
 
 def release_reserved_task(
@@ -1568,6 +2205,58 @@ def release_browser_assignment_for_request(
         db.rollback()
     finally:
         db.close()
+
+
+def _get_other_reserved_task_ids(
+    project_id: int,
+    contributor_user_id=None,
+    db: Session = None,
+):
+    """Return active reserved task IDs for other contributors in one DB query.
+
+    The contributor task picker may inspect dozens or hundreds of Label Studio
+    tasks.  Calling _is_task_reserved_by_other_contributor() once per candidate
+    turns that into an unnecessary N+1 database-query pattern.  This helper
+    snapshots the currently reserved task IDs once. The final reservation call
+    remains the authoritative race-safe claim, so a concurrent reservation that
+    happens after this snapshot is still handled correctly.
+    """
+    owns_db = db is None
+    if owns_db:
+        db = SessionLocal()
+    try:
+        rows = (
+            db.query(
+                models.Task.external_task_id,
+                models.TaskAssignment.user_id,
+                models.TaskAssignment.expires_at,
+            )
+            .join(models.TaskAssignment, models.TaskAssignment.task_id == models.Task.id)
+            .filter(
+                models.TaskAssignment.status == "reserved",
+                models.Task.external_project_id == int(project_id),
+            )
+            .all()
+        )
+
+        now = _utc_now()
+        result = set()
+        for task_id, assigned_user_id, expires_at in rows:
+            if task_id is None:
+                continue
+            if expires_at is not None and expires_at <= now:
+                continue
+            if contributor_user_id is not None and int(assigned_user_id) == int(contributor_user_id):
+                continue
+            result.add(int(task_id))
+        return result
+    except Exception:
+        # Fail closed. If reservation state cannot be read, do not hand fresh
+        # work to a contributor because that could violate exclusive assignment.
+        return None
+    finally:
+        if owns_db:
+            db.close()
 
 
 def _is_task_reserved_by_other_contributor(
@@ -1706,63 +2395,78 @@ def mark_kelyvo_submission_completed(
     request: Request,
     project_id: int,
     task_id: int,
+    db: Session = None,
+    user_id: int = None,
+    task_payload_override=None,
+    commit: bool = True,
 ):
     """
-    Persist the authoritative KELYVO Submit-to-QA transition into the
-    enterprise task/annotation/submission tables.
+    Persist the authoritative KELYVO Submit-to-QA transition.
 
-    TaskSubmission remains the current QA-queue compatibility record.
-    Enterprise synchronization is deliberately best-effort so a problem in
-    the migration layer can never turn a successful contributor submission
-    into a 500 response.
+    When a caller supplies an existing DB session, reuse it and isolate this
+    best-effort enterprise synchronization inside a savepoint. This prevents
+    the enterprise bookkeeping from opening another Neon connection or from
+    rolling back the contributor's primary submission transaction.
     """
     if not project_id or not task_id:
         return None
 
-    user_id = _get_authenticated_user_id(request)
+    if user_id is None:
+        user_id = _get_authenticated_user_id(request)
     if user_id is None:
         return None
 
-    task_payload = {}
+    owns_db = db is None
+    if owns_db:
+        db = SessionLocal()
 
-    try:
-        response = label_studio_request(
-            "GET",
-            f"/api/tasks/{int(task_id)}",
-            params={
-                "project": int(project_id),
-                "resolve_uri": "true",
-            },
-        )
+    savepoint = None
+    if not owns_db:
+        try:
+            savepoint = db.begin_nested()
+        except Exception:
+            savepoint = None
 
-        if response.status_code == 200:
-            try:
-                task_payload = response.json()
-            except ValueError:
-                task_payload = {}
-    except Exception:
-        task_payload = {}
+    task_payload = task_payload_override
+    if task_payload is None:
+        task_payload = _get_cached_assigned_task(
+            int(project_id),
+            int(task_id),
+        ) or {}
+
+    if not isinstance(task_payload, dict) or not task_payload:
+        try:
+            response = label_studio_request(
+                "GET",
+                f"/api/tasks/{int(task_id)}",
+                params={
+                    "project": int(project_id),
+                    "resolve_uri": "true",
+                },
+                timeout=5,
+            )
+            if response.status_code == 200:
+                try:
+                    task_payload = response.json()
+                except ValueError:
+                    task_payload = {}
+        except Exception:
+            task_payload = {}
 
     if not isinstance(task_payload, dict):
         task_payload = {}
 
     task_type = None
-
     for modality, mapped_project_id in PROJECT_MAPPING.items():
         if int(mapped_project_id) == int(project_id):
             task_type = modality
             break
 
     task_title = task_payload.get("title")
-
     if not task_title:
-        task_title = (
-            f"{str(task_type or 'task').upper()} "
-            f"Task #{int(task_id)}"
-        )
+        task_title = f"{str(task_type or 'task').upper()} Task #{int(task_id)}"
 
     annotations = task_payload.get("annotations", [])
-
     if not isinstance(annotations, list):
         annotations = []
 
@@ -1777,7 +2481,6 @@ def mark_kelyvo_submission_completed(
             and item.get("result")
         )
     ]
-
     usable_annotations.sort(
         key=lambda item: str(
             item.get("updated_at")
@@ -1786,14 +2489,7 @@ def mark_kelyvo_submission_completed(
             or ""
         )
     )
-
-    latest_annotation = (
-        usable_annotations[-1]
-        if usable_annotations
-        else None
-    )
-
-    db = SessionLocal()
+    latest_annotation = usable_annotations[-1] if usable_annotations else None
 
     try:
         canonical_task = (
@@ -1807,22 +2503,36 @@ def mark_kelyvo_submission_completed(
         )
 
         if canonical_task is None:
-            canonical_task_id = _sync_enterprise_task(
-                project_id=int(project_id),
-                task_id=int(task_id),
-                task_payload=task_payload,
-                status="submitted",
-            )
-
-            if canonical_task_id is not None:
-                canonical_task = (
-                    db.query(models.Task)
-                    .filter(models.Task.id == canonical_task_id)
-                    .first()
+            project = (
+                db.query(models.Project)
+                .filter(
+                    models.Project.external_engine == "label_studio",
+                    models.Project.external_project_id == int(project_id),
+                    models.Project.status == "active",
                 )
+                .first()
+            )
+            if project is not None:
+                canonical_task = models.Task(
+                    project_id=project.id,
+                    task_number=int(task_id),
+                    external_task_id=int(task_id),
+                    external_engine="label_studio",
+                    external_project_id=int(project_id),
+                    title=str(task_title),
+                    task_type=project.modality,
+                    status="submitted",
+                    priority=0,
+                    is_locked=False,
+                )
+                db.add(canonical_task)
+                db.flush()
 
         if canonical_task is None:
-            db.rollback()
+            if savepoint is not None:
+                savepoint.rollback()
+            elif owns_db:
+                db.rollback()
             return None
 
         canonical_task.title = str(task_title)
@@ -1835,22 +2545,14 @@ def mark_kelyvo_submission_completed(
         canonical_task.is_locked = False
 
         annotation_record = None
-
-        if (
-            latest_annotation is not None
-            and hasattr(models, "Annotation")
-        ):
-            external_annotation_id = int(
-                latest_annotation["id"]
-            )
-
+        if latest_annotation is not None and hasattr(models, "Annotation"):
+            external_annotation_id = int(latest_annotation["id"])
             annotation_record = (
                 db.query(models.Annotation)
                 .filter(
                     models.Annotation.task_id == canonical_task.id,
                     models.Annotation.annotator_id == int(user_id),
-                    models.Annotation.external_annotation_id
-                    == external_annotation_id,
+                    models.Annotation.external_annotation_id == external_annotation_id,
                 )
                 .first()
             )
@@ -1871,14 +2573,12 @@ def mark_kelyvo_submission_completed(
                     annotation_data=annotation_data,
                     submitted_at=_utc_now(),
                 )
-
                 db.add(annotation_record)
                 db.flush()
             else:
                 annotation_record.status = "submitted"
                 annotation_record.annotation_data = annotation_data
                 annotation_record.submitted_at = _utc_now()
-
                 if hasattr(annotation_record, "updated_at"):
                     annotation_record.updated_at = _utc_now()
 
@@ -1889,9 +2589,7 @@ def mark_kelyvo_submission_completed(
                     models.Submission.task_id == canonical_task.id,
                     models.Submission.contributor_id == int(user_id),
                 )
-                .order_by(
-                    models.Submission.submitted_at.desc()
-                )
+                .order_by(models.Submission.submitted_at.desc())
                 .first()
             )
 
@@ -1912,12 +2610,7 @@ def mark_kelyvo_submission_completed(
                 db.add(enterprise_submission)
             else:
                 current_status = str(
-                    getattr(
-                        enterprise_submission,
-                        "status",
-                        "",
-                    )
-                    or ""
+                    getattr(enterprise_submission, "status", "") or ""
                 ).strip().lower()
 
                 if current_status in {
@@ -1927,31 +2620,23 @@ def mark_kelyvo_submission_completed(
                     "rejected",
                 }:
                     enterprise_submission.attempt_number = (
-                        int(
-                            getattr(
-                                enterprise_submission,
-                                "attempt_number",
-                                1,
-                            )
-                            or 1
-                        )
+                        int(getattr(enterprise_submission, "attempt_number", 1) or 1)
                         + 1
                     )
 
                 enterprise_submission.annotation_id = (
                     annotation_record.id
                     if annotation_record is not None
-                    else getattr(
-                        enterprise_submission,
-                        "annotation_id",
-                        None,
-                    )
+                    else getattr(enterprise_submission, "annotation_id", None)
                 )
                 enterprise_submission.status = "pending_qa"
                 enterprise_submission.submitted_at = _utc_now()
                 enterprise_submission.updated_at = _utc_now()
 
-        db.commit()
+        if commit:
+            db.commit()
+        elif savepoint is not None:
+            savepoint.commit()
 
         return {
             "task_id": int(task_id),
@@ -1965,10 +2650,17 @@ def mark_kelyvo_submission_completed(
         }
 
     except Exception:
-        db.rollback()
+        try:
+            if savepoint is not None:
+                savepoint.rollback()
+            elif owns_db:
+                db.rollback()
+        except Exception:
+            pass
         return None
     finally:
-        db.close()
+        if owns_db:
+            db.close()
 
 
 def _ensure_revision_draft_from_existing_annotation(
@@ -2235,17 +2927,15 @@ def _get_requeued_tasks_for_contributor(
     task_type: str,
     contributor_identity: str,
     contributor_user_id=None,
+    task_pool=None,
+    reserved_other_task_ids=None,
 ):
-    """
-    Return only FINAL/second-attempt failed canonical KELYVO tasks that have
-    been reset to an unlabeled state and are therefore eligible for reassignment.
+    """Return final/second-attempt failed tasks eligible for requeue.
 
-    A first-attempt FAILED task is NOT a shared-pool task: it belongs to the
-    original contributor for their one allowed revision. Only a second-attempt
-    failure is final and may be offered to other contributors.
-
-    The original contributor (and anyone else who previously failed the exact
-    task) is excluded. Requeued tasks are returned before untouched tasks.
+    Performance note: when the caller already fetched the Label Studio task
+    pool, reuse those payloads instead of making one remote Label Studio GET per
+    failed task. Reservation state is likewise supplied as a single snapshot.
+    The final reservation call remains the authoritative race-safe hand-off.
     """
     failed_rows = (
         db.query(models.TaskSubmission)
@@ -2272,6 +2962,18 @@ def _get_requeued_tasks_for_contributor(
                 set(),
             ).add(int(failed_row.user_id))
 
+    task_pool_by_id = {}
+    if isinstance(task_pool, list):
+        for item in task_pool:
+            if not isinstance(item, dict) or item.get("id") is None:
+                continue
+            try:
+                task_pool_by_id[int(item.get("id"))] = item
+            except (TypeError, ValueError):
+                continue
+
+    reserved_ids = set(reserved_other_task_ids or set())
+
     for failed_row in failed_rows:
         task_id = _extract_kelyvo_task_id(failed_row.task_title)
         if task_id is None or task_id in seen_task_ids:
@@ -2291,33 +2993,33 @@ def _get_requeued_tasks_for_contributor(
         ):
             continue
 
-        if _is_task_reserved_by_other_contributor(
-            project_id,
-            task_id,
-            contributor_identity,
-            contributor_user_id=contributor_user_id,
-        ):
+        if task_id in reserved_ids:
             continue
 
-        task_response = label_studio_request(
-            "GET",
-            f"/api/tasks/{int(task_id)}",
-            params={
-                "project": int(project_id),
-                "resolve_uri": "true",
-            },
-        )
+        task = task_pool_by_id.get(int(task_id))
+        if task is None:
+            # Only use the remote fallback when the already-fetched task pool
+            # did not contain the requeue candidate. This preserves compatibility
+            # without reintroducing N+1 requests for normal task selection.
+            task_response = label_studio_request(
+                "GET",
+                f"/api/tasks/{int(task_id)}",
+                params={
+                    "project": int(project_id),
+                    "resolve_uri": "true",
+                },
+            )
 
-        if task_response.status_code != 200:
-            continue
+            if task_response.status_code != 200:
+                continue
 
-        try:
-            task = task_response.json()
-        except ValueError:
-            continue
+            try:
+                task = task_response.json()
+            except ValueError:
+                continue
 
-        if not isinstance(task, dict):
-            continue
+            if not isinstance(task, dict):
+                continue
 
         # A returned/FAILED task is intentionally eligible for rework even if
         # Label Studio still contains the contributor's previous annotation.
@@ -2630,6 +3332,288 @@ def get_label_studio_access_token() -> str:
 
     return access_token
 
+
+
+# In-process short-lived caches. The contributor workflow should not make a
+# remote Label Studio task-list request on every click/startup. The task pool
+# changes far less frequently than the editor mounts, and KELYVO already owns
+# the authoritative assignment/workflow state.
+_KELYVO_ASSIGNED_TASK_CACHE = {}
+_KELYVO_ASSIGNED_TASK_CACHE_TTL_SECONDS = 120
+_KELYVO_ACTIVE_ASSIGNMENT_CACHE = {}
+_KELYVO_ACTIVE_ASSIGNMENT_CACHE_TTL_SECONDS = 120
+_KELYVO_USER_ID_CACHE = {}
+_KELYVO_USER_ID_CACHE_TTL_SECONDS = 30 * 60
+_KELYVO_TASK_COUNT_CACHE = {}
+_KELYVO_PROJECT_CACHE = {}
+_KELYVO_PROJECT_CACHE_TTL_SECONDS = 120
+_KELYVO_TASK_POOL_CACHE = {}
+_KELYVO_TASK_POOL_CACHE_TTL_SECONDS = 60
+_KELYVO_TASK_ITEM_CACHE = {}
+_KELYVO_TASK_ITEM_CACHE_TTL_SECONDS = 120
+_KELYVO_CACHE_LOCK = threading.Lock()
+
+def _cache_assigned_task(project_id: int, task_id: int, payload):
+    if isinstance(payload, dict):
+        with _KELYVO_CACHE_LOCK:
+            _KELYVO_ASSIGNED_TASK_CACHE[(int(project_id), int(task_id))] = (
+                time.time(),
+                payload,
+            )
+
+def _get_cached_assigned_task(project_id: int, task_id: int):
+    key = (int(project_id), int(task_id))
+    with _KELYVO_CACHE_LOCK:
+        item = _KELYVO_ASSIGNED_TASK_CACHE.get(key)
+        if not item:
+            return None
+        created_at, payload = item
+        if time.time() - created_at > _KELYVO_ASSIGNED_TASK_CACHE_TTL_SECONDS:
+            _KELYVO_ASSIGNED_TASK_CACHE.pop(key, None)
+            return None
+        return payload
+
+def _cache_task_items(project_id: int, tasks):
+    if not isinstance(tasks, list):
+        return
+    now = time.time()
+    with _KELYVO_CACHE_LOCK:
+        for task in tasks:
+            if not isinstance(task, dict) or task.get("id") is None:
+                continue
+            try:
+                task_id = int(task.get("id"))
+            except (TypeError, ValueError):
+                continue
+            _KELYVO_TASK_ITEM_CACHE[(int(project_id), task_id)] = (now, task)
+
+
+def _get_cached_task_item(project_id: int, task_id: int):
+    key = (int(project_id), int(task_id))
+    with _KELYVO_CACHE_LOCK:
+        item = _KELYVO_TASK_ITEM_CACHE.get(key)
+        if not item:
+            return None
+        created_at, payload = item
+        if time.time() - created_at > _KELYVO_TASK_ITEM_CACHE_TTL_SECONDS:
+            _KELYVO_TASK_ITEM_CACHE.pop(key, None)
+            return None
+        return payload
+
+
+def _cache_active_assignment(user_id: int, project_id: int, task_id: int):
+    if user_id is None or project_id is None or task_id is None:
+        return
+    with _KELYVO_CACHE_LOCK:
+        _KELYVO_ACTIVE_ASSIGNMENT_CACHE[(int(user_id), int(project_id))] = (
+            time.time(),
+            int(task_id),
+        )
+
+def _get_cached_active_assignment(user_id: int, project_id: int):
+    if user_id is None or project_id is None:
+        return None
+    key = (int(user_id), int(project_id))
+    with _KELYVO_CACHE_LOCK:
+        item = _KELYVO_ACTIVE_ASSIGNMENT_CACHE.get(key)
+        if not item:
+            return None
+        created_at, task_id = item
+        if time.time() - created_at > _KELYVO_ACTIVE_ASSIGNMENT_CACHE_TTL_SECONDS:
+            _KELYVO_ACTIVE_ASSIGNMENT_CACHE.pop(key, None)
+            return None
+        return int(task_id)
+
+
+def _get_cached_any_active_assignment(user_id: int):
+    if user_id is None:
+        return None
+    now = time.time()
+    best = None
+    with _KELYVO_CACHE_LOCK:
+        for (cached_user_id, cached_project_id), item in list(_KELYVO_ACTIVE_ASSIGNMENT_CACHE.items()):
+            if int(cached_user_id) != int(user_id):
+                continue
+            created_at, task_id = item
+            if now - created_at > _KELYVO_ACTIVE_ASSIGNMENT_CACHE_TTL_SECONDS:
+                _KELYVO_ACTIVE_ASSIGNMENT_CACHE.pop((cached_user_id, cached_project_id), None)
+                continue
+            if best is None or created_at > best[0]:
+                best = (created_at, int(cached_project_id), int(task_id))
+    return (best[1], best[2]) if best is not None else None
+
+def _clear_cached_active_assignment(user_id: int, project_id: int):
+    if user_id is None or project_id is None:
+        return
+    with _KELYVO_CACHE_LOCK:
+        _KELYVO_ACTIVE_ASSIGNMENT_CACHE.pop((int(user_id), int(project_id)), None)
+
+def _cache_project(project_id: int, payload):
+    if isinstance(payload, dict):
+        with _KELYVO_CACHE_LOCK:
+            _KELYVO_PROJECT_CACHE[int(project_id)] = (time.time(), payload)
+
+def _get_cached_project(project_id: int):
+    with _KELYVO_CACHE_LOCK:
+        item = _KELYVO_PROJECT_CACHE.get(int(project_id))
+        if not item:
+            return None
+        created_at, payload = item
+        if time.time() - created_at > _KELYVO_PROJECT_CACHE_TTL_SECONDS:
+            _KELYVO_PROJECT_CACHE.pop(int(project_id), None)
+            return None
+        return payload
+
+def _cache_task_pool(project_id: int, tasks):
+    if isinstance(tasks, list):
+        with _KELYVO_CACHE_LOCK:
+            now = time.time()
+            _KELYVO_TASK_POOL_CACHE[int(project_id)] = (now, tasks)
+            _KELYVO_TASK_COUNT_CACHE[int(project_id)] = (now, len(tasks))
+        _cache_task_items(project_id, tasks)
+
+def _get_cached_task_count(project_id: int):
+    with _KELYVO_CACHE_LOCK:
+        item = _KELYVO_TASK_COUNT_CACHE.get(int(project_id))
+        if not item:
+            return None
+        created_at, count = item
+        if time.time() - created_at > 300:
+            _KELYVO_TASK_COUNT_CACHE.pop(int(project_id), None)
+            return None
+        return int(count)
+
+
+def _get_cached_task_pool(project_id: int):
+    with _KELYVO_CACHE_LOCK:
+        item = _KELYVO_TASK_POOL_CACHE.get(int(project_id))
+        if not item:
+            return None
+        created_at, tasks = item
+        if time.time() - created_at > _KELYVO_TASK_POOL_CACHE_TTL_SECONDS:
+            _KELYVO_TASK_POOL_CACHE.pop(int(project_id), None)
+            return None
+        return tasks
+
+def _warm_active_assignment_task_cache_once():
+    """Warm currently reserved tasks so refresh/start paths avoid a cold Label Studio task fetch."""
+    db = SessionLocal()
+    try:
+        assignments = (
+            db.query(models.TaskAssignment)
+            .options(joinedload(models.TaskAssignment.task))
+            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+            .filter(models.TaskAssignment.status == "reserved")
+            .order_by(models.TaskAssignment.assigned_at.desc())
+            .limit(100)
+            .all()
+        )
+        for assignment in assignments:
+            task = assignment.task
+            if task is None or task.external_project_id is None or task.external_task_id is None:
+                continue
+            project_id = int(task.external_project_id)
+            task_id = int(task.external_task_id)
+            try:
+                response = label_studio_request(
+                    "GET",
+                    f"/api/tasks/{task_id}",
+                    params={"project": project_id, "resolve_uri": "true"},
+                )
+                if response.status_code == 200:
+                    payload = response.json()
+                    if isinstance(payload, dict):
+                        _cache_assigned_task(project_id, task_id, payload)
+                        _cache_active_assignment(int(assignment.user_id), project_id, task_id)
+            except Exception:
+                continue
+    finally:
+        db.close()
+
+
+def _warm_label_studio_task_cache_once():
+    """Warm project/task caches in the background so contributors do not pay the remote fetch latency."""
+    preferred = ["image", "audio", "text", "video"]
+    ordered_items = []
+    for modality in preferred:
+        if modality in PROJECT_MAPPING:
+            ordered_items.append((modality, PROJECT_MAPPING[modality]))
+    for modality, project_id in PROJECT_MAPPING.items():
+        if modality not in {item[0] for item in ordered_items}:
+            ordered_items.append((modality, project_id))
+
+    for modality, project_id in ordered_items:
+        try:
+            cached_project = _get_cached_project(int(project_id))
+            if cached_project is None:
+                response = label_studio_request(
+                    "GET",
+                    f"/api/projects/{int(project_id)}",
+                )
+                if response.status_code == 200:
+                    payload = response.json()
+                    _cache_project(int(project_id), payload)
+
+            cached_tasks = _get_cached_task_pool(int(project_id))
+            if cached_tasks is None:
+                tasks = _fetch_label_studio_project_tasks(int(project_id))
+                if tasks:
+                    _cache_task_pool(int(project_id), tasks)
+                    _sync_label_studio_tasks_into_kelyvo(
+                        int(project_id),
+                        str(modality),
+                        tasks,
+                    )
+            elif cached_tasks:
+                _cache_task_items(int(project_id), cached_tasks)
+                _sync_label_studio_tasks_into_kelyvo(
+                    int(project_id),
+                    str(modality),
+                    cached_tasks,
+                )
+        except Exception:
+            # Cache warming is best-effort and must never prevent KELYVO startup.
+            continue
+
+def _start_label_studio_task_cache_warmer():
+    """Keep the KELYVO task registry synchronized with Label Studio in the background.
+
+    Newly imported Label Studio tasks can appear after KELYVO starts. The old
+    one-shot warmer only mirrored the pool during process startup, which meant
+    tasks added later remained invisible to the contributor picker until the
+    next process restart. We now refresh the task pool periodically without
+    putting that remote request on the contributor's Start Task critical path.
+    """
+    def worker():
+        time.sleep(1)
+
+        while True:
+            try:
+                _warm_active_assignment_task_cache_once()
+            except Exception:
+                pass
+
+            try:
+                # Force the task-pool refresh for this cycle so newly added
+                # Label Studio tasks are discovered even when the in-process
+                # pool cache is still inside its short TTL. Project metadata
+                # stays cached; only the task pool is refreshed.
+                with _KELYVO_CACHE_LOCK:
+                    _KELYVO_TASK_POOL_CACHE.clear()
+                    _KELYVO_TASK_ITEM_CACHE.clear()
+                _warm_label_studio_task_cache_once()
+            except Exception:
+                pass
+
+            # A minute is short enough for newly imported work to enter the
+            # KELYVO pool quickly, while keeping the refresh off the request path.
+            time.sleep(60)
+
+    threading.Thread(
+        target=worker,
+        name="kelyvo-ls-cache-warmer",
+        daemon=True,
+    ).start()
 
 
 def label_studio_request(
@@ -3232,6 +4216,12 @@ def _cleanup_legacy_task12_drafts_once():
         return
 
 
+_KELYVO_MEDIA_CACHE = {}
+_KELYVO_MEDIA_CACHE_TTL_SECONDS = 60
+_KELYVO_MEDIA_CACHE_MAX_BYTES = 6 * 1024 * 1024
+_KELYVO_MEDIA_CACHE_MAX_ITEMS = 8
+
+
 @app.get("/api/label-studio-media")
 def label_studio_media(
     path: str,
@@ -3282,6 +4272,24 @@ def label_studio_media(
                 "Media path is not allowed."
             )
         )
+
+    cache_key = decoded_path
+    now = time.time()
+    with _KELYVO_CACHE_LOCK:
+        cached_media = _KELYVO_MEDIA_CACHE.get(cache_key)
+        if cached_media:
+            created_at, content_type_cached, media_bytes = cached_media
+            if now - created_at <= _KELYVO_MEDIA_CACHE_TTL_SECONDS:
+                return Response(
+                    content=media_bytes,
+                    media_type=content_type_cached or "application/octet-stream",
+                    headers={
+                        "Cache-Control": "private, max-age=60",
+                        "X-Content-Type-Options": "nosniff",
+                        "Content-Disposition": "inline",
+                    },
+                )
+            _KELYVO_MEDIA_CACHE.pop(cache_key, None)
 
     response = label_studio_request(
         "GET",
@@ -3342,6 +4350,40 @@ def label_studio_media(
             content_length
         )
 
+    try:
+        known_length = int(content_length) if content_length else None
+    except (TypeError, ValueError):
+        known_length = None
+
+    if known_length is not None and known_length <= _KELYVO_MEDIA_CACHE_MAX_BYTES:
+        try:
+            media_bytes = response.content
+            if media_bytes:
+                with _KELYVO_CACHE_LOCK:
+                    if len(_KELYVO_MEDIA_CACHE) >= _KELYVO_MEDIA_CACHE_MAX_ITEMS:
+                        oldest_key = min(
+                            _KELYVO_MEDIA_CACHE,
+                            key=lambda key: _KELYVO_MEDIA_CACHE[key][0],
+                        )
+                        _KELYVO_MEDIA_CACHE.pop(oldest_key, None)
+                    _KELYVO_MEDIA_CACHE[cache_key] = (
+                        time.time(),
+                        content_type,
+                        media_bytes,
+                    )
+                response.close()
+                headers["Cache-Control"] = "private, max-age=60"
+                return Response(
+                    content=media_bytes,
+                    media_type=content_type,
+                    headers=headers,
+                )
+        except Exception:
+            try:
+                response.close()
+            except Exception:
+                pass
+
     return StreamingResponse(
         stream_media(),
         media_type=content_type,
@@ -3355,15 +4397,6 @@ def hash_password(
     return hashlib.sha256(
         password.encode("utf-8")
     ).hexdigest()
-
-
-def get_db():
-    db = SessionLocal()
-
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @app.get(
@@ -3507,6 +4540,7 @@ def register_user(
 
     db.commit()
     db.refresh(new_user)
+    _cache_user_id(new_user.email, int(new_user.id))
 
     response = JSONResponse(
         content={
@@ -3594,6 +4628,8 @@ def login_user(
             detail="This account has an invalid portal role configuration."
         )
 
+    _cache_user_id(user.email, int(user.id))
+
     response = JSONResponse(
         content={
             "status": "success",
@@ -3620,9 +4656,18 @@ def login_user(
 
 
 @app.post("/logout")
-def logout_user(request: Request):
+def logout_user(request: Request, db: Session = Depends(get_db)):
+    session = read_session_token(request)
+    if session and session.get("email"):
+        user = db.query(models.User).filter(models.User.email == normalize_email(session["email"])).first()
+        if user is not None:
+            existing = db.execute(workforce_presence.select().where(workforce_presence.c.user_id == int(user.id))).mappings().first()
+            if existing:
+                db.execute(workforce_presence.update().where(workforce_presence.c.user_id == int(user.id)).values(activity_state="offline", current_context=None, current_task_id=None, updated_at=_utc_now().isoformat()))
+                db.commit()
     response = JSONResponse(content={"status": "success"})
     response.delete_cookie(KELYVO_SESSION_COOKIE, path="/")
+    _clear_active_task_cookie(response)
     return response
 
 
@@ -3669,6 +4714,7 @@ def get_current_portal_session(
 def _get_kelyvo_blocked_fresh_task_ids(
     user_id: int,
     task_type: str,
+    db: Session = None,
 ):
     """Return task IDs that KELYVO must not offer as fresh work.
 
@@ -3690,7 +4736,9 @@ def _get_kelyvo_blocked_fresh_task_ids(
     if not task_type:
         return set()
 
-    db = SessionLocal()
+    owns_db = db is None
+    if owns_db:
+        db = SessionLocal()
     try:
         rows = (
             db.query(models.TaskSubmission)
@@ -3716,7 +4764,8 @@ def _get_kelyvo_blocked_fresh_task_ids(
         db.rollback()
         return blocked if "blocked" in locals() else set()
     finally:
-        db.close()
+        if owns_db:
+            db.close()
 
 
 def _fetch_label_studio_project_tasks(project_id: int):
@@ -3825,547 +4874,591 @@ def _fetch_label_studio_project_tasks(project_id: int):
     return []
 
 
+def _sync_label_studio_tasks_into_kelyvo(
+    project_id: int,
+    task_type: str,
+    task_pool,
+):
+    """Mirror Label Studio tasks into KELYVO's canonical task registry.
+
+    Label Studio remains the execution/annotation engine, but KELYVO must have
+    a local Task row for every task that can be offered to contributors.
+    Earlier versions only created canonical rows when a task was already
+    selected/submitted, which meant newly imported Label Studio tasks could
+    exist in Label Studio but be invisible to KELYVO's picker.
+
+    This is additive/idempotent for valid workflow state, but it also repairs
+    one invalid state: a Task row marked "reserved" without any active
+    TaskAssignment. That orphaned state must be released or converted to
+    submitted based on the latest assignment so real queue work is not hidden.
+    """
+    project_id = int(project_id)
+    normalized_task_type = str(task_type or "").strip().lower()
+    if not normalized_task_type or not isinstance(task_pool, list):
+        return 0
+
+    db = SessionLocal()
+    created_or_updated = 0
+    try:
+        project = (
+            db.query(models.Project)
+            .filter(
+                models.Project.external_engine == "label_studio",
+                models.Project.external_project_id == project_id,
+                models.Project.status == "active",
+            )
+            .first()
+        )
+        if project is None:
+            return 0
+
+        existing_rows = (
+            db.query(models.Task)
+            .filter(
+                models.Task.project_id == project.id,
+                models.Task.external_engine == "label_studio",
+                models.Task.external_project_id == project_id,
+            )
+            .all()
+        )
+        existing_by_external_id = {
+            int(row.external_task_id): row
+            for row in existing_rows
+            if row.external_task_id is not None
+        }
+
+        for payload in task_pool:
+            if not isinstance(payload, dict) or payload.get("id") is None:
+                continue
+            try:
+                external_task_id = int(payload.get("id"))
+            except (TypeError, ValueError):
+                continue
+
+            row = existing_by_external_id.get(external_task_id)
+            title = payload.get("title") or f"{normalized_task_type} task #{external_task_id}"
+
+            if row is None:
+                row = models.Task(
+                    project_id=project.id,
+                    task_number=external_task_id,
+                    external_task_id=external_task_id,
+                    external_engine="label_studio",
+                    external_project_id=project_id,
+                    title=str(title),
+                    task_type=normalized_task_type,
+                    status="available",
+                    priority=0,
+                    is_locked=False,
+                )
+                db.add(row)
+                existing_by_external_id[external_task_id] = row
+                created_or_updated += 1
+                continue
+
+            # Keep KELYVO workflow state authoritative. Only repair missing
+            # metadata here; never turn reserved/submitted/completed tasks back
+            # into available work merely because Label Studio still lists them.
+            if not getattr(row, "title", None):
+                row.title = str(title)
+                created_or_updated += 1
+            if not getattr(row, "task_type", None):
+                row.task_type = normalized_task_type
+                created_or_updated += 1
+            if getattr(row, "external_project_id", None) is None:
+                row.external_project_id = project_id
+                created_or_updated += 1
+
+        repaired = _repair_orphaned_reserved_tasks_in_session(
+            db,
+            project_id=project_id,
+        )
+        if repaired:
+            created_or_updated += repaired
+
+        if created_or_updated:
+            db.commit()
+        return created_or_updated
+    except Exception:
+        db.rollback()
+        return 0
+    finally:
+        db.close()
+
+
+def _get_kelyvo_requeue_candidate_ids(
+    db: Session,
+    task_type: str,
+    contributor_user_id=None,
+):
+    """Return eligible requeue task IDs using only KELYVO state.
+
+    This intentionally does not contact Label Studio.  The selected task is
+    hydrated from Label Studio only after KELYVO has chosen a single candidate.
+    """
+    failed_rows = (
+        db.query(models.TaskSubmission)
+        .filter(
+            models.TaskSubmission.task_type == str(task_type).strip().lower(),
+            models.TaskSubmission.status == "FAILED",
+            models.TaskSubmission.attempt_number >= 2,
+        )
+        .order_by(models.TaskSubmission.id.desc())
+        .all()
+    )
+
+    candidates = []
+    seen = set()
+    for row in failed_rows:
+        task_id = _extract_kelyvo_task_id(row.task_title)
+        if task_id is None or task_id in seen:
+            continue
+        if contributor_user_id is not None and row.user_id is not None:
+            if int(row.user_id) == int(contributor_user_id):
+                continue
+        seen.add(int(task_id))
+        candidates.append(int(task_id))
+
+    return candidates
+
+
+def _get_kelyvo_available_task_ids(
+    db: Session,
+    project_id: int,
+    task_type: str,
+    blocked_task_ids=None,
+    reserved_other_task_ids=None,
+):
+    """Choose fresh task IDs from KELYVO's canonical task registry.
+
+    The contributor task picker must not require a full remote Label Studio
+    task-pool request just to decide which task to assign. KELYVO already owns
+    the persistent Project/Task/TaskAssignment workflow state, so use that as
+    the candidate source and contact Label Studio only for the one selected
+    task payload.
+    """
+    blocked = {int(x) for x in (blocked_task_ids or set())}
+    reserved = {int(x) for x in (reserved_other_task_ids or set())}
+
+    rows = (
+        db.query(models.Task)
+        .filter(
+            models.Task.external_engine == "label_studio",
+            models.Task.external_project_id == int(project_id),
+            models.Task.task_type == str(task_type).strip().lower(),
+            models.Task.is_locked.is_(False),
+            models.Task.status == "available",
+        )
+        .order_by(
+            models.Task.priority.desc(),
+            models.Task.external_task_id.asc(),
+            models.Task.id.asc(),
+        )
+        .all()
+    )
+
+    ids = []
+    for row in rows:
+        task_id = getattr(row, "external_task_id", None)
+        if task_id is None:
+            continue
+        task_id = int(task_id)
+        if task_id in blocked or task_id in reserved:
+            continue
+        ids.append(task_id)
+
+    return ids
+
+
 @app.get("/api/start-task")
 def start_task(
     request: Request,
     modality: str = "text",
     email: str = ""
 ):
-    require_contributor_session(request)
+    """Fast contributor task assignment.
 
-    auth_user_id = _get_authenticated_user_id(request)
-    if auth_user_id is None:
-        raise HTTPException(status_code=401, detail="A valid contributor session is required.")
-    profile_db = SessionLocal()
-    try:
-        profile_user = profile_db.query(models.User).filter(models.User.id == int(auth_user_id)).first()
-        if profile_user is None:
-            raise HTTPException(status_code=404, detail="Contributor account not found.")
-        completion = _get_contributor_profile_completion(profile_db, profile_user)
-    finally:
-        profile_db.close()
-    if not completion["complete"]:
-        raise HTTPException(
-            status_code=428,
-            detail={
-                "code": "CONTRIBUTOR_PROFILE_REQUIRED",
-                "message": "Complete your KELYVO workforce profile before starting a new task.",
-                "missing": completion["missing"],
-                "completed_fields": completion["completed_fields"],
-                "required_fields": completion["required_fields"],
-            }
-        )
+    The normal path intentionally uses ONE Neon session for eligibility and the
+    final reservation. Label Studio is contacted only for the selected task.
+    """
+    session = require_contributor_session_fast(request)
+    session_email = normalize_email(session.get("email", ""))
+    auth_user_id = _get_cached_user_id(session_email)
 
-    # Repair the one known task-10 draft corruption caused by the earlier
-    # draft-routing patch. This runs only once because the migration writes
-    # a marker file after successful cleanup.
-    _repair_known_legacy_task10_drafts_once()
-    _cleanup_legacy_task12_drafts_once()
-
-    clean_input = (
-        modality
-        .strip()
-        .lower()
-    )
-
-    email = normalize_email(
-        email
-    )
-
-    if email:
-        contributor_identity = (
-            "user:" + email
-        )
-    else:
-        contributor_identity = (
-            get_browser_identity(
-                request
-            )
-        )
+    # Static project mapping is already the KELYVO/Label Studio registry bridge.
+    clean_input = (modality or "").strip().lower()
+    email = normalize_email(email)
+    contributor_identity = "user:" + (email or session_email)
 
     if clean_input.isdigit():
-        project_id = int(
-            clean_input
-        )
-
-        reverse_mapping = {
-            value: key
-            for key, value
-            in PROJECT_MAPPING.items()
-        }
-
-        modality_key = (
-            reverse_mapping.get(
-                project_id
-            )
-        )
-
-        if (
-            project_id
-            not in PROJECT_MAPPING.values()
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Unsupported Label Studio "
-                    "project."
-                )
-            )
+        project_id = int(clean_input)
+        reverse_mapping = {value: key for key, value in PROJECT_MAPPING.items()}
+        modality_key = reverse_mapping.get(project_id)
+        if project_id not in PROJECT_MAPPING.values():
+            raise HTTPException(status_code=400, detail="Unsupported Label Studio project.")
     else:
         modality_key = clean_input
-
-        if (
-            modality_key
-            not in PROJECT_MAPPING
-        ):
+        if modality_key not in PROJECT_MAPPING:
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"Unsupported modality "
-                    f"'{modality}'. "
-                    f"Supported modalities: "
+                    f"Unsupported modality '{modality}'. Supported modalities: "
                     f"{', '.join(PROJECT_MAPPING.keys())}"
-                )
+                ),
             )
+        project_id = int(PROJECT_MAPPING[modality_key])
 
-        project_id = (
-            PROJECT_MAPPING[
-                modality_key
-            ]
-        )
-
-    # Prefer the persistent KELYVO project registry when it is available.
-    # PROJECT_MAPPING remains the compatibility fallback during this first
-    # migration step so an enterprise-registry issue cannot break task flow.
-    enterprise_project = _get_enterprise_project_for_modality(modality_key)
-    if (
-        enterprise_project is not None
-        and enterprise_project.external_project_id is not None
-    ):
-        project_id = int(enterprise_project.external_project_id)
-
-    contributor_user_id = None
-
-    if email:
-        contributor_user = None
-        try:
-            with SessionLocal() as start_task_db:
-                contributor_user = (
-                    start_task_db.query(models.User)
-                    .filter(models.User.email == email)
-                    .first()
-                )
-                if contributor_user:
-                    contributor_user_id = int(contributor_user.id)
-        except Exception:
-            contributor_user_id = None
-
-    reserved_task_id = (
-        get_reserved_task(
-            contributor_identity,
-            project_id,
-            user_id=_get_authenticated_user_id(request),
-        )
-    )
-
-    if reserved_task_id is not None:
-        existing_response = (
-            label_studio_request(
-                "GET",
-                f"/api/tasks/"
-                f"{reserved_task_id}"
-            )
-        )
-
-        if (
-            existing_response.status_code
-            == 200
-        ):
-            try:
-                existing_task = (
-                    existing_response.json()
-                )
-            except ValueError:
-                existing_task = None
-
-            if existing_task:
-                existing_project = (
-                    existing_task.get(
-                        "project"
-                    )
-                )
-
-                if (
-                    existing_project is None
-                    or int(existing_project)
-                    == project_id
-                ):
-                    project_response = (
-                        label_studio_request(
-                            "GET",
-                            f"/api/projects/"
-                            f"{project_id}"
-                        )
-                    )
-
-                    project = {}
-
-                    if (
-                        project_response.status_code
-                        == 200
-                    ):
-                        try:
-                            project = (
-                                project_response.json()
-                            )
-                        except ValueError:
-                            project = {}
-
-                    task_for_frontend = (
-                        rewrite_label_studio_media_urls(
-                            existing_task
-                        )
-                    )
-
-                    if email:
-                        sync_browser_assignment_for_request(
-                            request,
-                            project_id,
-                            int(reserved_task_id)
-                        )
-
-                    _sync_enterprise_task(
-                        project_id=project_id,
-                        task_id=int(reserved_task_id),
-                        task_payload=existing_task,
-                        status="reserved",
-                    )
-
-                    return {
-                        "status":
-                            "success",
-                        "source":
-                            "label_studio",
-                        "modality":
-                            modality_key,
-                        "project_id":
-                            project_id,
-                        "config":
-                            project.get(
-                                "label_config",
-                                ""
-                            ),
-                        "task":
-                            task_for_frontend,
-                        "assigned_task_id":
-                            reserved_task_id,
-                        "existing_assignment":
-                            True,
-                    }
-
-        release_reserved_task(
-            contributor_identity,
-            project_id,
-            reserved_task_id
-        )
-
-    project_response = (
-        label_studio_request(
-            "GET",
-            f"/api/projects/{project_id}"
-        )
-    )
-
-    if project_response.status_code == 404:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "Label Studio project "
-                "not found."
-            )
-        )
-
-    if project_response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Unable to retrieve "
-                "Label Studio project."
-            )
-        )
-
+    # Resolve the contributor once. After the first request, auth_user_id is a
+    # memory-cache hit and the profile/membership eligibility check is also cached.
+    db = SessionLocal()
     try:
-        project = (
-            project_response.json()
-        )
-    except ValueError:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Invalid response received "
-                "from Label Studio."
+        if auth_user_id is None:
+            profile_user = (
+                db.query(models.User)
+                .filter(models.User.email == session_email)
+                .first()
             )
-        )
-
-    tasks = _fetch_label_studio_project_tasks(project_id)
-
-    if not tasks:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "No tasks are currently available."
-            )
-        )
-
-    blocked_fresh_task_ids = _get_kelyvo_blocked_fresh_task_ids(
-        contributor_user_id,
-        modality_key,
-    )
-
-    # Failed KELYVO tasks are handled through the dedicated revision/requeue
-    # path. Fresh-work selection is blocked only by KELYVO workflow state and
-    # active reservations; old Label Studio annotation objects do not by
-    # themselves make a task unavailable.
-    requeue_db = SessionLocal()
-    try:
-        available_tasks = _get_requeued_tasks_for_contributor(
-            db=requeue_db,
-            project_id=project_id,
-            task_type=modality_key,
-            contributor_identity=contributor_identity,
-            contributor_user_id=contributor_user_id,
-        )
-    finally:
-        requeue_db.close()
-
-    requeue_task_ids = {
-        int(item.get("id"))
-        for item in available_tasks
-        if isinstance(item, dict) and item.get("id") is not None
-    }
-
-    for task in tasks:
-        candidate_task_id = task.get("id")
-
-        if candidate_task_id is None:
-            continue
-
-        candidate_task_id = int(candidate_task_id)
-
-        # Label Studio's explicit is_labeled=false is the strongest signal
-        # that an old KELYVO PENDING_QA row is stale: there is currently no
-        # submitted annotation on the task. In that case the task is safe to
-        # return to fresh work. This specifically repairs tasks left poisoned
-        # by the previous save/submission loop without reopening genuinely
-        # submitted or PASSED tasks.
-        task_is_explicitly_unlabeled = (
-            isinstance(task, dict)
-            and task.get("is_labeled") is False
-        )
-
-        if candidate_task_id in blocked_fresh_task_ids:
-            if not task_is_explicitly_unlabeled:
-                continue
-
-            repair_db = SessionLocal()
-            try:
-                stale_pending_rows = (
-                    repair_db.query(models.TaskSubmission)
-                    .filter(
-                        models.TaskSubmission.user_id == int(contributor_user_id),
-                        models.TaskSubmission.task_type == modality_key,
-                        models.TaskSubmission.status == "PENDING_QA",
-                    )
-                    .all()
-                )
-                repaired_any = False
-                for stale_row in stale_pending_rows:
-                    stale_task_id = _extract_task_id_from_submission_title(
-                        stale_row.task_title
-                    )
-                    if stale_task_id == int(candidate_task_id):
-                        stale_row.status = "CANCELLED"
-                        stale_row.reviewer_notes = (
-                            "Automatically reset because Label Studio reports "
-                            "the task as explicitly unlabeled; the previous "
-                            "KELYVO submission state was stale."
-                        )
-                        repaired_any = True
-                if repaired_any:
-                    repair_db.commit()
-                blocked_fresh_task_ids.discard(int(candidate_task_id))
-            except Exception:
-                repair_db.rollback()
-            finally:
-                repair_db.close()
-
-            if candidate_task_id in blocked_fresh_task_ids:
-                continue
-
-        detail_response = label_studio_request(
-            "GET",
-            f"/api/tasks/{candidate_task_id}",
-            params={
-                "project": project_id,
-            }
-        )
-
-        if detail_response.status_code == 200:
-            try:
-                detail_task = detail_response.json()
-            except ValueError:
-                detail_task = task
+            if profile_user is None:
+                raise HTTPException(status_code=404, detail="Contributor account not found.")
+            auth_user_id = int(profile_user.id)
+            _cache_user_id(session_email, auth_user_id)
         else:
-            # Keep the original task payload as a fallback so a temporary
-            # detail-request failure does not break the whole contributor
-            # task picker.
-            detail_task = task
-
-        # KELYVO is the workflow source of truth. Label Studio can contain
-        # imported, historical, or draft annotation objects that do not mean
-        # the task has been completed inside KELYVO. Fresh-work eligibility is
-        # therefore decided from KELYVO submission state plus reservations,
-        # not from `annotations` or `cancelled_annotations` in Label Studio.
-
-        if _is_task_reserved_by_other_contributor(
-            project_id,
-            int(candidate_task_id),
-            contributor_identity,
-            contributor_user_id=contributor_user_id,
-        ):
-            continue
-
-        if int(candidate_task_id) in requeue_task_ids:
-            # It is already present at the front of available_tasks.
-            continue
-
-        available_tasks.append(
-            detail_task
-        )
-
-    if not available_tasks:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "Label Studio has tasks for this project, but KELYVO has "
-                "no eligible fresh task for this contributor. "
-                "Any PASSED task remains permanently excluded; an active "
-                "PENDING_QA task remains excluded until QA/revision changes "
-                "its workflow state."
+            profile_user = (
+                db.query(models.User)
+                .filter(models.User.id == int(auth_user_id))
+                .first()
             )
-        )
+            if profile_user is None:
+                raise HTTPException(status_code=404, detail="Contributor account not found.")
 
-    # Final claim phase: the picker checks reservations while building the
-    # candidate list, but another contributor can claim a candidate between
-    # that check and the actual database reservation. Attempt the candidates in
-    # order and skip any task that loses that race. This is the authoritative
-    # hand-off point for fresh work.
-    selected_task = None
-    assigned_task_id = None
+        if str(profile_user.role or "").strip().lower() != "contributor":
+            raise HTTPException(status_code=403, detail="Contributor access is required.")
 
-    for candidate in available_tasks:
-        if not isinstance(candidate, dict):
-            continue
+        eligibility = _get_cached_start_eligibility(int(auth_user_id))
+        if eligibility is None:
+            membership = _get_user_membership(db, int(profile_user.id))
+            if membership is not None and str(membership.status or "active").strip().lower() == "suspended":
+                raise HTTPException(status_code=403, detail="This KELYVO account is currently suspended.")
+            eligibility = _get_contributor_profile_completion(db, profile_user)
+            _cache_start_eligibility(int(auth_user_id), eligibility)
 
-        candidate_task_id = candidate.get("id")
-        if candidate_task_id is None:
-            continue
+        if not eligibility.get("complete"):
+            raise HTTPException(
+                status_code=428,
+                detail={
+                    "code": "CONTRIBUTOR_PROFILE_REQUIRED",
+                    "message": "Complete your KELYVO workforce profile before starting a new task.",
+                    "missing": eligibility.get("missing", []),
+                    "completed_fields": eligibility.get("completed_fields", 0),
+                    "required_fields": eligibility.get("required_fields", 0),
+                },
+            )
 
-        try:
-            candidate_task_id = int(candidate_task_id)
-        except (TypeError, ValueError):
-            continue
+        contributor_user_id = int(auth_user_id)
+        _cache_user_id(session_email, contributor_user_id)
 
-        if _is_task_reserved_by_other_contributor(
-            project_id,
-            candidate_task_id,
-            contributor_identity,
-            contributor_user_id=contributor_user_id,
+        # Existing active assignment: use the signed cookie first, otherwise the
+        # same DB session already open for the eligibility check.
+        active_cookie = read_active_task_token(request)
+        reserved_task_id = None
+        if (
+            active_cookie is not None
+            and int(active_cookie["user_id"]) == contributor_user_id
+            and int(active_cookie["project_id"]) == project_id
         ):
-            continue
+            reserved_task_id = int(active_cookie["task_id"])
+        else:
+            existing_assignment = _get_active_persistent_assignment_fast(
+                db,
+                contributor_user_id,
+                project_id=project_id,
+            )
+            if existing_assignment is not None and existing_assignment.task is not None:
+                reserved_task_id = int(existing_assignment.task.external_task_id)
 
-        try:
-            claimed_task_id = reserve_task_for_contributor(
-                contributor_identity,
+        if reserved_task_id is not None:
+            existing_task = (
+                _get_cached_assigned_task(project_id, reserved_task_id)
+                or _get_cached_task_item(project_id, reserved_task_id)
+            )
+            if existing_task is None:
+                response = label_studio_request(
+                    "GET",
+                    f"/api/tasks/{int(reserved_task_id)}",
+                    params={"project": project_id, "resolve_uri": "true"},
+                )
+                if response.status_code == 200:
+                    try:
+                        existing_task = response.json()
+                    except ValueError:
+                        existing_task = None
+                    if isinstance(existing_task, dict):
+                        _cache_assigned_task(project_id, reserved_task_id, existing_task)
+            if isinstance(existing_task, dict):
+                project = _get_cached_project(project_id) or {}
+                _cache_active_assignment(contributor_user_id, project_id, reserved_task_id)
+                response_payload = JSONResponse(content={
+                    "status": "success",
+                    "source": "label_studio",
+                    "modality": modality_key,
+                    "project_id": project_id,
+                    "config": project.get("label_config", ""),
+                    "task": rewrite_label_studio_media_urls(existing_task),
+                    "assigned_task_id": reserved_task_id,
+                    "existing_assignment": True,
+                })
+                _set_active_task_cookie(response_payload, request, project_id, reserved_task_id, contributor_user_id)
+                return response_payload
+
+            _release_reserved_task_in_session(
+                db,
+                contributor_user_id,
                 project_id,
-                candidate_task_id,
-                user_id=contributor_user_id,
+                reserved_task_id,
+                final_task_status="available",
             )
-        except HTTPException as exc:
-            if exc.status_code == 409:
-                # Another contributor won the reservation race. Try the next
-                # eligible candidate rather than surfacing a false task error.
-                continue
-            raise
+            db.commit()
 
-        if claimed_task_id is None:
-            # A failed reservation must never be treated as a successful claim.
-            continue
-
-        if int(claimed_task_id) != candidate_task_id:
-            # This should only happen if the contributor already had an active
-            # reservation; do not accidentally return a task different from the
-            # candidate we just selected.
-            continue
-
-        selected_task = candidate
-        assigned_task_id = int(claimed_task_id)
-        break
-
-    if selected_task is None or assigned_task_id is None:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "All currently eligible tasks were claimed by other "
-                "contributors before this task could be reserved. "
-                "Please request a new task."
-            )
-        )
-
-    task = selected_task
-    task_id = int(task.get("id"))
-
-    if email:
-        sync_browser_assignment_for_request(
-            request,
-            project_id,
-            int(assigned_task_id)
-        )
-
-    _sync_enterprise_task(
-        project_id=project_id,
-        task_id=int(assigned_task_id),
-        task_payload=task,
-        status="reserved",
-    )
-
-    task_for_frontend = (
-        rewrite_label_studio_media_urls(
-            task
-        )
-    )
-
-    return {
-        "status":
-            "success",
-        "source":
-            "label_studio",
-        "modality":
+        # One DB session now handles all KELYVO eligibility queries and the final
+        # race-safe reservation. This removes several remote Neon connection hops.
+        blocked_fresh_task_ids = _get_kelyvo_blocked_fresh_task_ids(
+            contributor_user_id,
             modality_key,
-        "project_id":
+            db=db,
+        )
+        reserved_other_task_ids = _get_other_reserved_task_ids(
             project_id,
-        "config":
-            project.get(
-                "label_config",
-                ""
-            ),
-        "task":
-            task_for_frontend,
-        "assigned_task_id":
-            assigned_task_id,
-        "existing_assignment":
-            False,
-    }
+            contributor_user_id=contributor_user_id,
+            db=db,
+        )
+        if reserved_other_task_ids is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Unable to verify current task reservations. Please try again.",
+            )
+
+        requeue_ids = _get_kelyvo_requeue_candidate_ids(
+            db,
+            modality_key,
+            contributor_user_id=contributor_user_id,
+        )
+        fresh_ids = _get_kelyvo_available_task_ids(
+            db,
+            project_id,
+            modality_key,
+            blocked_task_ids=blocked_fresh_task_ids,
+            reserved_other_task_ids=reserved_other_task_ids,
+        )
+
+        candidate_ids = []
+        seen_ids = set()
+        for candidate in requeue_ids + fresh_ids:
+            candidate = int(candidate)
+            if candidate in seen_ids or candidate in reserved_other_task_ids:
+                continue
+            seen_ids.add(candidate)
+            candidate_ids.append(candidate)
+
+        if not candidate_ids:
+            task_pool = _get_cached_task_pool(project_id)
+            if task_pool is None:
+                task_pool = _fetch_label_studio_project_tasks(project_id)
+                if task_pool:
+                    _cache_task_pool(project_id, task_pool)
+            if task_pool:
+                _sync_label_studio_tasks_into_kelyvo(project_id, modality_key, task_pool)
+                # Requery with this same session after the mirror commit. SQLAlchemy
+                # expires the relevant rows automatically after the helper returns.
+                fresh_ids = _get_kelyvo_available_task_ids(
+                    db,
+                    project_id,
+                    modality_key,
+                    blocked_task_ids=blocked_fresh_task_ids,
+                    reserved_other_task_ids=reserved_other_task_ids,
+                )
+                for candidate in fresh_ids:
+                    candidate = int(candidate)
+                    if candidate not in seen_ids and candidate not in reserved_other_task_ids:
+                        seen_ids.add(candidate)
+                        candidate_ids.append(candidate)
+
+            if not candidate_ids:
+                for cached_task in task_pool or []:
+                    if not isinstance(cached_task, dict) or cached_task.get("id") is None:
+                        continue
+                    cached_id = int(cached_task.get("id"))
+                    if cached_id in blocked_fresh_task_ids or cached_id in reserved_other_task_ids:
+                        continue
+                    candidate_ids.append(cached_id)
+                    _cache_assigned_task(project_id, cached_id, cached_task)
+                    break
+
+        if not candidate_ids:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "KELYVO currently has no eligible task for this contributor. "
+                    "The Label Studio task registry is synchronized in the background; "
+                    "newly imported tasks may take up to about 60 seconds to enter the KELYVO pool. "
+                    "PASSED tasks remain permanently excluded and active PENDING_QA/FAILED tasks remain in their workflow queues."
+                ),
+            )
+
+        project = _get_cached_project(project_id) or {}
+        if not project:
+            project_response = label_studio_request("GET", f"/api/projects/{project_id}")
+            if project_response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Label Studio project not found.")
+            if project_response.status_code >= 400:
+                raise HTTPException(status_code=502, detail="Unable to retrieve Label Studio project.")
+            project = project_response.json()
+            if isinstance(project, dict):
+                _cache_project(project_id, project)
+
+        selected_task = None
+        assigned_task_id = None
+
+        def _try_claim_candidates(candidate_list):
+            nonlocal selected_task, assigned_task_id
+            for candidate_task_id in candidate_list:
+                candidate_task_id = int(candidate_task_id)
+                task = (
+                    _get_cached_assigned_task(project_id, candidate_task_id)
+                    or _get_cached_task_item(project_id, candidate_task_id)
+                )
+                if task is None:
+                    response = label_studio_request(
+                        "GET",
+                        f"/api/tasks/{candidate_task_id}",
+                        params={"project": project_id, "resolve_uri": "true"},
+                    )
+                    if response.status_code != 200:
+                        continue
+                    try:
+                        task = response.json()
+                    except ValueError:
+                        continue
+                    if isinstance(task, dict):
+                        _cache_assigned_task(project_id, candidate_task_id, task)
+
+                if not isinstance(task, dict):
+                    continue
+
+                try:
+                    claimed_task_id = _reserve_task_for_contributor_in_session(
+                        db,
+                        project_id,
+                        candidate_task_id,
+                        contributor_user_id,
+                    )
+                except HTTPException as exc:
+                    if exc.status_code == 409:
+                        continue
+                    raise
+
+                if claimed_task_id is None or int(claimed_task_id) != candidate_task_id:
+                    continue
+
+                selected_task = task
+                assigned_task_id = candidate_task_id
+                return True
+            return False
+
+        _try_claim_candidates(candidate_ids)
+
+        # A candidate snapshot can legitimately be stale: another worker may
+        # have claimed one of those rows, while newer Label Studio tasks may
+        # already exist outside the KELYVO registry snapshot. If the first claim
+        # pass could not reserve anything, perform exactly ONE live Label Studio
+        # reconciliation and retry from the refreshed canonical registry. This is
+        # the missing correctness path that caused the misleading "all claimed"
+        # 404 even while untouched tasks were visible in Label Studio.
+        if selected_task is None or assigned_task_id is None:
+            try:
+                refreshed_pool = _fetch_label_studio_project_tasks(project_id)
+            except Exception:
+                refreshed_pool = []
+
+            if refreshed_pool:
+                _cache_task_pool(project_id, refreshed_pool)
+                _cache_task_items(project_id, refreshed_pool)
+                _sync_label_studio_tasks_into_kelyvo(
+                    project_id, modality_key, refreshed_pool
+                )
+                db.expire_all()
+
+                # Recompute reservations/candidates after the live sync so newly
+                # imported tasks and newly released tasks participate immediately.
+                refreshed_reserved = _get_other_reserved_task_ids(
+                    project_id,
+                    contributor_user_id=contributor_user_id,
+                    db=db,
+                )
+                if refreshed_reserved is not None:
+                    refreshed_fresh_ids = _get_kelyvo_available_task_ids(
+                        db,
+                        project_id,
+                        modality_key,
+                        blocked_task_ids=blocked_fresh_task_ids,
+                        reserved_other_task_ids=refreshed_reserved,
+                    )
+                    refreshed_requeue_ids = _get_kelyvo_requeue_candidate_ids(
+                        db,
+                        modality_key,
+                        contributor_user_id=contributor_user_id,
+                    )
+                    retry_candidates = []
+                    retry_seen = set()
+                    for candidate in refreshed_requeue_ids + refreshed_fresh_ids:
+                        candidate = int(candidate)
+                        if candidate in retry_seen or candidate in refreshed_reserved:
+                            continue
+                        retry_seen.add(candidate)
+                        retry_candidates.append(candidate)
+                    _try_claim_candidates(retry_candidates)
+
+            if selected_task is None or assigned_task_id is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        "KELYVO could not reserve an eligible task after a live "
+                        "Label Studio reconciliation. The task pool is present, "
+                        "but its KELYVO reservation state needs investigation."
+                    ),
+                )
+
+        # The reservation helper uses a SAVEPOINT for candidate-level conflict isolation.
+        # The SAVEPOINT is not the final transaction commit, so persist the successful
+        # TaskAssignment + Task state before returning the task to the browser.
+        db.commit()
+
+        _cache_assigned_task(project_id, assigned_task_id, selected_task)
+        _cache_active_assignment(contributor_user_id, project_id, assigned_task_id)
+        task_for_frontend = rewrite_label_studio_media_urls(selected_task)
+        response_payload = JSONResponse(content={
+            "status": "success",
+            "source": "label_studio",
+            "modality": modality_key,
+            "project_id": project_id,
+            "config": project.get("label_config", ""),
+            "task": task_for_frontend,
+            "assigned_task_id": assigned_task_id,
+            "existing_assignment": False,
+        })
+        _set_active_task_cookie(response_payload, request, project_id, assigned_task_id, contributor_user_id)
+        return response_payload
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.exception(
+            "start_task_failed modality=%s project_id=%s user_id=%s",
+            modality_key, project_id, auth_user_id,
+        )
+        raise HTTPException(status_code=500, detail="KELYVO could not start the requested task.") from exc
+    finally:
+        db.close()
 
 
 @app.get("/api/current-task")
@@ -4374,129 +5467,125 @@ def current_task(
     email: str = "",
     project_id: int = 0
 ):
-    require_contributor_session(request)
+    """Return only a task that is currently persisted as reserved for this contributor.
+
+    The active-task cookie and in-memory caches are convenience hints only.
+    PostgreSQL is authoritative, so a stale cookie/cache can never resurrect an
+    already-released/completed task after refresh.
+    """
+    session = require_contributor_session_fast(request)
+    email = normalize_email(email or session.get("email", ""))
+    user_id = _get_authenticated_user_id(request)
+
+    active_cookie = read_active_task_token(request)
+    stale_cookie = False
+
+    if active_cookie is not None and user_id is not None:
+        cookie_project_id = int(active_cookie["project_id"])
+        cookie_task_id = int(active_cookie["task_id"])
+        cookie_user_id = int(active_cookie.get("user_id", 0) or 0)
+
+        if cookie_user_id != int(user_id):
+            stale_cookie = True
+        elif project_id and cookie_project_id != int(project_id):
+            stale_cookie = True
+        else:
+            # NEVER trust the cookie by itself. Confirm the reservation directly
+            # in PostgreSQL before restoring the task after refresh.
+            db_reserved_task_id = _get_reserved_task_fast(
+                user_id=int(user_id),
+                project_id=cookie_project_id,
+            )
+            if db_reserved_task_id == cookie_task_id:
+                task = (
+                    _get_cached_assigned_task(cookie_project_id, cookie_task_id)
+                    or _get_cached_task_item(cookie_project_id, cookie_task_id)
+                )
+                if isinstance(task, dict):
+                    _cache_active_assignment(
+                        int(user_id),
+                        cookie_project_id,
+                        cookie_task_id,
+                    )
+                    return {
+                        "status": "success",
+                        "assigned": True,
+                        "project_id": cookie_project_id,
+                        "task_id": cookie_task_id,
+                        "task": rewrite_label_studio_media_urls(task),
+                    }
+
+            stale_cookie = True
+
+    if user_id is None:
+        if stale_cookie:
+            response = JSONResponse(
+                content={"status": "success", "assigned": False, "task": None}
+            )
+            _clear_active_task_cookie(response)
+            return response
+        return {"status": "success", "assigned": False, "task": None}
 
     if not project_id:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Project ID is required."
+        if stale_cookie:
+            response = JSONResponse(
+                content={"status": "success", "assigned": False, "task": None}
             )
-        )
+            _clear_active_task_cookie(response)
+            return response
+        return {"status": "success", "assigned": False, "task": None}
 
-    email = normalize_email(
-        email
+    # Always read the persistent assignment for refresh/restore. Do not use the
+    # in-memory assignment cache as authority here; that cache may outlive a
+    # release/submit/expiration event.
+    task_id = _get_reserved_task_fast(
+        user_id=int(user_id),
+        project_id=int(project_id),
     )
-
-    if email:
-        contributor_identity = (
-            "user:" + email
-        )
-    else:
-        contributor_identity = (
-            get_browser_identity(
-                request
-            )
-        )
-
-    task_id = (
-        get_reserved_task(
-            contributor_identity,
-            project_id,
-            user_id=_get_authenticated_user_id(request),
-        )
-    )
-
     if task_id is None:
-        return {
-            "status":
-                "success",
-            "assigned":
-                False,
-            "task":
-                None,
-        }
+        response = JSONResponse(
+            content={"status": "success", "assigned": False, "task": None}
+        )
+        _clear_cached_active_assignment(int(user_id), int(project_id))
+        _clear_active_task_cookie(response)
+        return response
 
-    response = (
-        label_studio_request(
+    task = (
+        _get_cached_assigned_task(int(project_id), int(task_id))
+        or _get_cached_task_item(int(project_id), int(task_id))
+    )
+    if task is None:
+        response = label_studio_request(
             "GET",
-            f"/api/tasks/{task_id}"
+            f"/api/tasks/{int(task_id)}",
+            params={"project": int(project_id), "resolve_uri": "true"},
         )
-    )
-
-    if response.status_code != 200:
-        release_reserved_task(
-            contributor_identity,
-            project_id,
-            task_id
-        )
-
-        return {
-            "status":
-                "success",
-            "assigned":
-                False,
-            "task":
-                None,
-        }
-
-    try:
-        task = (
-            response.json()
-        )
-    except ValueError:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Invalid task response "
-                "from Label Studio."
+        if response.status_code != 200:
+            cleared = JSONResponse(
+                content={"status": "success", "assigned": False, "task": None}
             )
+            _clear_active_task_cookie(cleared)
+            return cleared
+        try:
+            task = response.json()
+        except ValueError:
+            task = None
+        if isinstance(task, dict):
+            _cache_assigned_task(int(project_id), int(task_id), task)
+
+    if not isinstance(task, dict):
+        cleared = JSONResponse(
+            content={"status": "success", "assigned": False, "task": None}
         )
-
-    task_project = task.get(
-        "project"
-    )
-
-    if (
-        task_project is not None
-        and int(task_project)
-        != int(project_id)
-    ):
-        release_reserved_task(
-            contributor_identity,
-            project_id,
-            task_id
-        )
-
-        return {
-            "status":
-                "success",
-            "assigned":
-                False,
-            "task":
-                None,
-        }
-
-    if email:
-        sync_browser_assignment_for_request(
-            request,
-            project_id,
-            int(task_id)
-        )
+        _clear_active_task_cookie(cleared)
+        return cleared
 
     return {
-        "status":
-            "success",
-        "assigned":
-            True,
-        "project_id":
-            project_id,
-        "task_id":
-            task_id,
-        "task":
-            rewrite_label_studio_media_urls(
-                task
-            ),
+        "status": "success",
+        "assigned": True,
+        "project_id": int(project_id),
+        "task_id": int(task_id),
+        "task": rewrite_label_studio_media_urls(task),
     }
 
 
@@ -4566,16 +5655,14 @@ def skip_task(
             task_id
         )
 
-    return {
-        "status":
-            "success",
-        "message":
-            "Task skipped.",
-        "task_id":
-            task_id,
-        "project_id":
-            project_id,
-    }
+    response_payload = JSONResponse(content={
+        "status": "success",
+        "message": "Task skipped.",
+        "task_id": task_id,
+        "project_id": project_id,
+    })
+    _clear_active_task_cookie(response_payload)
+    return response_payload
 
 
 @app.post("/api/contributor/exit-task")
@@ -4656,10 +5743,15 @@ def submit_task(
     project_id: int = 0,
     db: Session = Depends(get_db)
 ):
+    """Authoritative, single-transaction contributor Submit-to-QA path."""
     email = normalize_email(email)
 
-    session = require_contributor_session(request)
-    if email != session["email"]:
+    session = read_session_token(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="A valid KELYVO session is required.")
+    if str(session.get("role") or "").strip().lower() != "contributor":
+        raise HTTPException(status_code=403, detail="Contributor access is required.")
+    if email != normalize_email(session.get("email", "")):
         raise HTTPException(
             status_code=403,
             detail="Submission account does not match the active KELYVO session."
@@ -4673,29 +5765,37 @@ def submit_task(
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if str(user.role or "").strip().lower() != "contributor":
+        raise HTTPException(status_code=403, detail="Contributor access is required.")
 
-    if task_id and project_id:
-        contributor_identity = "user:" + email
-        assigned_task_id = get_reserved_task(
-            contributor_identity,
-            project_id,
-            user_id=_get_authenticated_user_id(request),
+    membership = _get_user_membership(db, int(user.id))
+    if membership is not None and str(membership.status or "active").strip().lower() == "suspended":
+        raise HTTPException(
+            status_code=403,
+            detail="This KELYVO account is currently suspended. Contact an administrator."
         )
 
-        if assigned_task_id is None or int(assigned_task_id) != int(task_id):
+    user_id = int(user.id)
+
+    if task_id and project_id:
+        assignment = _get_active_persistent_assignment_fast(
+            db,
+            user_id,
+            project_id=int(project_id),
+            task_id=int(task_id),
+        )
+        if assignment is None:
             raise HTTPException(
                 status_code=403,
                 detail="This task is not currently assigned to this contributor."
             )
 
-    # Serialize concurrent submit clicks for the same contributor. SQLite may
-    # not support row-level locking, so the durable status checks below remain
-    # the final idempotency safeguard.
+    # Prevent duplicate concurrent submits without opening a second DB session.
     try:
         locked_user = (
             db.query(models.User)
             .with_for_update()
-            .filter(models.User.id == int(user.id))
+            .filter(models.User.id == user_id)
             .first()
         )
         if locked_user is not None:
@@ -4703,52 +5803,84 @@ def submit_task(
     except Exception:
         pass
 
-    existing_submission = None
-    try:
-        existing_submission = (
-            db.query(models.TaskSubmission)
-            .filter(
-                models.TaskSubmission.user_id == user.id,
-                models.TaskSubmission.task_title == task_title,
-                models.TaskSubmission.task_type == task_type,
-                models.TaskSubmission.status == "PENDING_QA"
-            )
-            .first()
+    matching_submissions = (
+        db.query(models.TaskSubmission)
+        .filter(
+            models.TaskSubmission.user_id == user_id,
+            models.TaskSubmission.task_title == task_title,
+            models.TaskSubmission.task_type == task_type,
+            models.TaskSubmission.status.in_(("PENDING_QA", "FAILED")),
         )
-    except Exception:
-        existing_submission = None
+        .order_by(models.TaskSubmission.id.desc())
+        .all()
+    )
 
+    existing_submission = None
     revision_submission = None
-    if not existing_submission:
-        try:
-            revision_submission = (
-                db.query(models.TaskSubmission)
-                .filter(
-                    models.TaskSubmission.user_id == user.id,
-                    models.TaskSubmission.task_title == task_title,
-                    models.TaskSubmission.task_type == task_type,
-                    models.TaskSubmission.status == "FAILED"
-                )
-                .order_by(models.TaskSubmission.id.desc())
-                .first()
-            )
-        except Exception:
-            revision_submission = None
+    for row in matching_submissions:
+        status = str(row.status or "").upper()
+        if status == "PENDING_QA" and existing_submission is None:
+            existing_submission = row
+        elif status == "FAILED" and revision_submission is None:
+            revision_submission = row
+        if existing_submission is not None and revision_submission is not None:
+            break
 
-    # IMPORTANT: determine whether this is a revision BEFORE checking Label
-    # Studio. A revision already has an older finalized annotation on the task.
-    # In revision mode the helper must therefore look for the new draft first,
-    # promote it when changed, and only then fall back to the prior annotation.
+    task_payload = None
     if task_id and project_id:
-        _ensure_label_studio_annotation_saved(
+        task_payload = _ensure_label_studio_annotation_saved(
             int(project_id),
             int(task_id),
             revision_mode=bool(revision_submission),
         )
 
+    def finalize_shared_state():
+        if not (task_id and project_id):
+            return
+
+        try:
+            mark_kelyvo_submission_completed(
+                request,
+                int(project_id),
+                int(task_id),
+                db=db,
+                user_id=user_id,
+                task_payload_override=task_payload,
+                commit=False,
+            )
+        except Exception:
+            pass
+
+        _release_reserved_task_in_session(
+            db,
+            user_id,
+            int(project_id),
+            int(task_id),
+            final_task_status="submitted",
+        )
+
+        _clear_cached_active_assignment(user_id, int(project_id))
+
+    def pending_counts():
+        total_pending, contributor_pending = (
+            db.query(
+                func.count(models.TaskSubmission.id),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (models.TaskSubmission.user_id == user_id, 1),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ),
+            )
+            .filter(models.TaskSubmission.status == "PENDING_QA")
+            .one()
+        )
+        return int(total_pending or 0), int(contributor_pending or 0)
+
     if revision_submission:
-        # Reuse the same KELYVO submission row. The first QA return consumes
-        # the first attempt; this resubmission is therefore attempt 2.
         current_attempt = int(revision_submission.attempt_number or 1)
         if current_attempt >= 2:
             raise HTTPException(
@@ -4760,32 +5892,11 @@ def submit_task(
         revision_submission.status = "PENDING_QA"
         revision_submission.reviewer_notes = None
         revision_submission.submitted_at = _utc_now()
+
+        finalize_shared_state()
         db.commit()
 
-        if task_id and project_id:
-            try:
-                mark_kelyvo_submission_completed(
-                    request,
-                    project_id,
-                    task_id,
-                )
-            except Exception:
-                pass
-
-            release_reserved_task(
-                "user:" + email,
-                project_id,
-                task_id,
-                user_id=int(user.id),
-                final_task_status="submitted",
-            )
-
-        release_browser_assignment_for_request(
-            request,
-            final_task_status="submitted",
-        )
-
-        return {
+        response_payload = JSONResponse(content={
             "status": "success",
             "message": "Revision submitted for QA.",
             "tasks_today": user.tasks_today,
@@ -4793,50 +5904,17 @@ def submit_task(
             "revision": True,
             "attempt_number": int(revision_submission.attempt_number or 2),
             "submission_id": revision_submission.id,
-        }
+        })
+        _clear_active_task_cookie(response_payload)
+        return response_payload
 
     if existing_submission:
-        # The durable KELYVO record already proves this task is in QA. Repeated
-        # requests must not create duplicate rows or increment counters.
-        if task_id and project_id:
-            try:
-                mark_kelyvo_submission_completed(
-                    request,
-                    project_id,
-                    task_id,
-                )
-            except Exception:
-                pass
+        finalize_shared_state()
+        db.commit()
 
-            release_reserved_task(
-                "user:" + email,
-                project_id,
-                task_id,
-                user_id=int(user.id),
-                final_task_status="submitted",
-            )
+        pending_qa_count, contributor_pending_qa_count = pending_counts()
 
-        release_browser_assignment_for_request(
-            request,
-            final_task_status="submitted",
-        )
-
-        pending_qa_count = (
-            db.query(models.TaskSubmission)
-            .filter(models.TaskSubmission.status == "PENDING_QA")
-            .count()
-        )
-
-        contributor_pending_qa_count = (
-            db.query(models.TaskSubmission)
-            .filter(
-                models.TaskSubmission.user_id == user.id,
-                models.TaskSubmission.status == "PENDING_QA",
-            )
-            .count()
-        )
-
-        return {
+        response_payload = JSONResponse(content={
             "status": "success",
             "message": "Task was already submitted and is in the QA queue.",
             "created": False,
@@ -4846,60 +5924,30 @@ def submit_task(
             "submission_id": existing_submission.id,
             "queue_count": contributor_pending_qa_count,
             "qa_pending_count": pending_qa_count,
-        }
+        })
+        _clear_active_task_cookie(response_payload)
+        return response_payload
 
     user.tasks_today += 1
     user.tasks_week += 1
 
     submission = models.TaskSubmission(
-        user_id=user.id,
+        user_id=user_id,
         task_type=task_type,
         task_title=task_title,
         status="PENDING_QA",
         attempt_number=1,
-        reviewer_notes=None
+        reviewer_notes=None,
     )
-
     db.add(submission)
+    db.flush()
+
+    finalize_shared_state()
     db.commit()
-    db.refresh(user)
 
-    if task_id and project_id:
-        try:
-            mark_kelyvo_submission_completed(
-                request,
-                project_id,
-                task_id,
-            )
-        except Exception:
-            pass
+    pending_qa_count, contributor_pending_qa_count = pending_counts()
 
-        release_reserved_task(
-            "user:" + email,
-            project_id,
-            task_id,
-            user_id=int(user.id),
-            final_task_status="submitted",
-        )
-
-    release_browser_assignment_for_request(request)
-
-    pending_qa_count = (
-        db.query(models.TaskSubmission)
-        .filter(models.TaskSubmission.status == "PENDING_QA")
-        .count()
-    )
-
-    contributor_pending_qa_count = (
-        db.query(models.TaskSubmission)
-        .filter(
-            models.TaskSubmission.user_id == user.id,
-            models.TaskSubmission.status == "PENDING_QA",
-        )
-        .count()
-    )
-
-    return {
+    response_payload = JSONResponse(content={
         "status": "success",
         "message": "Task submitted successfully and sent for QA review.",
         "created": True,
@@ -4908,8 +5956,9 @@ def submit_task(
         "submission_id": submission.id,
         "queue_count": contributor_pending_qa_count,
         "qa_pending_count": pending_qa_count,
-    }
-
+    })
+    _clear_active_task_cookie(response_payload)
+    return response_payload
 
 
 def _ensure_label_studio_annotation_saved(
@@ -4917,41 +5966,25 @@ def _ensure_label_studio_annotation_saved(
     task_id: int,
     revision_mode: bool = False,
 ):
-    """Confirm the annotation for the CURRENT KELYVO submission attempt.
+    """Confirm the current Label Studio annotation with a bounded, fast path.
 
-    Normal submission:
-      1. wait for a finalized annotation;
-      2. if only a draft exists, promote the draft.
+    The contributor can only reach KELYVO's Submit action after working in the
+    editor. The editor has already been saving the task, so repeatedly polling
+    Label Studio here was unnecessary and was making /submit-task take 20+ sec.
 
-    Revision submission:
-      1. inspect the current revision draft FIRST;
-      2. compare its result with the latest finalized annotation;
-      3. if the draft contains changed work, promote that NEW result to a new
-         finalized annotation;
-      4. only fall back to the existing annotation when there is no changed
-         revision draft.
+    Fast path:
+      1. Read the assigned task once.
+      2. If the current task already contains a finalized annotation, use it.
+      3. Otherwise read the drafts endpoint once and promote the newest draft.
+      4. Allow one short retry only when Label Studio is still completing the save.
 
-    This prevents the previous finalized annotation from being mistaken for the
-    newly edited revision.
+    Revision mode keeps the existing safety rule: a changed revision draft wins
+    over the previous finalized annotation; an unchanged draft may fall back to
+    the prior annotation.
     """
     project_id = int(project_id)
     task_id = int(task_id)
     revision_mode = bool(revision_mode)
-
-    timeout_seconds = 15.0
-    started = time.monotonic()
-    poll_delays = [
-        0.0,
-        0.35,
-        0.50,
-        0.75,
-        1.00,
-        1.25,
-        1.50,
-        2.00,
-        2.50,
-        3.00,
-    ]
 
     def has_result(item):
         return (
@@ -4960,17 +5993,6 @@ def _ensure_label_studio_annotation_saved(
             and bool(item.get("result"))
             and not bool(item.get("was_cancelled"))
         )
-
-    def result_fingerprint(result):
-        try:
-            return json.dumps(
-                result or [],
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-            )
-        except (TypeError, ValueError):
-            return repr(result or [])
 
     def sort_latest(items):
         usable = [item for item in (items or []) if has_result(item)]
@@ -4985,103 +6007,71 @@ def _ensure_label_studio_annotation_saved(
         )
         return usable
 
-    def read_annotations():
-        response = label_studio_request(
-            "GET",
-            f"/api/tasks/{task_id}/annotations/",
-            params={"project": project_id},
-            timeout=5,
-        )
-
-        if response.status_code == 200:
-            try:
-                payload = response.json()
-            except ValueError:
-                payload = []
-
-            if isinstance(payload, dict):
-                payload = (
-                    payload.get("annotations")
-                    or payload.get("results")
-                    or payload.get("data")
-                    or []
-                )
-
-            if isinstance(payload, list):
-                return sort_latest(payload), None
-            return [], None
-
-        return None, response.status_code
+    def fingerprint(result):
+        try:
+            return json.dumps(
+                result or [],
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+        except (TypeError, ValueError):
+            return repr(result or [])
 
     def read_task():
+        # Reuse the assigned-task cache only for the first read if it contains
+        # an annotation payload. Otherwise fetch the authoritative current task.
+        cached = _get_cached_assigned_task(project_id, task_id)
+        if isinstance(cached, dict) and isinstance(cached.get("annotations"), list):
+            return cached
+
         response = label_studio_request(
             "GET",
             f"/api/tasks/{task_id}",
-            params={
-                "project": project_id,
-                "resolve_uri": "true",
-            },
+            params={"project": project_id, "resolve_uri": "true"},
             timeout=5,
         )
-
         if response.status_code != 200:
             return None
-
         try:
             payload = response.json()
         except ValueError:
             return None
+        if isinstance(payload, dict):
+            _cache_assigned_task(project_id, task_id, payload)
+            return payload
+        return None
 
-        return payload if isinstance(payload, dict) else None
-
-    def extract_drafts(task_payload):
-        drafts = (
-            task_payload.get("drafts", [])
-            if isinstance(task_payload, dict)
-            else []
-        )
-
-        if isinstance(drafts, dict):
-            drafts = drafts.get("drafts", drafts.get("results", []))
-
-        return sort_latest(drafts if isinstance(drafts, list) else [])
-
-    def read_drafts_from_endpoint():
-        draft_response = label_studio_request(
+    def read_drafts():
+        response = label_studio_request(
             "GET",
             f"/api/tasks/{task_id}/drafts",
             params={"project": project_id},
             timeout=5,
         )
-
-        if draft_response.status_code >= 400:
+        if response.status_code >= 400:
             return []
-
         try:
-            draft_payload = draft_response.json()
+            payload = response.json()
         except ValueError:
             return []
-
-        if isinstance(draft_payload, dict):
-            draft_payload = (
-                draft_payload.get("drafts")
-                or draft_payload.get("results")
-                or draft_payload.get("data")
+        if isinstance(payload, dict):
+            payload = (
+                payload.get("drafts")
+                or payload.get("results")
+                or payload.get("data")
                 or []
             )
-
-        return sort_latest(draft_payload if isinstance(draft_payload, list) else [])
+        return sort_latest(payload if isinstance(payload, list) else [])
 
     def promote_draft(draft):
         result = draft.get("result") or []
-
         body = {
             "task": task_id,
             "project": project_id,
             "lead_time": float(draft.get("lead_time") or 0),
             "result": result,
         }
-
         completed_by = draft.get("completed_by")
         if completed_by is not None:
             try:
@@ -5089,99 +6079,98 @@ def _ensure_label_studio_annotation_saved(
             except (TypeError, ValueError):
                 pass
 
-        create_response = label_studio_request(
+        response = label_studio_request(
             "POST",
             f"/api/tasks/{task_id}/annotations/",
             json=body,
             headers={"Content-Type": "application/json"},
             timeout=8,
         )
+        if response.status_code not in (200, 201, 409):
+            return None
 
-        if create_response.status_code in (200, 201):
-            annotations, _ = read_annotations()
-            if annotations:
-                task_payload = read_task()
-                return task_payload or {"annotations": annotations}
-
-        # Another save may have won the race between our read and POST.
-        annotations, _ = read_annotations()
-        if annotations:
-            task_payload = read_task()
-            return task_payload or {"annotations": annotations}
-
-        return None
-
-    for delay in poll_delays:
-        elapsed = time.monotonic() - started
-        if elapsed >= timeout_seconds:
-            break
-
-        if delay > 0:
-            remaining = timeout_seconds - elapsed
-            time.sleep(min(delay, max(0.0, remaining)))
-
-        task_payload = read_task()
-        annotations, _ = read_annotations()
-
-        if task_payload is None:
-            task_payload = {
+        # The POST itself is authoritative enough for submission. Re-reading the
+        # whole task here was another unnecessary remote round trip.
+        try:
+            created = response.json()
+        except ValueError:
+            created = None
+        if isinstance(created, dict):
+            _cache_assigned_task(project_id, task_id, {
                 "id": task_id,
                 "project": project_id,
-            }
+                "annotations": [created],
+            })
+        return created if isinstance(created, dict) else {"id": task_id, "project": project_id, "annotations": [{"result": result}]}
 
-        task_annotations = annotations or []
-        if not task_annotations and isinstance(task_payload.get("annotations"), list):
-            task_annotations = sort_latest(task_payload.get("annotations"))
+    # Two bounded attempts. The common case completes on the first attempt.
+    for attempt in range(2):
+        task_payload = read_task()
+        if task_payload is not None:
+            annotations = sort_latest(task_payload.get("annotations", []))
+            drafts = []
 
-        drafts = extract_drafts(task_payload)
-        if not drafts:
-            drafts = read_drafts_from_endpoint()
+            if revision_mode:
+                latest_annotation = annotations[-1] if annotations else None
+                drafts = read_drafts()
+                latest_draft = drafts[-1] if drafts else None
 
-        # Revision is fundamentally different: an older finalized annotation is
-        # expected to exist, so it must NEVER win over a changed current draft.
-        if revision_mode:
-            latest_annotation = task_annotations[-1] if task_annotations else None
-            latest_draft = drafts[-1] if drafts else None
+                if latest_draft is not None:
+                    draft_fp = fingerprint(latest_draft.get("result"))
+                    annotation_fp = fingerprint(
+                        latest_annotation.get("result") if latest_annotation else None
+                    )
+                    if latest_annotation is None or draft_fp != annotation_fp:
+                        promoted = promote_draft(latest_draft)
+                        if promoted is not None:
+                            return task_payload
 
-            if latest_draft is not None:
-                draft_fp = result_fingerprint(latest_draft.get("result"))
-                annotation_fp = result_fingerprint(
-                    latest_annotation.get("result") if latest_annotation else None
+                if latest_annotation is not None:
+                    task_payload["annotations"] = [latest_annotation]
+                    _cache_assigned_task(project_id, task_id, task_payload)
+                    return task_payload
+            else:
+                if annotations:
+                    task_payload["annotations"] = [annotations[-1]]
+                    _cache_assigned_task(project_id, task_id, task_payload)
+                    return task_payload
+
+                cached_drafts = sort_latest(
+                    task_payload.get("drafts", [])
+                    if isinstance(task_payload.get("drafts", []), list)
+                    else []
                 )
-
-                if latest_annotation is None or draft_fp != annotation_fp:
-                    promoted = promote_draft(latest_draft)
+                if cached_drafts:
+                    promoted = promote_draft(cached_drafts[-1])
                     if promoted is not None:
-                        return promoted
+                        refreshed = dict(task_payload)
+                        if isinstance(promoted, dict) and promoted.get("result"):
+                            refreshed["annotations"] = [promoted]
+                        _cache_assigned_task(project_id, task_id, refreshed)
+                        return refreshed
 
-            if latest_annotation is not None:
-                task_payload["annotations"] = [latest_annotation]
-                return task_payload
+                drafts = read_drafts()
+                if drafts:
+                    promoted = promote_draft(drafts[-1])
+                    if promoted is not None:
+                        refreshed = dict(task_payload)
+                        if isinstance(promoted, dict) and promoted.get("result"):
+                            refreshed["annotations"] = [promoted]
+                        _cache_assigned_task(project_id, task_id, refreshed)
+                        return refreshed
 
-        else:
-            # Normal first submission: a finalized annotation is the preferred
-            # source. Otherwise promote the newest saved draft.
-            if task_annotations:
-                task_payload["annotations"] = [task_annotations[-1]]
-                return task_payload
-
-            if drafts:
-                promoted = promote_draft(drafts[-1])
-                if promoted is not None:
-                    return promoted
-
-        if time.monotonic() - started >= timeout_seconds:
-            break
+        if attempt == 0:
+            # Label Studio can be a little behind immediately after its save.
+            time.sleep(0.35)
 
     raise HTTPException(
         status_code=409,
         detail=(
             "Label Studio is still saving this annotation. "
-            "KELYVO waited for the save but could not confirm the current "
-            "submission yet. Please wait a moment and try Submit again."
+            "KELYVO could not confirm the current submission yet. "
+            "Please wait a moment and try Submit again."
         ),
     )
-
 
 
 @app.get("/api/task-submission-ready")
@@ -7460,6 +8449,7 @@ def get_admin_workforce_users(request: Request, q: str = "", role: str = "all", 
             "display_name": display_name,
             "is_official_admin": _is_official_admin_email(user.email),
             "account_locked": _is_official_admin_email(user.email),
+            "presence": _presence_payload_for_user(db, user),
         })
     db.commit()
     return {"status": "success", "users": payload}
@@ -7884,6 +8874,7 @@ def get_admin_operations(
             "tasks_passed_qa": int(user.tasks_passed_qa or 0),
             "earnings": float(user.earnings or 0),
             "active_task": active,
+            "presence": _presence_payload_for_user(db, user, now),
         })
 
     recent_submissions = []
@@ -7927,8 +8918,12 @@ def get_admin_submissions(
     )
 
     result = []
+    current_qa_user_id = _get_authenticated_user_id(request)
+    _cleanup_expired_qa_claims(db)
+    db.commit()
 
     for sub in submissions:
+        claim = _get_qa_claim(db, int(sub.id))
         result.append({
             "id":
                 sub.id,
@@ -7948,7 +8943,9 @@ def get_admin_submissions(
             "attempt_number":
                 int(sub.attempt_number or 1),
             "reviewer_notes":
-                sub.reviewer_notes
+                sub.reviewer_notes,
+            "qa_claim": _qa_claim_payload(claim),
+            "qa_claimed_by_me": bool(claim and current_qa_user_id is not None and int(claim["qa_user_id"]) == int(current_qa_user_id)),
         })
 
     return result
@@ -8102,6 +9099,43 @@ def get_contributor_submissions(
     }
 
 
+@app.post("/api/qa/claim/{submission_id}")
+def qa_claim_specific_task(request: Request, submission_id: int, db: Session = Depends(get_db)):
+    require_qa_session(request)
+    qa_user_id = _get_authenticated_user_id(request)
+    if qa_user_id is None: raise HTTPException(status_code=401, detail="Unable to resolve the authenticated QA account.")
+    submission = db.query(models.TaskSubmission).filter(models.TaskSubmission.id == int(submission_id)).first()
+    if submission is None: raise HTTPException(status_code=404, detail="Submission not found.")
+    if str(submission.status or "").upper() != "PENDING_QA": raise HTTPException(status_code=409, detail="This submission is no longer waiting for QA.")
+    claim = _claim_submission_for_qa(db, int(submission_id), int(qa_user_id))
+    return {"status":"success", "submission_id":int(submission_id), "claim":_qa_claim_payload(claim)}
+
+
+@app.post("/api/qa/next-task")
+def qa_take_next_task(request: Request, db: Session = Depends(get_db)):
+    require_qa_session(request)
+    qa_user_id = _get_authenticated_user_id(request)
+    if qa_user_id is None: raise HTTPException(status_code=401, detail="Unable to resolve the authenticated QA account.")
+    _cleanup_expired_qa_claims(db); db.commit()
+    existing = _get_qa_claim_for_user(db, int(qa_user_id))
+    if existing is not None: return {"status":"success", "already_claimed":True, "submission_id":int(existing["submission_id"]), "claim":_qa_claim_payload(existing)}
+    submission = db.query(models.TaskSubmission).filter(models.TaskSubmission.status == "PENDING_QA").order_by(models.TaskSubmission.id.asc()).first()
+    if submission is None: raise HTTPException(status_code=404, detail="No submissions are currently waiting for QA.")
+    claim = _claim_submission_for_qa(db, int(submission.id), int(qa_user_id))
+    return {"status":"success", "already_claimed":False, "submission_id":int(submission.id), "claim":_qa_claim_payload(claim)}
+
+
+@app.post("/api/qa/claim/{submission_id}/heartbeat")
+def qa_claim_heartbeat(request: Request, submission_id: int, db: Session = Depends(get_db)):
+    require_qa_session(request)
+    qa_user_id = _get_authenticated_user_id(request)
+    claim = _get_qa_claim(db, int(submission_id))
+    if qa_user_id is None or claim is None or int(claim["qa_user_id"]) != int(qa_user_id): raise HTTPException(status_code=409, detail="This QA task is no longer claimed by you.")
+    now = _utc_now(); expires = now + timedelta(seconds=QA_CLAIM_TTL_SECONDS)
+    db.execute(qa_task_claims.update().where(qa_task_claims.c.submission_id == int(submission_id)).values(last_heartbeat_at=now.isoformat(), expires_at=expires.isoformat())); db.commit()
+    return {"status":"success", "claim":_qa_claim_payload(_get_qa_claim(db, int(submission_id)), now)}
+
+
 @app.get("/api/qa/review/{submission_id}")
 def get_qa_review_task(
     request: Request,
@@ -8119,6 +9153,16 @@ def get_qa_review_task(
 
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found.")
+
+    qa_user_id = _get_authenticated_user_id(request)
+    claim = _get_qa_claim(db, int(submission_id))
+    if str(submission.status or "").upper() == "PENDING_QA":
+        if claim is None or qa_user_id is None or int(claim["qa_user_id"]) != int(qa_user_id):
+            raise HTTPException(status_code=409, detail="Take this QA task before opening it.")
+        expires = _parse_utc_iso(claim.get("expires_at"))
+        if expires is not None and expires <= _utc_now():
+            _release_qa_claim(db, int(submission_id)); db.commit()
+            raise HTTPException(status_code=409, detail="Your QA task claim expired. Take the task again.")
 
     task_type = str(submission.task_type or "").strip().lower()
     project_id = PROJECT_MAPPING.get(task_type)
@@ -8519,6 +9563,16 @@ def review_task(
         sub.status
     )
 
+    qa_user_id = _get_authenticated_user_id(request)
+    claim = _get_qa_claim(db, int(submission_id))
+    if previous_status == "PENDING_QA":
+        if claim is None or qa_user_id is None or int(claim["qa_user_id"]) != int(qa_user_id):
+            raise HTTPException(status_code=409, detail="This submission is not currently claimed by you for QA review.")
+        expires = _parse_utc_iso(claim.get("expires_at"))
+        if expires is not None and expires <= _utc_now():
+            _release_qa_claim(db, int(submission_id)); db.commit()
+            raise HTTPException(status_code=409, detail="The QA task claim expired. Take the task again.")
+
     if previous_status != "PENDING_QA":
         raise HTTPException(
             status_code=409,
@@ -8631,6 +9685,9 @@ def review_task(
     # FAILED on attempt 1 is a revision request. FAILED on attempt 2 is final
     # and the task has already been reset to the shared contributor pool.
 
+    if qa_user_id is not None:
+        _release_qa_claim(db, int(submission_id), int(qa_user_id))
+
     db.commit()
 
     return {
@@ -8734,127 +9791,44 @@ def test_label_studio():
     "/api/pipeline/projects"
 )
 def get_label_studio_projects(request: Request):
-    require_contributor_session(request)
-
-    response = (
-        label_studio_request(
-            "GET",
-            "/api/projects"
-        )
-    )
-
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Unable to retrieve "
-                "Label Studio projects."
-            )
-        )
-
-    try:
-        data = (
-            response.json()
-        )
-    except ValueError:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Invalid project data "
-                "received from Label Studio."
-            )
-        )
+    """Return contributor pipeline metadata without blocking on Neon or Label Studio."""
+    require_contributor_session_fast(request)
 
     projects = []
+    modality_by_project = {int(v): k for k, v in PROJECT_MAPPING.items()}
+    default_names = {
+        2: "Image Data Operations",
+        4: "Audio Data Operations",
+        5: "Text Data Operations",
+        6: "Video Data Operations",
+    }
 
-    for project in data.get(
-        "results",
-        []
-    ):
-        project_id = (
-            project.get("id")
+    for project_id in sorted({int(v) for v in PROJECT_MAPPING.values()}):
+        modality = modality_by_project.get(project_id)
+        cached_project = _get_cached_project(project_id) or {}
+        cached_tasks = _get_cached_task_pool(project_id)
+        cached_count = _get_cached_task_count(project_id)
+        task_count = (
+            len(cached_tasks)
+            if isinstance(cached_tasks, list)
+            else int(cached_count or 0)
         )
-
-        modality = None
-
-        for key, mapped_id in (
-            PROJECT_MAPPING.items()
-        ):
-            if mapped_id == project_id:
-                modality = key
-                break
-
-        task_count = 0
-
-        if (
-            project_id
-            in PROJECT_MAPPING.values()
-        ):
-            task_response = (
-                label_studio_request(
-                    "GET",
-                    "/api/tasks",
-                    params={
-                        "project":
-                            project_id,
-                        "page_size":
-                            1,
-                    }
-                )
-            )
-
-            if (
-                task_response.status_code
-                == 200
-            ):
-                try:
-                    task_data = (
-                        task_response.json()
-                    )
-
-                    task_count = (
-                        task_data.get(
-                            "total",
-                            len(
-                                task_data.get(
-                                    "tasks",
-                                    task_data.get(
-                                        "results",
-                                        []
-                                    )
-                                )
-                            )
-                        )
-                    )
-                except ValueError:
-                    task_count = 0
-
         projects.append({
-            "id":
-                project_id,
-            "title":
-                project.get(
-                    "title",
-                    ""
-                ),
-            "description":
-                project.get(
-                    "description",
-                    ""
-                ),
-            "task_count":
-                task_count,
-            "modality":
-                modality,
+            "id": project_id,
+            "title": str(
+                cached_project.get("title")
+                or default_names.get(project_id)
+                or f"{str(modality or 'task').title()} Data Operations"
+            ),
+            "description": str(cached_project.get("description") or ""),
+            "task_count": int(task_count),
+            "modality": modality,
         })
 
     return {
-        "status":
-            "success",
-        "source":
-            "label_studio",
-        "projects":
-            projects
+        "status": "success",
+        "source": "kelyvo-cache",
+        "projects": projects,
     }
 
 
@@ -9578,8 +10552,6 @@ async def label_studio_browser_api_proxy(
 
     active_assignment = None
 
-    cleanup_task_assignments()
-
     user_id = _get_authenticated_user_id(request)
     if user_id is None:
         raise HTTPException(
@@ -9587,24 +10559,53 @@ async def label_studio_browser_api_proxy(
             detail="A valid contributor session is required."
         )
 
-    db = SessionLocal()
-    try:
-        active_assignment = (
-            db.query(models.TaskAssignment)
-            .options(joinedload(models.TaskAssignment.task))
-            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
-            .filter(
-                models.TaskAssignment.user_id == int(user_id),
-                models.TaskAssignment.status == "reserved",
-            )
-            .order_by(models.TaskAssignment.assigned_at.desc())
-            .first()
+    cached_project_hint = request.query_params.get("project")
+    cached_project_id = (
+        int(cached_project_hint)
+        if cached_project_hint and cached_project_hint.isdigit()
+        else None
+    )
+    cached_task_id = None
+    if cached_project_id is not None:
+        cached_task_id = _get_cached_active_assignment(
+            user_id,
+            cached_project_id,
         )
-        if active_assignment is not None:
-            project_id = int(active_assignment.task.external_project_id)
-            task_id = int(active_assignment.task.external_task_id)
-    finally:
-        db.close()
+
+    cached_assignment = None
+    if cached_task_id is not None:
+        cached_assignment = (int(cached_project_id), int(cached_task_id))
+    if cached_assignment is None:
+        cached_assignment = _get_cached_any_active_assignment(user_id)
+    if cached_assignment is None and active_cookie is not None:
+        cached_assignment = (
+            int(active_cookie["project_id"]),
+            int(active_cookie["task_id"]),
+        )
+
+    if cached_assignment is not None:
+        project_id, task_id = cached_assignment
+        active_assignment = True
+    else:
+        db = SessionLocal()
+        try:
+            active_assignment = (
+                db.query(models.TaskAssignment)
+                .options(joinedload(models.TaskAssignment.task))
+                .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+                .filter(
+                    models.TaskAssignment.user_id == int(user_id),
+                    models.TaskAssignment.status == "reserved",
+                )
+                .order_by(models.TaskAssignment.assigned_at.desc())
+                .first()
+            )
+            if active_assignment is not None:
+                project_id = int(active_assignment.task.external_project_id)
+                task_id = int(active_assignment.task.external_task_id)
+                _cache_active_assignment(user_id, project_id, task_id)
+        finally:
+            db.close()
 
     if active_assignment is None:
         raise HTTPException(
@@ -9661,6 +10662,43 @@ async def label_studio_browser_api_proxy(
             status_code=502,
             detail="Unable to load the assigned contributor task."
         )
+
+    # CRITICAL EDITOR BOOTSTRAP FAST PATHS
+    # These must run BEFORE the generic contributor allowlist. Label Studio's
+    # React editor sends /api/tasks?page=... without project/task query params.
+    # KELYVO already knows the contributor's single assigned task, so returning
+    # it locally avoids a remote Label Studio task-list query.
+    if request.method == "GET":
+        if clean_path == f"/api/projects/{project_id}":
+            cached_project = _get_cached_project(project_id)
+            if isinstance(cached_project, dict):
+                return JSONResponse(
+                    content=cached_project,
+                    status_code=200,
+                    headers={"Cache-Control": "private, max-age=30"},
+                )
+
+        if clean_path == "/api/tasks":
+            requested_project = request.query_params.get("project")
+            if (
+                requested_project is None
+                or (requested_project.isdigit() and int(requested_project) == int(project_id))
+            ):
+                assigned_payload = _get_cached_assigned_task(project_id, task_id)
+                if isinstance(assigned_payload, dict):
+                    task_payload = rewrite_label_studio_media_urls(assigned_payload)
+                    return JSONResponse(
+                        content={
+                            "tasks": [task_payload],
+                            "results": [task_payload],
+                            "total": 1,
+                            "count": 1,
+                            "next": None,
+                            "previous": None,
+                        },
+                        status_code=200,
+                        headers={"Cache-Control": "private, max-age=10"},
+                    )
 
     project_prefix = (
         f"/api/projects/{project_id}"
@@ -9816,6 +10854,27 @@ async def label_studio_browser_api_proxy(
             )
         )
 
+    # Fast local bootstrap responses for the contributor editor. KELYVO already
+    # has the project definition and the one assigned task in process memory,
+    # so these requests do not need a round-trip to Label Studio.
+    if request.method == "GET" and clean_path == f"/api/projects/{project_id}":
+        project_payload = _get_cached_project(project_id)
+        if isinstance(project_payload, dict):
+            return JSONResponse(
+                content=project_payload,
+                status_code=200,
+                headers={"Cache-Control": "private, max-age=30"},
+            )
+
+    if request.method == "GET" and clean_path == f"/api/tasks/{task_id}":
+        task_payload = _get_cached_assigned_task(project_id, task_id)
+        if isinstance(task_payload, dict):
+            return JSONResponse(
+                content=rewrite_label_studio_media_urls(task_payload),
+                status_code=200,
+                headers={"Cache-Control": "private, max-age=30"},
+            )
+
     query_string = request.url.query
     endpoint = clean_path
 
@@ -9871,6 +10930,65 @@ async def label_studio_browser_api_proxy(
     ):
         try:
             payload = response.json()
+
+            # Keep the in-process assigned-task cache synchronized with successful
+            # native Label Studio editor writes. This does NOT advance KELYVO
+            # workflow state; it only prevents Submit-to-QA from re-fetching the
+            # same annotation immediately after Label Studio saved it.
+            if request.method in {"POST", "PUT", "PATCH"} and isinstance(payload, dict):
+                normalized_path = clean_path.rstrip("/")
+
+                if normalized_path == f"/api/tasks/{task_id}/annotations":
+                    annotation_payload = (
+                        payload.get("annotation")
+                        if isinstance(payload.get("annotation"), dict)
+                        else payload
+                    )
+                    if isinstance(annotation_payload, dict) and annotation_payload.get("result"):
+                        cached_task = _get_cached_assigned_task(project_id, task_id) or {}
+                        if isinstance(cached_task, dict):
+                            updated_task = dict(cached_task)
+                            annotations = updated_task.get("annotations", [])
+                            if not isinstance(annotations, list):
+                                annotations = []
+                            external_id = annotation_payload.get("id")
+                            annotations = [
+                                item for item in annotations
+                                if not (
+                                    isinstance(item, dict)
+                                    and external_id is not None
+                                    and str(item.get("id")) == str(external_id)
+                                )
+                            ]
+                            annotations.append(annotation_payload)
+                            updated_task["annotations"] = annotations
+                            _cache_assigned_task(project_id, task_id, updated_task)
+
+                elif normalized_path == f"/api/tasks/{task_id}/drafts":
+                    draft_payload = (
+                        payload.get("draft")
+                        if isinstance(payload.get("draft"), dict)
+                        else payload
+                    )
+                    if isinstance(draft_payload, dict) and draft_payload.get("result"):
+                        cached_task = _get_cached_assigned_task(project_id, task_id) or {}
+                        if isinstance(cached_task, dict):
+                            updated_task = dict(cached_task)
+                            drafts = updated_task.get("drafts", [])
+                            if not isinstance(drafts, list):
+                                drafts = []
+                            draft_id = draft_payload.get("id")
+                            drafts = [
+                                item for item in drafts
+                                if not (
+                                    isinstance(item, dict)
+                                    and draft_id is not None
+                                    and str(item.get("id")) == str(draft_id)
+                                )
+                            ]
+                            drafts.append(draft_payload)
+                            updated_task["drafts"] = drafts
+                            _cache_assigned_task(project_id, task_id, updated_task)
 
             if (
                 clean_path == "/api/tasks"
@@ -10479,30 +11597,55 @@ async def native_label_studio_api_fallback(
         request
     )
 
-    cleanup_task_assignments()
-
-    user_id = _get_authenticated_user_id(request)
+    active_cookie = read_active_task_token(request)
+    if active_cookie is not None:
+        user_id = int(active_cookie["user_id"])
+    else:
+        cleanup_task_assignments()
+        user_id = _get_authenticated_user_id(request)
     if user_id is None:
         raise HTTPException(
             status_code=401,
             detail="A valid contributor session is required."
         )
 
-    db = SessionLocal()
-    try:
-        assignments = (
-            db.query(models.TaskAssignment)
-            .options(joinedload(models.TaskAssignment.task))
-            .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
-            .filter(
-                models.TaskAssignment.user_id == int(user_id),
-                models.TaskAssignment.status == "reserved",
-            )
-            .order_by(models.TaskAssignment.assigned_at.desc())
-            .all()
+    # Fast path: after KELYVO assigns a task, the editor can bootstrap from the
+    # in-process assignment cache without paying a Neon round-trip on every
+    # /api/tasks, /api/projects, /api/current-user, or Data Manager request.
+    cached_assignment = _get_cached_any_active_assignment(user_id)
+    if cached_assignment is not None:
+        cached_project_id, cached_task_id = cached_assignment
+        cached_assignment_obj = SimpleNamespace(
+            assigned_at=_utc_now(),
+            task=SimpleNamespace(
+                external_project_id=int(cached_project_id),
+                external_task_id=int(cached_task_id),
+            ),
         )
-    finally:
-        db.close()
+        assignments = [cached_assignment_obj]
+    else:
+        db = SessionLocal()
+        try:
+            assignments = (
+                db.query(models.TaskAssignment)
+                .options(joinedload(models.TaskAssignment.task))
+                .join(models.Task, models.Task.id == models.TaskAssignment.task_id)
+                .filter(
+                    models.TaskAssignment.user_id == int(user_id),
+                    models.TaskAssignment.status == "reserved",
+                )
+                .order_by(models.TaskAssignment.assigned_at.desc())
+                .all()
+            )
+            for assignment in assignments:
+                if assignment.task is not None:
+                    _cache_active_assignment(
+                        int(user_id),
+                        int(assignment.task.external_project_id),
+                        int(assignment.task.external_task_id),
+                    )
+        finally:
+            db.close()
 
     if not assignments:
         requested_project_hint = None
@@ -10670,6 +11813,47 @@ async def native_label_studio_api_fallback(
             status_code=502,
             detail="Unable to load the assigned contributor task."
         )
+
+    # Native Label Studio editor bootstrap fast paths. These MUST happen before
+    # the generic proxy/allowlist so /api/tasks and /api/projects never incur a
+    # remote Label Studio round-trip on every editor mount.
+    if request.method == "GET":
+        if clean_path == f"/api/projects/{project_id}":
+            cached_project = _get_cached_project(project_id)
+            if isinstance(cached_project, dict):
+                return JSONResponse(
+                    content=cached_project,
+                    status_code=200,
+                    headers={"Cache-Control": "private, max-age=30"},
+                )
+
+        if clean_path == "/api/tasks":
+            requested_project = request.query_params.get("project")
+            if requested_project is None or (requested_project.isdigit() and int(requested_project) == int(project_id)):
+                assigned_payload = _get_cached_assigned_task(project_id, task_id) or _get_cached_task_item(project_id, task_id)
+                if isinstance(assigned_payload, dict):
+                    task_payload = rewrite_label_studio_media_urls(assigned_payload)
+                    return JSONResponse(
+                        content={
+                            "tasks": [task_payload],
+                            "results": [task_payload],
+                            "total": 1,
+                            "count": 1,
+                            "next": None,
+                            "previous": None,
+                        },
+                        status_code=200,
+                        headers={"Cache-Control": "private, max-age=10"},
+                    )
+
+        if clean_path == f"/api/tasks/{task_id}":
+            assigned_payload = _get_cached_assigned_task(project_id, task_id) or _get_cached_task_item(project_id, task_id)
+            if isinstance(assigned_payload, dict):
+                return JSONResponse(
+                    content=rewrite_label_studio_media_urls(assigned_payload),
+                    status_code=200,
+                    headers={"Cache-Control": "private, max-age=30"},
+                )
 
     blocked_exact_paths = {
         "/api/projects",
@@ -11064,6 +12248,8 @@ async def native_label_studio_api_fallback(
 
 # ============================================================
 # 24-HOUR PERSISTENT RESERVATION EXPIRATION WORKER
+# Full Label Studio cleanup for expired reservations is intentionally handled
+# here in the background so normal contributor requests stay fast.
 # ============================================================
 
 def _normalize_existing_assignment_expirations():
@@ -11092,8 +12278,12 @@ def _normalize_existing_assignment_expirations():
 
 
 def _assignment_expiration_worker():
-    """Release expired reservations in the background without requiring a request."""
+    """Release expired reservations and repair orphaned task state in the background."""
     while True:
+        try:
+            _repair_orphaned_reserved_tasks()
+        except Exception:
+            pass
         try:
             _cleanup_expired_persistent_task_assignments()
         except Exception:
@@ -11102,6 +12292,8 @@ def _assignment_expiration_worker():
 
 
 _normalize_existing_assignment_expirations()
+_repair_orphaned_reserved_tasks()
+_start_label_studio_task_cache_warmer()
 threading.Thread(
     target=_assignment_expiration_worker,
     name="kelyvo-assignment-expiry",

@@ -133,6 +133,7 @@ button {
 #label-studio-container.contributor-locked {
     user-select: none;
 }
+.kelyvo-presence-badge{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}.kelyvo-presence-dot{width:8px;height:8px;border-radius:999px;flex:0 0 auto}.kelyvo-presence-dot.active{background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.1)}.kelyvo-presence-dot.idle{background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.09)}.kelyvo-presence-dot.offline{background:#71717a}.kelyvo-presence-active{color:#34d399}.kelyvo-presence-idle{color:#fbbf24}.kelyvo-presence-offline{color:#a1a1aa}.kelyvo-presence-context{margin-top:3px;color:var(--k-muted,#71717a);font-size:10px;line-height:1.35}
 
 #label-studio-container.contributor-locked iframe {
     pointer-events: auto;
@@ -4960,7 +4961,7 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
             <table class="w-full text-left">
                 <thead>
                     <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
-                        <th class="p-4">User</th><th class="p-4">Role</th><th class="p-4">Status</th><th class="p-4">Today</th><th class="p-4">QA Passed</th><th class="p-4">Earnings</th><th class="p-4 text-right">Actions</th>
+                        <th class="p-4">User</th><th class="p-4">Role</th><th class="p-4">Live</th><th class="p-4">Account</th><th class="p-4">Today</th><th class="p-4">QA Passed</th><th class="p-4">Earnings</th><th class="p-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="admin-workforce-users-body" class="text-xs font-mono divide-y divide-zinc-800"></tbody>
@@ -5145,6 +5146,7 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
                         <tr class="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase">
                             <th class="p-4">User</th>
                             <th class="p-4">Role</th>
+                            <th class="p-4">Live</th>
                             <th class="p-4 text-right">Activity</th>
                         </tr>
                     </thead>
@@ -5212,12 +5214,7 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
             <h2>QA Review Operations</h2>
             <p>Review contributor submissions by workflow status.</p>
         </div>
-        <button
-            onclick="loadAdminQueue()"
-            class="kelyvo-page-heading-action"
-        >
-            Refresh Queue
-        </button>
+        <div class="flex flex-wrap items-center gap-2"><button type="button" onclick="takeNextQATask()" class="kelyvo-page-heading-action">Take Next Task</button><button type="button" onclick="loadAdminQueue()" class="kelyvo-page-heading-action">Refresh Queue</button></div>
     </div>
 
 
@@ -6344,6 +6341,15 @@ function updateRegistrationCodeVisibility() {
 
 
 /* ============================================================
+   LIVE WORKFORCE PRESENCE
+============================================================ */
+let kelyvoPresenceTimer=null,kelyvoPresenceActivityTimer=null,kelyvoPresenceState="idle",kelyvoPresenceStarted=false;
+function kelyvoPresenceContext(){try{const role=String(localStorage.getItem("kelyvo_user_role")||"").toLowerCase();if(role==="qa"){if(activeQAReview?.submission)return{state:"active",context:`Reviewing QA Task #${activeQAReview.submission.task_id??activeQAReview.submission.id}`,taskId:activeQAReview.submission.task_id??null};return{state:kelyvoPresenceState,context:"QA queue",taskId:null};}if(role==="contributor"){if(activeTaskData)return{state:"active",context:`Working on ${String(activeModalityType||"annotation").toUpperCase()} task`,taskId:activeTaskData?.task?.id??activeTaskData?.task_id??null};return{state:kelyvoPresenceState,context:"Contributor workspace",taskId:null};}if(role==="data_collector")return{state:kelyvoPresenceState,context:"Data Collector workspace",taskId:null};if(role==="admin")return{state:kelyvoPresenceState,context:"Admin Operations",taskId:null};}catch(error){}return{state:kelyvoPresenceState,context:"Portal",taskId:null};}
+function kelyvoMarkPresenceActivity(){kelyvoPresenceState="active";clearTimeout(kelyvoPresenceActivityTimer);kelyvoPresenceActivityTimer=setTimeout(()=>{kelyvoPresenceState="idle";void kelyvoSendPresenceHeartbeat();},90000);}
+async function kelyvoSendPresenceHeartbeat(){if(!kelyvoPresenceStarted)return;const info=kelyvoPresenceContext();try{await fetch("/api/presence/heartbeat",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({activity_state:info.state,current_context:info.context,current_task_id:info.taskId})});}catch(error){console.debug("KELYVO presence heartbeat unavailable:",error);}}
+function startKelyvoPresence(){if(kelyvoPresenceStarted)return;kelyvoPresenceStarted=true;kelyvoMarkPresenceActivity();["mousemove","mousedown","keydown","touchstart","scroll","focus"].forEach(n=>window.addEventListener(n,kelyvoMarkPresenceActivity,{passive:true}));document.addEventListener("visibilitychange",()=>{if(!document.hidden){kelyvoMarkPresenceActivity();void kelyvoSendPresenceHeartbeat();}});void kelyvoSendPresenceHeartbeat();kelyvoPresenceTimer=setInterval(kelyvoSendPresenceHeartbeat,20000);}
+
+/* ============================================================
    AUTHENTICATION
 ============================================================ */
 
@@ -6495,6 +6501,7 @@ async function handleAuth(event) {
 ============================================================ */
 
 function initializeAuthenticatedUI(user) {
+    startKelyvoPresence();
 
     document.getElementById(
         "auth-section"
@@ -9431,6 +9438,11 @@ function formatReservationRemaining(seconds) {
     return `${minutes}m`;
 }
 
+function renderPresenceBadge(presence){const data=presence||{};const status=["active","idle","offline"].includes(String(data.status||"offline").toLowerCase())?String(data.status||"offline").toLowerCase():"offline";const label=status==="active"?"Active":status==="idle"?"Idle":"Offline";const last=data.last_seen_at?formatAdminDate(data.last_seen_at):"Never seen";const context=data.current_context?escapeHtml(data.current_context):"";return `<div class="kelyvo-presence-badge kelyvo-presence-${status}"><span class="kelyvo-presence-dot ${status}"></span><span>${label}</span></div><div class="text-[10px] text-zinc-600 mt-1">Last seen ${escapeHtml(last)}</div>${context?`<div class="kelyvo-presence-context">${context}</div>`:""}`;}
+
+async function takeQATask(submissionId){showLoader("Claiming QA task...");try{const response=await fetch(`/api/qa/claim/${encodeURIComponent(Number(submissionId))}`,{method:"POST",credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok)throw new Error(data?.detail||"Could not claim this QA task.");hideLoader();await openQAReview(Number(data.submission_id||submissionId));await loadAdminQueue();}catch(error){hideLoader();alert(error.message||"Could not claim this QA task.");await loadAdminQueue();}}
+async function takeNextQATask(){showLoader("Finding the next QA task...");try{const response=await fetch("/api/qa/next-task",{method:"POST",credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok)throw new Error(data?.detail||"No QA task is available.");hideLoader();await openQAReview(Number(data.submission_id));await loadAdminQueue();}catch(error){hideLoader();alert(error.message||"Could not take the next QA task.");await loadAdminQueue();}}
+
 async function loadAdminWorkforceUsers() {
     const tbody = document.getElementById("admin-workforce-users-body");
     if (!tbody) return;
@@ -9443,7 +9455,7 @@ async function loadAdminWorkforceUsers() {
         filterAdminWorkforceUsers();
     } catch (error) {
         console.error("Admin workforce error:", error);
-        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-400">${escapeHtml(error.message || "Could not load workforce.")}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-red-400">${escapeHtml(error.message || "Could not load workforce.")}</td></tr>`;
     }
 }
 
@@ -9462,7 +9474,7 @@ function renderAdminWorkforceUsers(users) {
     const tbody = document.getElementById("admin-workforce-users-body");
     if (!tbody) return;
     tbody.innerHTML = "";
-    if (!users.length) { tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-zinc-600">No matching users.</td></tr>`; return; }
+    if (!users.length) { tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-zinc-600">No matching users.</td></tr>`; return; }
     const currentEmail = (localStorage.getItem("kelyvo_user_email") || "").toLowerCase();
     users.forEach(user => {
         const role = String(user.role || "contributor").toLowerCase();
@@ -9494,6 +9506,7 @@ function renderAdminWorkforceUsers(users) {
                 <option value="qa" ${role === "qa" ? "selected" : ""}>QA</option>
                 <option value="admin" ${role === "admin" ? "selected" : ""}>Admin</option>
             </select></td>
+            <td class="p-4">${renderPresenceBadge(user.presence)}</td>
             <td class="p-4 ${statusClass} uppercase">${escapeHtml(status)}</td>
             <td class="p-4 text-zinc-300">${escapeHtml(user.tasks_today ?? 0)}</td>
             <td class="p-4 text-zinc-300">${escapeHtml(user.tasks_passed_qa ?? 0)}</td>
@@ -9979,7 +9992,7 @@ function renderAdminUsers(users) {
     tbody.innerHTML = "";
 
     if (!users.length) {
-        tbody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-zinc-600">No users found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-zinc-600">No users found.</td></tr>`;
         return;
     }
 
@@ -9992,6 +10005,7 @@ function renderAdminUsers(users) {
         row.innerHTML = `
             <td class="p-4 text-white">${escapeHtml(user.email || "Unknown")}</td>
             <td class="p-4 text-zinc-300">${escapeHtml(String(user.role || "").toUpperCase())}</td>
+            <td class="p-4">${renderPresenceBadge(user.presence)}</td>
             <td class="p-4 text-right text-zinc-500">${activity}</td>
         `;
         tbody.appendChild(row);
@@ -10476,11 +10490,9 @@ function renderAdminQueue(
                     "hover:bg-zinc-900/50";
             }
 
-            const actionLabel =
-                normalizedStatus ===
-                "PENDING_QA"
-                    ? "Open Review"
-                    : "View Task";
+            const isClaimedByMe = Boolean(submission.qa_claimed_by_me);
+            const isClaimed = Boolean(submission.qa_claim);
+            const actionLabel = normalizedStatus === "PENDING_QA" ? (isClaimedByMe ? "Continue Review" : (isClaimed ? "In Review" : "Take Task")) : "View Task";
 
             row.innerHTML = `
                 <td class="p-5">
@@ -10526,18 +10538,16 @@ function renderAdminQueue(
                 </td>
 
                 <td class="p-5 ${statusClass}">
-                    ${escapeHtml(
-                        isSecondAttempt
-                            ? "SECOND ATTEMPT"
-                            : normalizedStatus
-                    )}
+                    ${escapeHtml(isSecondAttempt ? "SECOND ATTEMPT" : normalizedStatus)}
+                    ${normalizedStatus === "PENDING_QA" && submission.qa_claim ? `<div class="text-[10px] mt-1 ${submission.qa_claimed_by_me ? "text-emerald-400" : "text-zinc-600"}">${submission.qa_claimed_by_me ? "CLAIMED BY YOU" : "IN REVIEW"}</div>` : ""}
                 </td>
 
                 <td class="p-5 text-right">
                     <div class="flex justify-end">
                         <button
                             class="px-3 py-2 border border-zinc-700 text-zinc-200 rounded-md hover:border-zinc-500 transition-colors"
-                            onclick="openQAReview(${Number(submission.id)})"
+                            ${normalizedStatus === "PENDING_QA" && !isClaimed ? `onclick="takeQATask(${Number(submission.id)})"` : `onclick="openQAReview(${Number(submission.id)})"`}
+                            ${normalizedStatus === "PENDING_QA" && isClaimed && !isClaimedByMe ? "disabled title='This task is currently being reviewed by another QA.'" : ""}
                         >
                             ${actionLabel}
                         </button>
@@ -10624,6 +10634,7 @@ function closeQAReview() {
     }
 
     activeQAReview = null;
+    stopQAClaimHeartbeat();
 
     const preview =
         document.getElementById(
@@ -10635,6 +10646,10 @@ function closeQAReview() {
     }
 }
 
+
+let qaClaimHeartbeatTimer=null,qaClaimHeartbeatSubmissionId=null;
+function stopQAClaimHeartbeat(){if(qaClaimHeartbeatTimer)clearInterval(qaClaimHeartbeatTimer);qaClaimHeartbeatTimer=null;qaClaimHeartbeatSubmissionId=null;}
+function startQAClaimHeartbeat(submissionId){stopQAClaimHeartbeat();if(!submissionId)return;qaClaimHeartbeatSubmissionId=Number(submissionId);qaClaimHeartbeatTimer=setInterval(async()=>{try{const response=await fetch(`/api/qa/claim/${encodeURIComponent(qaClaimHeartbeatSubmissionId)}/heartbeat`,{method:"POST",credentials:"same-origin",cache:"no-store"});if(!response.ok){stopQAClaimHeartbeat();if(activeQAReview)showQAReviewNotice("Your QA task claim has expired or was released. Close this review and take the task again.","red");}}catch(error){}},20000);}
 
 async function openQAReview(
     submissionId
@@ -10668,6 +10683,9 @@ async function openQAReview(
 
         activeQAReview =
             data;
+
+        startQAClaimHeartbeat(Number(submissionId));
+        kelyvoMarkPresenceActivity();
 
         renderQAReview(
             data
@@ -12143,6 +12161,7 @@ async function submitQAReview(
 
 async function logout() {
 
+    try { await fetch("/api/presence/logout",{method:"POST",credentials:"same-origin",cache:"no-store"}); } catch(error) {}
     try {
         await fetch(
             "/logout",
