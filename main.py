@@ -4227,6 +4227,7 @@ def label_studio_task_resolve(
     request: Request,
     task_id: int,
     file: str = "",
+    fileuri: str = "",
 ):
     """Proxy Label Studio's native task-file resolver through KELYVO.
 
@@ -4273,35 +4274,58 @@ def label_studio_task_resolve(
             detail="This project is not available in contributor mode.",
         )
 
-    try:
-        decoded_file = unquote(file or "").strip()
-    except Exception:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid Label Studio file reference.",
-        )
+    # Current Label Studio builds send `fileuri`; older builds may send `file`.
+    raw_fileuri = (fileuri or "").strip()
+    raw_file = (file or "").strip()
 
-    if not decoded_file.startswith("/data/upload/"):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid Label Studio file reference.",
-        )
+    if raw_fileuri:
+        try:
+            decoded_fileuri = unquote(raw_fileuri).strip()
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid Label Studio file reference.",
+            )
 
-    if (
-        decoded_file.startswith("//")
-        or "://" in decoded_file
-        or "\\x00" in decoded_file
-        or ".." in decoded_file.split("/")
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid Label Studio file reference.",
-        )
+        if not decoded_fileuri or "\x00" in decoded_fileuri:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid Label Studio file reference.",
+            )
+
+        resolver_params = {"fileuri": decoded_fileuri}
+    else:
+        try:
+            decoded_file = unquote(raw_file or "").strip()
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid Label Studio file reference.",
+            )
+
+        if not decoded_file.startswith("/data/upload/"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid Label Studio file reference.",
+            )
+
+        if (
+            decoded_file.startswith("//")
+            or "://" in decoded_file
+            or "\x00" in decoded_file
+            or ".." in decoded_file.split("/")
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid Label Studio file reference.",
+            )
+
+        resolver_params = {"file": decoded_file}
 
     response = label_studio_browser_request(
         "GET",
         f"/tasks/{int(task_id)}/resolve/",
-        params={"file": decoded_file},
+        params=resolver_params,
     )
 
     if response.status_code >= 400:
