@@ -40,776 +40,7 @@ tailwind.config = {
 };
 </script>
 
-<style>
-* {
-    box-sizing: border-box;
-}
 
-html,
-body {
-    margin: 0;
-    min-height: 100%;
-    background: #030303;
-}
-
-body {
-    color: #f4f4f5;
-    font-family:
-        Inter,
-        ui-sans-serif,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-}
-
-button,
-input,
-select {
-    font: inherit;
-}
-
-button {
-    cursor: pointer;
-}
-
-.spin {
-    animation: spin 1.5s linear infinite;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-#label-studio-container {
-    position: relative;
-    width: 100%;
-    height: calc(100vh - 150px);
-    min-height: 550px;
-    background: #0c0c0c;
-    border: 1px solid #1f1f1f;
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-#label-studio-editor {
-    width: 100%;
-    height: 100%;
-    min-height: 500px;
-    background: #111;
-}
-
-#label-studio-iframe {
-    display: block;
-    width: 100%;
-    height: 100%;
-    min-height: 500px;
-    border: 0;
-    background: #111;
-}
-
-#workspace-skip-button:disabled,
-#workspace-submit-button:disabled {
-    cursor: not-allowed;
-}
-
-.workspace-message {
-    height: 100%;
-    min-height: 500px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 30px;
-}
-
-/* ============================================================
-   CONTRIBUTOR LABEL STUDIO LOCKDOWN
-   ============================================================ */
-
-#label-studio-container.contributor-locked {
-    user-select: none;
-}
-.kelyvo-presence-badge{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}.kelyvo-presence-dot{width:8px;height:8px;border-radius:999px;flex:0 0 auto}.kelyvo-presence-dot.active{background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.1)}.kelyvo-presence-dot.idle{background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.09)}.kelyvo-presence-dot.offline{background:#71717a}.kelyvo-presence-active{color:#34d399}.kelyvo-presence-idle{color:#fbbf24}.kelyvo-presence-offline{color:#a1a1aa}.kelyvo-presence-context{margin-top:3px;color:var(--k-muted,#71717a);font-size:10px;line-height:1.35}
-
-#label-studio-container.contributor-locked iframe {
-    pointer-events: auto;
-}
-
-/* ============================================================
-   CONTRIBUTOR DASHBOARD ENHANCEMENTS
-============================================================ */
-
-.kelyvo-card {
-    background: #080808;
-    border: 1px solid #1f1f1f;
-    border-radius: 16px;
-}
-
-.kelyvo-status-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    margin-right: 7px;
-}
-
-.kelyvo-status-dot.pending {
-    background: #f59e0b;
-}
-
-.kelyvo-status-dot.passed {
-    background: #34d399;
-}
-
-.kelyvo-status-dot.failed {
-    background: #f87171;
-}
-
-.kelyvo-status-dot.neutral {
-    background: #71717a;
-}
-
-.kelyvo-soft-divider {
-    border-top: 1px solid #1f1f1f;
-}
-
-.kelyvo-mono {
-    font-family:
-        ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        Monaco,
-        Consolas,
-        "Liberation Mono",
-        "Courier New",
-        monospace;
-}
-
-.kelyvo-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border: 1px solid #27272a;
-    background: #0a0a0a;
-    border-radius: 999px;
-    padding: 5px 9px;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-}
-
-.kelyvo-action-link {
-    transition:
-        border-color 0.15s ease,
-        background 0.15s ease,
-        color 0.15s ease;
-}
-
-.kelyvo-action-link:hover {
-    border-color: #52525b;
-    background: #111111;
-}
-
-.kelyvo-preference-option { position: relative; }
-.kelyvo-preference-option input { position: absolute; opacity: 0; pointer-events: none; }
-.kelyvo-preference-option label { display:block; height:100%; border:1px solid #27272a; background:#050505; border-radius:12px; padding:12px; transition:border-color .15s ease, background .15s ease; }
-.kelyvo-preference-option label:hover { border-color:#52525b; background:#0a0a0a; }
-.kelyvo-preference-option input:checked + label { border-color:#e5e7eb; background:#101010; }
-
-.kelyvo-quality-check {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-}
-
-.kelyvo-quality-check::before {
-    content: "✓";
-    flex: 0 0 auto;
-    width: 18px;
-    height: 18px;
-    border: 1px solid #3f3f46;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    color: #a1a1aa;
-    margin-top: 1px;
-}
-
-@media (max-width: 640px) {
-    #label-studio-container {
-        min-height: 500px;
-    }
-}
-
-
-/* ============================================================
-   QA REVIEW WORKSPACE — TASK ONLY / READ ONLY
-============================================================ */
-
-#qa-review-modal button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.qa-preview-stage {
-    position: relative;
-    display: inline-block;
-    max-width: 100%;
-}
-
-.qa-preview-stage img {
-    display: block;
-    max-width: 100%;
-    max-height: 620px;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-}
-
-.qa-box-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-}
-
-.qa-box {
-    position: absolute;
-    border: 2px solid #fbbf24;
-    background: rgba(251, 191, 36, 0.08);
-}
-
-.qa-box-label {
-    position: absolute;
-    left: -1px;
-    top: -24px;
-    background: #fbbf24;
-    color: #111827;
-    padding: 3px 6px;
-    border-radius: 4px 4px 0 0;
-    font-size: 9px;
-    font-weight: 700;
-    line-height: 1;
-    white-space: nowrap;
-}
-
-.qa-mask-canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-
-.qa-readonly-notice {
-    border: 1px solid #27272a;
-    background: #09090b;
-    color: #a1a1aa;
-}
-
-
-/* ============================================================
-   KELYVO TASK SUBMISSION SUCCESS ANIMATION
-   ============================================================ */
-.kelyvo-submit-success-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at center, rgba(20,20,20,.82), rgba(0,0,0,.97));
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    animation: kelyvoSubmitFadeIn .22s ease-out forwards;
-}
-.kelyvo-submit-success-scene {
-    position: relative;
-    width: min(420px, 90vw);
-    text-align: center;
-    animation: kelyvoSubmitPop .5s cubic-bezier(.18,.9,.2,1.18) forwards;
-}
-.kelyvo-submit-success-radiance {
-    position: absolute;
-    left: 50%;
-    top: 58px;
-    width: 250px;
-    height: 250px;
-    transform: translate(-50%,-50%) scale(.3);
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,.17), rgba(255,255,255,.04) 45%, transparent 72%);
-    filter: blur(8px);
-    pointer-events: none;
-    animation: kelyvoSubmitRadiance .9s ease-out forwards;
-}
-.kelyvo-submit-success-orbit {
-    position: absolute;
-    left: 50%;
-    top: -18px;
-    width: 178px;
-    height: 178px;
-    transform: translateX(-50%);
-    border: 1px solid rgba(255,255,255,.15);
-    border-radius: 50%;
-    animation: kelyvoSubmitSpin 1.6s linear infinite;
-}
-.kelyvo-submit-success-orbit::before,
-.kelyvo-submit-success-orbit::after {
-    content: "";
-    position: absolute;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 0 16px rgba(255,255,255,.9);
-}
-.kelyvo-submit-success-orbit::before { top: -4px; left: 50%; transform: translateX(-50%); }
-.kelyvo-submit-success-orbit::after { bottom: -4px; left: 50%; transform: translateX(-50%); }
-.kelyvo-submit-success-ring {
-    position: relative;
-    width: 118px;
-    height: 118px;
-    margin: 0 auto;
-    border: 1px solid rgba(255,255,255,.24);
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,.14), rgba(255,255,255,.03) 58%, transparent 59%);
-    box-shadow: 0 0 65px rgba(255,255,255,.11), inset 0 0 26px rgba(255,255,255,.04);
-    animation: kelyvoSubmitPulse .85s ease-in-out infinite alternate;
-}
-.kelyvo-submit-success-ring::before,
-.kelyvo-submit-success-ring::after {
-    content: "";
-    position: absolute;
-    inset: -9px;
-    border: 1px solid rgba(255,255,255,.07);
-    border-radius: 50%;
-}
-.kelyvo-submit-success-ring::after { inset: -19px; border-color: rgba(255,255,255,.03); }
-.kelyvo-submit-check {
-    position: absolute;
-    left: 36px;
-    top: 31px;
-    width: 44px;
-    height: 25px;
-    border-left: 5px solid #fff;
-    border-bottom: 5px solid #fff;
-    transform: rotate(-45deg) scale(.3);
-    opacity: 0;
-    filter: drop-shadow(0 0 12px rgba(255,255,255,.55));
-    animation: kelyvoSubmitCheck .48s .16s cubic-bezier(.22,.8,.2,1) forwards;
-}
-.kelyvo-submit-success-particles {
-    position: absolute;
-    left: 50%;
-    top: 50px;
-    width: 1px;
-    height: 1px;
-    pointer-events: none;
-}
-.kelyvo-submit-success-particle {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 0 14px rgba(255,255,255,.8);
-    opacity: 0;
-    animation: kelyvoSubmitParticle .9s cubic-bezier(.1,.75,.2,1) forwards;
-}
-.kelyvo-submit-success-kicker {
-    position: relative;
-    margin-top: 38px;
-    color: rgba(255,255,255,.47);
-    font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    letter-spacing: .34em;
-    text-transform: uppercase;
-}
-.kelyvo-submit-success-title {
-    position: relative;
-    margin-top: 12px;
-    color: #fff;
-    font-size: clamp(30px, 7vw, 46px);
-    font-weight: 300;
-    line-height: 1;
-    letter-spacing: -.035em;
-}
-.kelyvo-submit-success-subtitle {
-    position: relative;
-    margin-top: 12px;
-    color: rgba(255,255,255,.48);
-    font-size: 12px;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-}
-.kelyvo-submit-success-progress {
-    position: relative;
-    width: 170px;
-    height: 2px;
-    margin: 24px auto 0;
-    overflow: hidden;
-    border-radius: 99px;
-    background: rgba(255,255,255,.08);
-}
-.kelyvo-submit-success-progress span {
-    display: block;
-    width: 100%;
-    height: 100%;
-    background: #fff;
-    transform-origin: left center;
-    animation: kelyvoSubmitProgress 1.55s linear forwards;
-}
-@keyframes kelyvoSubmitFadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes kelyvoSubmitPop { from { opacity: 0; transform: translateY(16px) scale(.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes kelyvoSubmitRadiance { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.2); } 40% { opacity: 1; } 100% { opacity: .08; transform: translate(-50%,-50%) scale(1.35); } }
-@keyframes kelyvoSubmitSpin { from { transform: translateX(-50%) rotate(0deg); } to { transform: translateX(-50%) rotate(360deg); } }
-@keyframes kelyvoSubmitPulse { from { transform: scale(.98); } to { transform: scale(1.035); } }
-@keyframes kelyvoSubmitCheck { 0% { opacity: 0; transform: rotate(-45deg) scale(.3); } 45% { opacity: 1; transform: rotate(-45deg) scale(1.06); } 100% { opacity: 1; transform: rotate(-45deg) scale(1); } }
-@keyframes kelyvoSubmitParticle { 0% { opacity: 0; transform: translate(0,0) scale(.2); } 12% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--px),var(--py)) scale(.7); } }
-@keyframes kelyvoSubmitProgress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-@media (prefers-reduced-motion: reduce) {
-    .kelyvo-submit-success-overlay,
-    .kelyvo-submit-success-scene,
-    .kelyvo-submit-success-radiance,
-    .kelyvo-submit-success-orbit,
-    .kelyvo-submit-success-ring,
-    .kelyvo-submit-check,
-    .kelyvo-submit-success-particle,
-    .kelyvo-submit-success-progress span { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
-}
-
-
-/* ============================================================
-   KELYVO V16 — FULL UI / UX SYSTEM
-   ============================================================ */
-:root {
-    --k-role-accent:#d4af37;
-    --k-role-soft:rgba(212,175,55,.12);
-    --k-role-border:rgba(212,175,55,.32);
-    --k-bg:#030303;
-    --k-card:#080808;
-    --k-card2:#0b0b0b;
-    --k-border:#242428;
-    --k-text:#f4f4f5;
-    --k-muted:#8d8d97;
-}
-
-html[data-kelyvo-theme="light"] {
-    --k-bg:#f5f7fa;
-    --k-card:#ffffff;
-    --k-card2:#f8fafc;
-    --k-border:#d9dee7;
-    --k-text:#111827;
-    --k-muted:#64748b;
-}
-
-body {
-    background:var(--k-bg);
-    color:var(--k-text);
-    transition:background .2s ease,color .2s ease;
-}
-
-.kelyvo-v16-nav {
-    position:sticky;
-    top:0;
-    z-index:90;
-    display:none;
-    gap:8px;
-    align-items:center;
-    overflow-x:auto;
-    white-space:nowrap;
-    padding:8px 20px;
-    background:rgba(3,3,3,.86);
-    border-bottom:1px solid var(--k-border);
-    backdrop-filter:blur(16px);
-}
-html[data-kelyvo-theme="light"] .kelyvo-v16-nav {
-    background:rgba(255,255,255,.92);
-}
-.kelyvo-v16-nav.visible { display:flex; }
-.kelyvo-nav-title {
-    margin-right:8px;
-    color:var(--k-muted);
-    font-size:10px;
-    text-transform:uppercase;
-    letter-spacing:.16em;
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-}
-.kelyvo-nav-btn {
-    border:1px solid var(--k-border);
-    background:var(--k-card);
-    color:var(--k-muted);
-    border-radius:999px;
-    padding:7px 12px;
-    font-size:11px;
-    transition:.16s ease;
-}
-.kelyvo-nav-btn:hover,
-.kelyvo-nav-btn.active {
-    color:var(--k-text);
-    border-color:var(--k-role-border);
-    background:var(--k-role-soft);
-}
-
-.kelyvo-v16-header-control {
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    border:1px solid var(--k-border);
-    background:var(--k-card);
-    color:var(--k-text);
-    padding:8px 11px;
-    border-radius:999px;
-    font-size:10px;
-    text-transform:uppercase;
-    letter-spacing:.08em;
-    transition:.16s ease;
-}
-.kelyvo-v16-header-control:hover {
-    border-color:var(--k-role-border);
-    background:var(--k-role-soft);
-}
-.kelyvo-v16-header-control .kelyvo-control-icon {
-    font-size:13px;
-    line-height:1;
-}
-.kelyvo-v16-header-control[hidden] { display:none; }
-
-.kelyvo-viewbar {
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    gap:7px;
-    padding:10px 12px;
-    margin:0 0 10px;
-    background:var(--k-card2);
-    border:1px solid var(--k-border);
-    border-radius:12px;
-}
-.kelyvo-viewbar-label {
-    margin-right:4px;
-    color:var(--k-muted);
-    font-size:9px;
-    text-transform:uppercase;
-    letter-spacing:.12em;
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-}
-.kelyvo-view-btn {
-    border:1px solid var(--k-border);
-    background:transparent;
-    color:var(--k-muted);
-    border-radius:999px;
-    padding:6px 10px;
-    font-size:10px;
-}
-.kelyvo-view-btn.active {
-    color:var(--k-text);
-    border-color:var(--k-role-border);
-    background:var(--k-role-soft);
-}
-
-.kelyvo-pager {
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    padding:10px 12px;
-    border-top:1px solid var(--k-border);
-    background:var(--k-card2);
-    color:var(--k-muted);
-    font-size:10px;
-}
-.kelyvo-pager-group { display:flex; gap:6px; align-items:center; }
-.kelyvo-page-btn {
-    min-width:30px;
-    height:30px;
-    border:1px solid var(--k-border);
-    background:var(--k-card);
-    color:var(--k-muted);
-    border-radius:8px;
-    font-size:10px;
-}
-.kelyvo-page-btn.active {
-    color:var(--k-text);
-    border-color:var(--k-role-border);
-    background:var(--k-role-soft);
-}
-.kelyvo-page-btn:disabled { opacity:.35; cursor:default; }
-
-.kelyvo-support-modal {
-    position:fixed;
-    inset:0;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:100000;
-    padding:18px;
-    background:rgba(0,0,0,.72);
-    backdrop-filter:blur(18px);
-}
-.kelyvo-support-modal.open { display:flex; }
-.kelyvo-support-dialog {
-    width:min(520px,100%);
-    background:var(--k-card);
-    color:var(--k-text);
-    border:1px solid var(--k-border);
-    border-radius:20px;
-    box-shadow:0 24px 100px rgba(0,0,0,.45);
-}
-.kelyvo-support-dialog textarea {
-    width:100%;
-    min-height:130px;
-    resize:vertical;
-    border:1px solid var(--k-border);
-    border-radius:12px;
-    padding:12px;
-    background:var(--k-bg);
-    color:var(--k-text);
-    outline:none;
-}
-.kelyvo-support-dialog input[type="file"] {
-    width:100%;
-    border:1px dashed var(--k-border);
-    border-radius:12px;
-    padding:12px;
-    color:var(--k-muted);
-    background:var(--k-bg);
-}
-.kelyvo-support-status {
-    min-height:20px;
-    font-size:11px;
-}
-
-.kelyvo-notify-modal,
-.kelyvo-search-modal {
-    position:fixed;
-    inset:0;
-    display:none;
-    align-items:flex-start;
-    justify-content:flex-end;
-    z-index:99998;
-    padding:78px 18px 18px;
-    background:rgba(0,0,0,.28);
-}
-.kelyvo-notify-modal.open,
-.kelyvo-search-modal.open { display:flex; }
-.kelyvo-flyout {
-    width:min(420px,92vw);
-    background:var(--k-card);
-    border:1px solid var(--k-border);
-    border-radius:16px;
-    box-shadow:0 20px 80px rgba(0,0,0,.42);
-    overflow:hidden;
-}
-.kelyvo-search-input {
-    width:100%;
-    border:0;
-    border-bottom:1px solid var(--k-border);
-    background:transparent;
-    color:var(--k-text);
-    padding:14px 16px;
-    outline:none;
-}
-.kelyvo-search-results {
-    max-height:60vh;
-    overflow:auto;
-}
-.kelyvo-search-hit {
-    display:block;
-    padding:12px 16px;
-    border-bottom:1px solid var(--k-border);
-    color:var(--k-text);
-    cursor:pointer;
-}
-.kelyvo-search-hit:hover { background:var(--k-role-soft); }
-
-.kelyvo-admin-support-list {
-    max-height:520px;
-    overflow:auto;
-}
-.kelyvo-ticket {
-    border-top:1px solid var(--k-border);
-    padding:14px 16px;
-}
-.kelyvo-ticket:first-child { border-top:0; }
-.kelyvo-ticket-meta {
-    display:flex;
-    flex-wrap:wrap;
-    gap:8px;
-    align-items:center;
-    color:var(--k-muted);
-    font-size:10px;
-}
-.kelyvo-ticket-message {
-    margin-top:8px;
-    color:var(--k-text);
-    font-size:13px;
-    line-height:1.55;
-}
-.kelyvo-ticket-actions {
-    display:flex;
-    flex-wrap:wrap;
-    gap:8px;
-    margin-top:10px;
-}
-.kelyvo-ticket-action {
-    border:1px solid var(--k-border);
-    background:var(--k-card2);
-    color:var(--k-text);
-    border-radius:8px;
-    padding:7px 10px;
-    font-size:10px;
-    text-transform:uppercase;
-}
-
-html[data-kelyvo-theme="light"] .bg-darkbg,
-html[data-kelyvo-theme="light"] header {
-    background:#fff !important;
-    border-color:#d9dee7 !important;
-}
-html[data-kelyvo-theme="light"] input,
-html[data-kelyvo-theme="light"] select,
-html[data-kelyvo-theme="light"] textarea {
-    background:#fff !important;
-    color:#111827 !important;
-    border-color:#d9dee7 !important;
-}
-html[data-kelyvo-theme="light"] .kelyvo-card {
-    background:#fff !important;
-    border-color:#d9dee7 !important;
-}
-html[data-kelyvo-theme="light"] #label-studio-container,
-html[data-kelyvo-theme="light"] #label-studio-editor,
-html[data-kelyvo-theme="light"] #label-studio-iframe {
-    background:#f3f4f6 !important;
-}
-body.kelyvo-light .kelyvo-card { background:#ffffff !important; border-color:#d9dee7 !important; }
-body.kelyvo-light .kelyvo-soft-divider { border-color:#d9dee7 !important; }
-body.kelyvo-light header { background:#ffffff !important; border-color:#d9dee7 !important; }
-body.kelyvo-light input,
-body.kelyvo-light select,
-body.kelyvo-light textarea { background:#ffffff !important; color:#111827 !important; border-color:#d9dee7 !important; }
-body.kelyvo-light .text-zinc-100,
-body.kelyvo-light .text-zinc-200,
-body.kelyvo-light .text-zinc-300,
-body.kelyvo-light .text-white { color:#111827 !important; }
-body.kelyvo-light .text-zinc-400,
-body.kelyvo-light .text-zinc-500,
-body.kelyvo-light .text-zinc-600 { color:#64748b !important; }
-
-@media (max-width:760px) {
-    .kelyvo-v16-nav { padding:8px 12px; }
-    .kelyvo-nav-title { display:none; }
-    .kelyvo-v16-header-control { padding:7px 9px; }
-    .kelyvo-v16-header-control .kelyvo-control-text { display:none; }
-}
-</style>
 
 <style id="kelyvo-portal-visual-system">
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
@@ -1068,6 +299,17 @@ header > span:first-child > span {
 
 #user-nav {
     gap: 8px !important;
+    align-items: center !important;
+}
+
+/* Authenticated header utilities are visible whenever #user-nav is visible.
+   They must not depend on a late JS call removing the HTML hidden attribute. */
+#user-nav #kelyvo-header-notifications,
+#user-nav #kelyvo-support-open,
+#user-nav #kelyvo-theme-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 #user-email-display {
@@ -1588,6 +830,184 @@ footer {
 #task-workspace-modal header {
     background: rgba(9,13,18,.96) !important;
     border-color: var(--portal-border) !important;
+}
+
+/* Controls must remain visible while the contributor is inside the live
+   annotation workspace. They are intentionally separate from the dashboard
+   header because the workspace is a full-screen modal. */
+.kelyvo-workspace-controls {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+}
+
+.kelyvo-workspace-control {
+    min-height: 38px !important;
+    padding: 8px 13px !important;
+    border: 1px solid var(--portal-border) !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,.035) !important;
+    color: var(--portal-text-soft) !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+}
+
+.kelyvo-workspace-control:hover {
+    background: rgba(255,255,255,.075) !important;
+    border-color: var(--portal-border-strong) !important;
+    color: var(--portal-text) !important;
+}
+
+.kelyvo-workspace-control.notification {
+    position: relative !important;
+}
+
+.kelyvo-workspace-notification-dot {
+    display: inline-block !important;
+    width: 6px !important;
+    height: 6px !important;
+    margin-right: 7px !important;
+    border-radius: 999px !important;
+    background: #5eead4 !important;
+    vertical-align: middle !important;
+    box-shadow: 0 0 0 3px rgba(94,234,212,.08) !important;
+}
+
+/* Support + notification panels behave like header dropdowns, not page
+   sections. They stay anchored to the top-right of the current viewport. */
+.kelyvo-support-modal,
+.kelyvo-notify-modal,
+.kelyvo-search-modal {
+    align-items: flex-start !important;
+    justify-content: flex-end !important;
+    padding: 76px 24px 24px !important;
+}
+
+.kelyvo-support-dialog,
+.kelyvo-flyout {
+    margin: 0 !important;
+    transform-origin: top right !important;
+}
+
+@media (max-width: 760px) {
+    .kelyvo-workspace-controls {
+        gap: 5px !important;
+    }
+
+    .kelyvo-workspace-control {
+        min-height: 34px !important;
+        padding: 7px 10px !important;
+    }
+
+    .kelyvo-workspace-control .workspace-control-text {
+        display: none !important;
+    }
+
+    .kelyvo-support-modal,
+    .kelyvo-notify-modal,
+    .kelyvo-search-modal {
+        padding: 64px 12px 12px !important;
+    }
+}
+
+/* Label Studio must fill the entire KELYVO workspace. Without an explicit
+   iframe size, the browser falls back to the default 300x150 iframe size. */
+#label-studio-container {
+    position: relative !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+}
+
+#label-studio-iframe {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background: #fff !important;
+}
+
+.workspace-message {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    background: #000 !important;
+    z-index: 2 !important;
+}
+
+/* Support and notifications are flyout modals. They must never participate
+   in normal document flow or appear as sections at the bottom of a page. */
+.kelyvo-support-modal,
+.kelyvo-notify-modal,
+.kelyvo-search-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 3000 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(0,0,0,.72) !important;
+    padding: 24px !important;
+}
+
+.kelyvo-support-modal.open,
+.kelyvo-notify-modal.open,
+.kelyvo-search-modal.open {
+    display: flex !important;
+}
+
+.kelyvo-support-dialog {
+    width: min(760px, 100%) !important;
+    max-height: min(820px, calc(100vh - 48px)) !important;
+    overflow: auto !important;
+    background: var(--portal-surface) !important;
+    border: 1px solid var(--portal-border-strong) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 30px 90px rgba(0,0,0,.45) !important;
+}
+
+.kelyvo-flyout {
+    width: min(440px, 100%) !important;
+    max-height: min(720px, calc(100vh - 48px)) !important;
+    overflow: auto !important;
+    background: var(--portal-surface) !important;
+    border: 1px solid var(--portal-border-strong) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 30px 90px rgba(0,0,0,.45) !important;
+}
+
+.kelyvo-support-dialog textarea {
+    display: block !important;
+    width: 100% !important;
+    min-height: 150px !important;
+    resize: vertical !important;
+    padding: 12px !important;
+    border: 1px solid var(--portal-border) !important;
+    border-radius: 10px !important;
+    background: var(--portal-surface-3) !important;
+    color: var(--portal-text) !important;
+}
+
+@media (max-width: 760px) {
+    .kelyvo-support-modal,
+    .kelyvo-notify-modal,
+    .kelyvo-search-modal {
+        padding: 12px !important;
+    }
 }
 
 /* -----------------------------
@@ -3625,7 +3045,7 @@ body.kelyvo-original-admin .kelyvo-original-admin-lock-control {
     text-transform: uppercase;
 }
 
-body.kelyvo-original-admin .kelyvo-submit-success-overlay {
+body.kelyvo-original-admin .kelyvo-transition-overlay {
     background:
         radial-gradient(circle at center, rgba(216,179,106,.10), rgba(0,0,0,.96));
 }
@@ -3652,7 +3072,7 @@ body.kelyvo-original-admin .kelyvo-submit-success-check {
 }
 
 body.kelyvo-original-admin .kelyvo-submit-success-kicker,
-body.kelyvo-original-admin .kelyvo-submit-success-subtitle {
+body.kelyvo-original-admin .kelyvo-transition-message {
     color: rgba(240,212,154,.52);
 }
 
@@ -3715,33 +3135,117 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
 }
 </style>
 
+
+<style>
+/* KELYVO universal transition system */
+#kelyvo-boot-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #050607;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .24s ease, visibility .24s ease;
+}
+#kelyvo-boot-overlay.hide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+.kelyvo-boot-box { text-align:center; width:min(360px,86vw); }
+.kelyvo-boot-logo {
+    font-family:"Space Grotesk",sans-serif;
+    font-size:38px; letter-spacing:.24em; color:#fff; font-weight:600;
+}
+.kelyvo-boot-line { width:180px; height:2px; margin:22px auto 0; background:rgba(255,255,255,.12); overflow:hidden; }
+.kelyvo-boot-line span { display:block; height:100%; width:45%; background:#5eead4; animation:kelyvoBootMove 1.1s infinite ease-in-out; }
+.kelyvo-boot-message { margin-top:14px; color:rgba(255,255,255,.48); font:10px/1.4 "IBM Plex Mono",monospace; letter-spacing:.14em; text-transform:uppercase; min-height:15px; }
+@keyframes kelyvoBootMove { from { transform:translateX(-120%); } to { transform:translateX(320%); } }
+@media (prefers-reduced-motion: reduce) { #kelyvo-boot-overlay, .kelyvo-boot-line span { transition:none; animation:none; } }
+</style>
+
+
+<style id="kelyvo-qa-annotation-overlay-fix">
+/*
+ * QA annotation overlay fix.
+ *
+ * The QA renderer creates the image, canvas and box overlay as siblings.
+ * Without an explicit positioned stage, the canvas participates in normal
+ * document flow and is rendered BELOW the image. The annotation coordinates
+ * are then correct, but the canvas is physically in the wrong place.
+ *
+ * Keep the existing renderer/workflow untouched and make only the visual
+ * overlay layer share the exact displayed image rectangle.
+ */
+.qa-preview-stage {
+    position: relative !important;
+    display: inline-block !important;
+    max-width: 100% !important;
+    max-height: 620px !important;
+    line-height: 0 !important;
+    vertical-align: top !important;
+}
+
+.qa-preview-stage > #qa-preview-image {
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 620px !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.qa-preview-stage > .qa-mask-canvas,
+.qa-preview-stage > .qa-box-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+}
+
+.qa-preview-stage > .qa-mask-canvas {
+    z-index: 2 !important;
+}
+
+.qa-preview-stage > .qa-box-overlay {
+    z-index: 3 !important;
+}
+</style>
+
 </head>
 
-<body class="bg-darkbg text-gray-100 min-h-screen">
-
-<!-- ============================================================
-     LOADING OVERLAY
-============================================================ -->
-
-<div
-    id="loading-overlay"
-    class="fixed inset-0 bg-black/85 z-[300] hidden items-center justify-center"
->
-    <div class="text-center">
-
-        <div
-            class="w-12 h-12 border-2 border-zinc-700 border-t-white rounded-full spin mx-auto"
-        ></div>
-
-        <p
-            id="loading-text"
-            class="mt-5 text-xs uppercase tracking-widest font-mono"
-        >
-            Processing...
-        </p>
-
+<body>
+<style id="kelyvo-session-paint-guard">
+body.kelyvo-session-pending #auth-section {
+    display: none !important;
+}
+</style>
+<script id="kelyvo-session-paint-marker">
+(function () {
+    try {
+        if (localStorage.getItem("kelyvo_user_email")) {
+            document.body.classList.add("kelyvo-session-pending");
+        }
+    } catch (error) {
+        // If storage is unavailable, normal signed-out rendering is safe.
+    }
+})();
+</script>
+<div id="kelyvo-boot-overlay" role="status" aria-live="polite" aria-label="KELYVO loading">
+    <div class="kelyvo-boot-box">
+        <div class="kelyvo-boot-logo">KELYVO</div>
+        <div class="kelyvo-boot-line"><span></span></div>
+        <div id="kelyvo-boot-message" class="kelyvo-boot-message">Restoring secure session...</div>
     </div>
 </div>
+ 
+
 
 
 <!-- ============================================================
@@ -3773,35 +3277,24 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
             id="user-email-display"
             class="text-xs text-zinc-400 font-mono"
         ></span>
+
+
 <button
             id="kelyvo-header-notifications"
             type="button"
             onclick="kelyvoOpenNotifications()"
             class="kelyvo-v16-header-control"
-            hidden
         >
             <span class="kelyvo-control-icon">◔</span>
             <span class="kelyvo-control-text">Alerts</span>
         </button>
 
-        <button
-            id="kelyvo-theme-toggle"
-            type="button"
-            onclick="kelyvoToggleTheme()"
-            class="kelyvo-v16-header-control"
-            hidden
-            aria-label="Toggle dark or light mode"
-        >
-            <span id="kelyvo-theme-icon" class="kelyvo-control-icon">☾</span>
-            <span id="kelyvo-theme-text" class="kelyvo-control-text">Dark</span>
-        </button>
 
         <button
             id="kelyvo-support-open"
             type="button"
             onclick="kelyvoOpenSupport()"
             class="kelyvo-v16-header-control"
-            hidden
             aria-label="Open KELYVO support"
         >
             <span class="kelyvo-control-icon">?</span>
@@ -3809,6 +3302,16 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
         </button>
 
 
+        <button
+            id="kelyvo-theme-toggle"
+            type="button"
+            onclick="kelyvoToggleTheme()"
+            class="kelyvo-v16-header-control"
+            aria-label="Toggle dark or light mode"
+        >
+            <span id="kelyvo-theme-icon" class="kelyvo-control-icon">☾</span>
+            <span id="kelyvo-theme-text" class="kelyvo-control-text">Dark</span>
+        </button>
         <button
             onclick="logout()"
             class="text-[11px] uppercase tracking-widest text-zinc-400 border border-zinc-800 px-4 py-2 rounded-md"
@@ -4840,16 +4343,35 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
             </p>
         </div>
 
-        <button
-            type="button"
-            onclick="loadAdminOperations()"
-            class="text-xs uppercase border border-zinc-800 px-4 py-2.5 rounded-lg"
-        >
-            Refresh Operations
-        </button>
+        <div class="flex flex-wrap gap-2">
+            <button
+                type="button"
+                onclick="loadAdminOperations()"
+                class="text-xs uppercase border border-zinc-800 px-4 py-2.5 rounded-lg"
+            >
+                Refresh Operations
+            </button>
+
+            <button
+                type="button"
+                onclick="resetKelyvoAnnotationHistory()"
+                class="text-xs uppercase border border-red-900/70 bg-red-950/20 text-red-300 px-4 py-2.5 rounded-lg hover:border-red-500 transition"
+            >
+                ⚠ Reset Annotation History
+            </button>
+        </div>
     </div>
 
     <div id="admin-ops-error" class="hidden p-4 border border-red-900/60 bg-red-950/20 rounded-xl text-xs text-red-300 font-mono"></div>
+
+    <section class="bg-red-950/10 border border-red-900/50 rounded-2xl p-5">
+        <div class="text-xs uppercase tracking-widest text-red-300 font-mono">Test Environment Control</div>
+        <div class="text-lg text-white mt-2">Reset Annotation History</div>
+        <p class="text-xs text-zinc-400 mt-2 max-w-2xl">
+            Removes KELYVO annotation history, releases reservations and resets workflow state for testing.
+            Label Studio tasks and uploaded assets remain untouched.
+        </p>
+    </section>
 
 <section id="admin-support-section" class="bg-[#080808] border border-zinc-800 rounded-2xl overflow-hidden">
     <div class="px-5 py-4 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
@@ -5214,7 +4736,13 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
             <h2>QA Review Operations</h2>
             <p>Review contributor submissions by workflow status.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2"><button type="button" onclick="takeNextQATask()" class="kelyvo-page-heading-action">Take Next Task</button><button type="button" onclick="loadAdminQueue()" class="kelyvo-page-heading-action">Refresh Queue</button></div>
+        <div class="flex flex-wrap items-center gap-2">
+            <button type="button" onclick="takeNextQATask()" class="kelyvo-page-heading-action">Take Next Task</button>
+            <button type="button" onclick="loadAdminQueue()" class="kelyvo-page-heading-action">Refresh Queue</button>
+            <button type="button" onclick="kelyvoResetAnnotationHistory()" class="kelyvo-page-heading-action" style="border-color:#ef4444;color:#fca5a5;">
+                RESET ANNOTATION HISTORY
+            </button>
+        </div>
     </div>
 
 
@@ -5610,7 +5138,7 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
 
 <div
     id="task-workspace-modal"
-    class="fixed inset-0 bg-black z-[150] hidden flex-col"
+    class="fixed inset-0 bg-black z-[150] hidden flex-col overflow-hidden"
 >
 
     <header
@@ -5642,7 +5170,27 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
         </div>
 
 
-        <div class="flex gap-3">
+        <div class="kelyvo-workspace-controls">
+
+            <button
+                id="kelyvo-workspace-notifications"
+                type="button"
+                onclick="kelyvoOpenNotifications()"
+                class="kelyvo-workspace-control notification"
+                aria-label="Open notifications"
+            >
+                <span class="kelyvo-workspace-notification-dot"></span><span class="workspace-control-text">Alerts</span>
+            </button>
+
+            <button
+                id="kelyvo-workspace-support"
+                type="button"
+                onclick="kelyvoOpenSupport()"
+                class="kelyvo-workspace-control"
+                aria-label="Open KELYVO support"
+            >
+                <span>?</span> <span class="workspace-control-text">Support</span>
+            </button>
 
             <button
                 id="workspace-skip-button"
@@ -5674,7 +5222,7 @@ html[data-kelyvo-theme="light"] body.kelyvo-original-admin .kelyvo-original-admi
 
 
     <main
-        class="flex-1 min-h-0 p-4 md:p-6 bg-[#020202]"
+        class="flex-1 min-h-0 flex flex-col overflow-hidden p-4 md:p-6 bg-[#020202]"
     >
 
         <div
@@ -5931,6 +5479,7 @@ let submissionRequestInFlight = false;
 let activeLabelStudio = null;
 
 let activeAnnotationResult = null;
+let activeLabelStudioSaveConfirmed = false;
 
 
 let activeEmbedId = null;
@@ -6158,43 +5707,17 @@ const LABEL_STUDIO_URL =
 ============================================================ */
 
 function showLoader(message = "Processing...") {
-
-    const overlay =
-        document.getElementById(
-            "loading-overlay"
-        );
-
-    const text =
-        document.getElementById(
-            "loading-text"
-        );
-
-    text.innerText = message;
-
-    overlay.classList.remove(
-        "hidden"
-    );
-
-    overlay.classList.add(
-        "flex"
-    );
+    const overlay = document.getElementById("kelyvo-boot-overlay");
+    const text = document.getElementById("kelyvo-boot-message");
+    if (!overlay) return;
+    if (text) text.innerText = message;
+    overlay.classList.remove("hide");
 }
 
-
 function hideLoader() {
-
-    const overlay =
-        document.getElementById(
-            "loading-overlay"
-        );
-
-    overlay.classList.add(
-        "hidden"
-    );
-
-    overlay.classList.remove(
-        "flex"
-    );
+    const overlay = document.getElementById("kelyvo-boot-overlay");
+    if (!overlay) return;
+    overlay.classList.add("hide");
 }
 
 
@@ -6346,7 +5869,16 @@ function updateRegistrationCodeVisibility() {
 let kelyvoPresenceTimer=null,kelyvoPresenceActivityTimer=null,kelyvoPresenceState="idle",kelyvoPresenceStarted=false;
 function kelyvoPresenceContext(){try{const role=String(localStorage.getItem("kelyvo_user_role")||"").toLowerCase();if(role==="qa"){if(activeQAReview?.submission)return{state:"active",context:`Reviewing QA Task #${activeQAReview.submission.task_id??activeQAReview.submission.id}`,taskId:activeQAReview.submission.task_id??null};return{state:kelyvoPresenceState,context:"QA queue",taskId:null};}if(role==="contributor"){if(activeTaskData)return{state:"active",context:`Working on ${String(activeModalityType||"annotation").toUpperCase()} task`,taskId:activeTaskData?.task?.id??activeTaskData?.task_id??null};return{state:kelyvoPresenceState,context:"Contributor workspace",taskId:null};}if(role==="data_collector")return{state:kelyvoPresenceState,context:"Data Collector workspace",taskId:null};if(role==="admin")return{state:kelyvoPresenceState,context:"Admin Operations",taskId:null};}catch(error){}return{state:kelyvoPresenceState,context:"Portal",taskId:null};}
 function kelyvoMarkPresenceActivity(){kelyvoPresenceState="active";clearTimeout(kelyvoPresenceActivityTimer);kelyvoPresenceActivityTimer=setTimeout(()=>{kelyvoPresenceState="idle";void kelyvoSendPresenceHeartbeat();},90000);}
-async function kelyvoSendPresenceHeartbeat(){if(!kelyvoPresenceStarted)return;const info=kelyvoPresenceContext();try{await fetch("/api/presence/heartbeat",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({activity_state:info.state,current_context:info.context,current_task_id:info.taskId})});}catch(error){console.debug("KELYVO presence heartbeat unavailable:",error);}}
+async function kelyvoSendPresenceHeartbeat(){
+    if(!kelyvoPresenceStarted)return;
+    const info=kelyvoPresenceContext();
+    try{
+        const response=await fetch("/api/presence/heartbeat",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({activity_state:info.state,current_context:info.context,current_task_id:info.taskId})});
+        if(response.status===401||response.status===403){
+            console.debug("KELYVO presence heartbeat rejected; keeping heartbeat alive for the next session check.");
+        }
+    }catch(error){console.debug("KELYVO presence heartbeat unavailable:",error);}
+}
 function startKelyvoPresence(){if(kelyvoPresenceStarted)return;kelyvoPresenceStarted=true;kelyvoMarkPresenceActivity();["mousemove","mousedown","keydown","touchstart","scroll","focus"].forEach(n=>window.addEventListener(n,kelyvoMarkPresenceActivity,{passive:true}));document.addEventListener("visibilitychange",()=>{if(!document.hidden){kelyvoMarkPresenceActivity();void kelyvoSendPresenceHeartbeat();}});void kelyvoSendPresenceHeartbeat();kelyvoPresenceTimer=setInterval(kelyvoSendPresenceHeartbeat,20000);}
 
 /* ============================================================
@@ -6470,11 +6002,10 @@ async function handleAuth(event) {
             data.earnings ?? 0
         );
 
+        showLoader("Loading workspace...");
+        initializeAuthenticatedUI(data);
         hideLoader();
-
-        initializeAuthenticatedUI(
-            data
-        );
+        window.setTimeout(startKelyvoPresence, 0);
 
     } catch (error) {
 
@@ -6500,178 +6031,116 @@ async function handleAuth(event) {
    AUTHENTICATED UI
 ============================================================ */
 
-function initializeAuthenticatedUI(user) {
-    startKelyvoPresence();
+function revealRoleWorkspace(user) {
+    const authSection = document.getElementById("auth-section");
+    if (authSection) {
+        authSection.classList.add("hidden");
+        authSection.classList.remove("kelyvo-session-pending");
+    }
+    document.body.classList.remove("kelyvo-session-pending");
 
-    document.getElementById(
-        "auth-section"
-    ).classList.add(
-        "hidden"
-    );
-
-
-    document.getElementById(
-        "user-nav"
-    ).classList.remove(
-        "hidden"
-    );
-
-
-    document.getElementById(
-        "user-nav"
-    ).classList.add(
-        "flex"
-    );
-
-
-    const userEmailDisplay = document.getElementById(
-        "user-email-display"
-    );
-
-    if (userEmailDisplay) {
-        userEmailDisplay.innerText = user.email;
+    const userNav = document.getElementById("user-nav");
+    if (userNav) {
+        userNav.classList.remove("hidden");
+        userNav.classList.add("flex");
     }
 
-    // Dedicated visual identity for the original protected KELYVO Admin.
-    // This does not grant or enforce permissions; backend controls remain
-    // authoritative.
-    const normalizedAuthenticatedEmail = String(user.email || "").trim().toLowerCase();
-    document.body.classList.toggle(
-        "kelyvo-original-admin",
-        normalizedAuthenticatedEmail === "ujjwal.ujs@gmail.com"
-    );
+    const userEmailDisplay = document.getElementById("user-email-display");
+    if (userEmailDisplay) userEmailDisplay.innerText = user.email || "";
 
-    // Reset workspace visibility so switching accounts in the same browser
-    // can never leave another role's controls visible.
-    [
-        "dashboard-section",
-        "data-collector-section",
-        "admin-ops-section",
-        "admin-section"
-    ].forEach(function (id) {
+    const normalizedAuthenticatedEmail = String(user.email || "").trim().toLowerCase();
+    document.body.classList.toggle("kelyvo-original-admin", normalizedAuthenticatedEmail === "ujjwal.ujs@gmail.com");
+
+    ["dashboard-section", "data-collector-section", "admin-ops-section", "admin-section"].forEach(function (id) {
         const section = document.getElementById(id);
-        if (section) {
-            section.classList.add("hidden");
-        }
+        if (section) section.classList.add("hidden");
     });
 
+    if (user.role === "admin") {
+        const section = document.getElementById("admin-ops-section");
+        if (section) section.classList.remove("hidden");
+    } else if (user.role === "qa") {
+        const section = document.getElementById("admin-section");
+        if (section) section.classList.remove("hidden");
+    } else if (user.role === "data_collector") {
+        const section = document.getElementById("data-collector-section");
+        if (section) section.classList.remove("hidden");
+    } else {
+        const dashboard = document.getElementById("dashboard-section");
+        if (dashboard) dashboard.classList.remove("hidden");
+        updateStats(user);
+    }
+}
+
+function loadRoleWorkspaceData(user) {
+    const safeLoad = async (label, fn) => {
+        try {
+            await fn();
+        } catch (error) {
+            console.debug(`KELYVO: ${label} unavailable after workspace reveal:`, error);
+        }
+    };
 
     if (user.role === "admin") {
-
-        document.getElementById(
-            "dashboard-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        // Admin sees Admin Operations only.
-        document.getElementById(
-            "admin-ops-section"
-        ).classList.remove(
-            "hidden"
-        );
-
-        document.getElementById(
-            "admin-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        loadAdminOperations();
-        loadAdminWorkforceUsers();
-        loadAdminInterestPools();
-        loadAdminDataCollectorReview();
-        loadAdminCollectionOpportunities();
-
-
-    } else if (user.role === "qa") {
-
-        document.getElementById(
-            "dashboard-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        document.getElementById(
-            "admin-ops-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        document.getElementById(
-            "admin-section"
-        ).classList.remove(
-            "hidden"
-        );
-
-        loadAdminQueue();
-        loadQADataCollectionQueue();
-
-
-    } else if (user.role === "data_collector") {
-
-        document.getElementById(
-            "dashboard-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        document.getElementById(
-            "admin-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        document.getElementById(
-            "admin-ops-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        document.getElementById(
-            "data-collector-section"
-        ).classList.remove(
-            "hidden"
-        );
-
-        loadDataCollectorSummary();
-        loadDataCollectorProfile();
-        loadDataCollectorSubmissions();
-        loadDataCollectorOpportunities();
-
-    } else {
-
-        document.getElementById(
-            "dashboard-section"
-        ).classList.remove(
-            "hidden"
-        );
-
-        document.getElementById(
-            "admin-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        document.getElementById(
-            "admin-ops-section"
-        ).classList.add(
-            "hidden"
-        );
-
-        updateStats(
-            user
-        );
-
-        loadContributorSubmissions();
-
-
-        loadContributorPreferences(Boolean(localStorage.getItem("kelyvo_show_preferences")));
-        loadContributorOwnProfile();
-        loadPipelineProjects();
-
-        restoreActiveTaskSession();
+        Promise.all([
+            safeLoad("admin operations", loadAdminOperations),
+            safeLoad("admin workforce", loadAdminWorkforceUsers),
+            safeLoad("admin interest pools", loadAdminInterestPools),
+            safeLoad("admin data collector review", loadAdminDataCollectorReview),
+            safeLoad("admin collection opportunities", loadAdminCollectionOpportunities)
+        ]);
+        return;
     }
+
+    if (user.role === "qa") {
+        Promise.all([
+            safeLoad("QA queue", loadAdminQueue),
+            safeLoad("QA data collection queue", loadQADataCollectionQueue)
+        ]);
+        return;
+    }
+
+    if (user.role === "data_collector") {
+        Promise.all([
+            safeLoad("collector summary", loadDataCollectorSummary),
+            safeLoad("collector profile", loadDataCollectorProfile),
+            safeLoad("collector submissions", loadDataCollectorSubmissions),
+            safeLoad("collector opportunities", loadDataCollectorOpportunities)
+        ]);
+        return;
+    }
+
+    Promise.all([
+        safeLoad("contributor submissions", loadContributorSubmissions),
+        safeLoad("contributor preferences", () => loadContributorPreferences(Boolean(localStorage.getItem("kelyvo_show_preferences")))),
+        safeLoad("contributor profile", loadContributorOwnProfile),
+        safeLoad("pipeline projects", loadPipelineProjects)
+    ]);
+
+    // An already-active task is restored after the shell is visible. This is
+    // deliberately not part of the boot-critical path.
+    const rawActiveSession = localStorage.getItem(ACTIVE_TASK_SESSION_KEY);
+    let hasActiveTaskSession = false;
+    if (rawActiveSession) {
+        try {
+            const saved = JSON.parse(rawActiveSession);
+            hasActiveTaskSession = Boolean(saved && saved.project_id && saved.task_id && saved.modality);
+        } catch (error) {
+            clearActiveTaskSession();
+        }
+    }
+
+    if (hasActiveTaskSession) {
+        window.setTimeout(() => {
+            void safeLoad("active task restoration", restoreActiveTaskSession);
+        }, 0);
+    }
+}
+
+function initializeAuthenticatedUI(user) {
+    // Boot-critical work is DOM-only. Network/database work is launched by the
+    // single boot sequence after the shell has been revealed.
+    revealRoleWorkspace(user);
 }
 
 
@@ -8053,6 +7522,8 @@ async function openLabelStudioWorkspace(
     }
 
 
+    activeLabelStudioSaveConfirmed = false;
+
     if (submitButton) {
 
         submitButton.disabled =
@@ -8408,6 +7879,7 @@ function handleLabelStudioEmbedMessage(
         eventName ===
         "submitAnnotation"
     ) {
+        activeLabelStudioSaveConfirmed = true;
 
         /*
          * Label Studio has successfully submitted the annotation.
@@ -8837,55 +8309,10 @@ function submitFromWorkspace() {
 ============================================================ */
 
 function showTaskSubmittedAnimation() {
-    const existing = document.getElementById("kelyvo-submit-success-overlay");
-    if (existing) {
-        existing.remove();
-    }
-
-    const overlay = document.createElement("div");
-    overlay.id = "kelyvo-submit-success-overlay";
-    overlay.className = "kelyvo-submit-success-overlay";
-    overlay.setAttribute("role", "status");
-    overlay.setAttribute("aria-live", "polite");
-
-    const scene = document.createElement("div");
-    scene.className = "kelyvo-submit-success-scene";
-
-    const particleLayer = document.createElement("div");
-    particleLayer.className = "kelyvo-submit-success-particles";
-    const vectors = [
-        [-118,-62],[-98,-94],[-62,-118],[-18,-132],[28,-124],[70,-106],[108,-70],[124,-20],
-        [116,34],[88,80],[48,112],[4,126],[-44,112],[-86,84],[-116,42]
-    ];
-    vectors.forEach(([px,py], i) => {
-        const particle = document.createElement("span");
-        particle.className = "kelyvo-submit-success-particle";
-        particle.style.setProperty("--px", `${px}px`);
-        particle.style.setProperty("--py", `${py}px`);
-        particle.style.animationDelay = `${70 + i * 22}ms`;
-        particleLayer.appendChild(particle);
-    });
-
-    scene.innerHTML = `
-        <div class="kelyvo-submit-success-radiance"></div>
-        <div class="kelyvo-submit-success-orbit"></div>
-        <div class="kelyvo-submit-success-ring">
-            <span class="kelyvo-submit-check"></span>
-        </div>
-        <div class="kelyvo-submit-success-kicker">KELYVO WORKFLOW</div>
-        <div class="kelyvo-submit-success-title">Task Submitted</div>
-        <div class="kelyvo-submit-success-subtitle">Sent to QA review</div>
-        <div class="kelyvo-submit-success-progress"><span></span></div>
-    `;
-    scene.appendChild(particleLayer);
-    overlay.appendChild(scene);
-    document.body.appendChild(overlay);
-
+    showLoader("Task submitted — sent to QA review.");
     window.setTimeout(() => {
-        overlay.style.transition = "opacity .22s ease";
-        overlay.style.opacity = "0";
-        window.setTimeout(() => overlay.remove(), 240);
-    }, 1550);
+        hideLoader();
+    }, 1100);
 }
 
 
@@ -9088,15 +8515,6 @@ async function handleAnnotationSubmission() {
                 console.debug(
                     "KELYVO: post-submit session refresh unavailable:",
                     sessionError
-                );
-            }
-
-            try {
-                await loadContributorSubmissions();
-            } catch (refreshError) {
-                console.debug(
-                    "KELYVO: second post-submit queue refresh unavailable:",
-                    refreshError
                 );
             }
 
@@ -12993,147 +12411,76 @@ async function neutralizeStaleKelyvoServiceWorkers() {
 
 
 async function restoreAuthenticatedSession() {
+    const overlay = document.getElementById("kelyvo-boot-overlay");
+    const bootMessage = document.getElementById("kelyvo-boot-message");
+    const setBootMessage = (message) => { if (bootMessage) bootMessage.innerText = message; };
+    const finishBoot = () => { if (overlay) overlay.classList.add("hide"); };
+    const clearSessionMarker = () => {
+        document.body.classList.remove("kelyvo-session-pending");
+    };
 
-    /*
-     * localStorage is only a convenience cache. It is NOT proof that the
-     * contributor is authenticated. The secure HttpOnly KELYVO session
-     * cookie is authoritative and must be validated by the server first.
-     */
-    const cachedEmail =
-        localStorage.getItem(
-            "kelyvo_user_email"
-        );
+    setBootMessage("Restoring secure session...");
+    const cachedEmail = localStorage.getItem("kelyvo_user_email");
 
     if (!cachedEmail) {
-        return;
+        clearSessionMarker();
+        finishBoot();
+        return false;
     }
 
     try {
-
-        const response =
-            await fetch(
-                "/api/session",
-                {
-                    method: "GET",
-                    credentials: "same-origin",
-                    cache: "no-store"
-                }
-            );
-
+        const response = await fetch("/api/session", {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "Accept": "application/json" }
+        });
         let data = null;
+        try { data = await response.json(); } catch (parseError) { data = null; }
 
-        try {
-            data = await response.json();
-        } catch (parseError) {
-            data = null;
-        }
-
-        if (
-            !response.ok ||
-            !data ||
-            data.status !== "success" ||
-            !data.email ||
-            !data.role
-        ) {
-            /*
-             * A stale localStorage login must never keep the protected
-             * dashboard visible after the secure server session expires,
-             * is missing, or becomes invalid.
-             */
-            [
-                "kelyvo_user_email",
-                "kelyvo_user_role",
-                "kelyvo_today",
-                "kelyvo_week",
-                "kelyvo_qa",
-                "kelyvo_earnings"
-            ].forEach(
-                key =>
-                    localStorage.removeItem(
-                        key
-                    )
-            );
-
+        if (!response.ok || !data || data.status !== "success" || !data.email || !data.role) {
+            ["kelyvo_user_email","kelyvo_user_role","kelyvo_today","kelyvo_week","kelyvo_qa","kelyvo_earnings"].forEach(key => localStorage.removeItem(key));
             clearActiveTaskSession();
-
-            return;
+            clearSessionMarker();
+            finishBoot();
+            return false;
         }
 
-        /*
-         * Refresh the local cache from the authoritative database-backed
-         * session response so dashboard statistics cannot become stale.
-         */
-        localStorage.setItem(
-            "kelyvo_user_email",
-            data.email
-        );
+        localStorage.setItem("kelyvo_user_email", data.email);
+        localStorage.setItem("kelyvo_user_role", data.role);
+        localStorage.setItem("kelyvo_today", data.tasks_today ?? 0);
+        localStorage.setItem("kelyvo_week", data.tasks_week ?? 0);
+        localStorage.setItem("kelyvo_qa", data.tasks_passed_qa ?? 0);
+        localStorage.setItem("kelyvo_earnings", data.earnings ?? 0);
 
-        localStorage.setItem(
-            "kelyvo_user_role",
-            data.role
-        );
+        // Only synchronous DOM work belongs before boot completion.
+        // All network/database work starts after the shell is painted.
+        revealRoleWorkspace(data);
+        clearSessionMarker();
+        finishBoot();
 
-        localStorage.setItem(
-            "kelyvo_today",
-            data.tasks_today ?? 0
-        );
+        window.setTimeout(() => {
+            loadRoleWorkspaceData(data);
+            startKelyvoPresence();
+        }, 0);
 
-        localStorage.setItem(
-            "kelyvo_week",
-            data.tasks_week ?? 0
-        );
-
-        localStorage.setItem(
-            "kelyvo_qa",
-            data.tasks_passed_qa ?? 0
-        );
-
-        localStorage.setItem(
-            "kelyvo_earnings",
-            data.earnings ?? 0
-        );
-
-        initializeAuthenticatedUI(
-            data
-        );
-
+        return true;
     } catch (error) {
-
-        /*
-         * Do not trust the cached login if the server cannot validate the
-         * secure session. Leave the user at the authentication screen.
-         */
-        console.warn(
-            "KELYVO: secure session validation failed:",
-            error
-        );
-
-        [
-            "kelyvo_user_email",
-            "kelyvo_user_role",
-            "kelyvo_today",
-            "kelyvo_week",
-            "kelyvo_qa",
-            "kelyvo_earnings"
-        ].forEach(
-            key =>
-                localStorage.removeItem(
-                    key
-                )
-        );
-
+        console.warn("KELYVO: secure session validation failed:", error);
+        ["kelyvo_user_email","kelyvo_user_role","kelyvo_today","kelyvo_week","kelyvo_qa","kelyvo_earnings"].forEach(key => localStorage.removeItem(key));
         clearActiveTaskSession();
+        clearSessionMarker();
+        finishBoot();
+        return false;
     }
 }
 
 
-window.addEventListener(
-    "load",
-    async function() {
-        await neutralizeStaleKelyvoServiceWorkers();
-        await restoreAuthenticatedSession();
-    }
-);
+
+window.addEventListener("load", function () {
+    void neutralizeStaleKelyvoServiceWorkers();
+    void restoreAuthenticatedSession();
+});
 
 </script>
 
@@ -13145,15 +12492,15 @@ window.addEventListener(
             <div>
                 <div class="text-[10px] uppercase tracking-widest text-amber-400 font-mono">Direct to Admin</div>
                 <h2 id="kelyvo-support-title" class="text-xl font-light mt-2">KELYVO Support</h2>
-                <p class="text-xs text-zinc-500 mt-1">Tell us what went wrong. You can attach a screenshot.</p>
+                <p class="text-xs text-zinc-500 mt-1">Send a message directly to KELYVO Admin. You can attach a screenshot.</p>
             </div>
             <button type="button" onclick="kelyvoCloseSupport()" class="border border-zinc-800 rounded-lg px-3 py-2 text-xs uppercase">Close</button>
         </div>
         <form onsubmit="kelyvoSubmitSupport(event)" class="p-5">
             <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Problem</label>
             <textarea id="kelyvo-support-message" required maxlength="4000" placeholder="Describe the problem..."></textarea>
-            <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mt-4 mb-2">Screenshot</label>
-            <input id="kelyvo-support-attachment" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+            <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mt-4 mb-2">Attachment</label>
+            <input id="kelyvo-support-attachment" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="block w-full text-xs text-zinc-400">
             <div id="kelyvo-support-status" class="kelyvo-support-status mt-3"></div>
             <div class="flex justify-end gap-2 mt-4">
                 <button type="button" onclick="kelyvoCloseSupport()" class="border border-zinc-800 rounded-lg px-4 py-2.5 text-xs uppercase">Cancel</button>
@@ -13168,7 +12515,7 @@ window.addEventListener(
         <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
             <div>
                 <div class="text-sm">Notifications</div>
-                <div class="text-[10px] text-zinc-500 mt-1">Important workspace events.</div>
+                <div class="text-[10px] text-zinc-500 mt-1">Important updates from KELYVO Admin.</div>
             </div>
             <button type="button" onclick="kelyvoCloseNotifications()" class="text-zinc-500">✕</button>
         </div>
@@ -13636,6 +12983,33 @@ window.addEventListener(
         }
     };
 
+    window.kelyvoResetAnnotationHistory = async function () {
+        const confirmed = confirm(
+            "This will clear annotation history and release tasks for practice mode. Continue?"
+        );
+        if (!confirmed) return;
+
+        try {
+            const response = await fetch("/admin/reset-qa-queue?confirm=RESET_QA2", {
+                method: "POST",
+                credentials: "same-origin"
+            });
+
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                throw new Error((data && data.detail) || "Reset failed.");
+            }
+
+            alert("Annotation history reset. Tasks are available again.");
+            if (typeof loadAdminQueue === "function") {
+                loadAdminQueue();
+            }
+        } catch (error) {
+            alert(error.message || "Unable to reset annotation history.");
+        }
+    };
+
     window.kelyvoResolveTicket = async function (ticketId) {
         try {
             const response = await fetch(`/api/admin/support/tickets/${encodeURIComponent(ticketId)}`, {
@@ -13706,6 +13080,51 @@ window.addEventListener(
     });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
+
+
+async function resetKelyvoAnnotationHistory() {
+    const confirmed = confirm(
+        "WARNING: This will clear KELYVO annotation history and reset workflow state. Continue?"
+    );
+    if (!confirmed) return;
+
+    showLoader("Resetting annotation history...");
+
+    try {
+        const response = await fetch("/api/admin/reset-annotation-history", {
+            method: "POST",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(data?.detail || "Reset failed.");
+        }
+
+        hideLoader();
+        alert("Annotation history reset completed.");
+        await loadAdminOperations();
+        await loadAdminQueue();
+
+    } catch (error) {
+        hideLoader();
+        alert(error.message || "Reset failed.");
+    }
+}
+</script>
+
+
+<script>
+/* Boot visibility is owned by restoreAuthenticatedSession(). There is intentionally
+   no independent window.load timeout here. */
+</script>
+
+
+<script>
+window.showKelyvoTransition = function(message="Processing..."){ showLoader(message); };
+window.hideKelyvoTransition = function(){ hideLoader(); };
 </script>
 
 </body>
